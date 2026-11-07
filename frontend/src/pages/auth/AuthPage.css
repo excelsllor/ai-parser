@@ -398,6 +398,32 @@
   gap: 10px;
 }
 
+.auth-yandex {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.auth-yandex-sdk {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-yandex-sdk:empty {
+  display: none;
+}
+
+.auth-yandex-sdk iframe {
+  max-width: 100%;
+  border: 0;
+}
+
+.auth-yandex-fallback {
+  width: 100%;
+}
+
 .auth-sso-button {
   display: flex;
   align-items: center;
@@ -428,54 +454,22 @@
   outline-offset: 2px;
 }
 
-.sso-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.auth-sso-button--wide {
+  grid-column: 1 / -1;
+}
+
+.auth-sso-logo {
   width: 20px;
   height: 20px;
   flex: 0 0 auto;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
+  border-radius: 4px;
+  object-fit: contain;
 }
 
-.sso-badge svg {
-  font-size: 13px;
-  stroke-width: 2.4;
-}
-
-.sso-badge--yandex {
-  background: #dc2626;
-}
-
-.sso-badge--vk {
-  border-radius: 6px;
-  background: #0077ff;
-  font-size: 10px;
-}
-
-.sso-badge--sber {
-  background: #059669;
-}
-
-.sso-badge--tbank {
-  border-radius: 6px;
-  background: #ffdd2d;
-  color: #0f172a;
-}
-
-.sso-badge--alfa {
-  border-radius: 6px;
-  background: #ef3124;
-}
-
-.sso-badge--gosuslugi {
-  border-radius: 6px;
-  background: #2563eb;
-  font-size: 10px;
+.auth-sso-wordmark {
+  max-width: 100%;
+  height: 22px;
+  object-fit: contain;
 }
 
 .auth-alert {
@@ -506,6 +500,17 @@
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #1e40af;
+}
+
+.auth-token-card {
+  text-align: center;
+}
+
+.auth-token-status {
+  margin: 16px 0 0;
+  color: var(--auth-muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 @media (min-width: 640px) {

@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { login, saveSession } from '@api/auth';
 import { ApiError } from '@api/http';
+import alfaLogo from '@assets/providers/alfa.svg';
+import gosuslugiLogo from '@assets/providers/gosuslugi.svg';
+import sberLogo from '@assets/providers/sber.svg';
+import tIdLogo from '@assets/providers/t-id.svg';
+import vkIdLogo from '@assets/providers/vk-id.svg';
+import yandexLogo from '@assets/providers/yandex.svg';
 import {
   AlertCircleIcon,
   ArrowRightIcon,
-  CheckIcon,
   EyeIcon,
   EyeOffIcon,
   InfoIcon,
@@ -16,19 +21,18 @@ import {
   ShieldHeartIcon,
   SparklesIcon,
 } from '@components/ui/icons';
+import { loadScript } from '@utils/loadScript';
 
 import './AuthPage.css';
 
 type Tab = 'login' | 'register';
 
-const SSO_PROVIDERS = [
-  { id: 'yandex', label: 'Яндекс ID', badge: 'Я', className: 'sso-badge--yandex' },
-  { id: 'vk', label: 'VK ID', badge: 'VK', className: 'sso-badge--vk' },
-  { id: 'sber', label: 'Сбер ID', badge: 'С', className: 'sso-badge--sber' },
-  { id: 'tbank', label: 'Т-Банк ID', badge: 'T', className: 'sso-badge--tbank' },
-  { id: 'alfa', label: 'Альфа ID', badge: 'A', className: 'sso-badge--alfa' },
-  { id: 'gosuslugi', label: 'Госуслуги', badge: 'ГУ', className: 'sso-badge--gosuslugi' },
-] as const;
+const YANDEX_SDK_URL =
+  'https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js';
+const YANDEX_CLIENT_ID = import.meta.env.VITE_YANDEX_CLIENT_ID as string | undefined;
+const YANDEX_REDIRECT_URI = import.meta.env.VITE_YANDEX_REDIRECT_URI as
+  | string
+  | undefined;
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -48,6 +52,72 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const yandexStarted = useRef(false);
+  const [yandexReady, setYandexReady] = useState(false);
+
+  useEffect(() => {
+    if (yandexStarted.current) {
+      return;
+    }
+    yandexStarted.current = true;
+
+    if (!YANDEX_CLIENT_ID) {
+      return;
+    }
+
+    const isStandardHttps =
+      window.location.protocol === 'https:' &&
+      (window.location.port === '' || window.location.port === '443');
+
+    if (!isStandardHttps) {
+      return;
+    }
+
+    const redirectUri =
+      YANDEX_REDIRECT_URI || `${window.location.origin}/auth/yandex/token`;
+
+    void (async () => {
+      try {
+        await loadScript(YANDEX_SDK_URL);
+        const sdk = window.YaAuthSuggest;
+        if (!sdk) {
+          throw new Error('Yandex SDK is unavailable');
+        }
+
+        const { handler } = await sdk.init(
+          {
+            client_id: YANDEX_CLIENT_ID,
+            response_type: 'token',
+            redirect_uri: redirectUri,
+          },
+          window.location.origin,
+          {
+            view: 'button',
+            parentId: 'yandex-auth-button',
+            buttonView: 'main',
+            buttonTheme: 'light',
+            buttonSize: 'l',
+            buttonBorderRadius: 8,
+          },
+        );
+
+        const resultPromise = handler();
+        setYandexReady(true);
+        const result = await resultPromise;
+
+        if (result.status === 'ok') {
+          setNotice(
+            'Яндекс ID: вход выполнен. Это тестовый режим — токен не отправляется на сервер.',
+          );
+        }
+      } catch {
+        setNotice(
+          'Кнопка Яндекс ID недоступна. Проверьте Redirect URI в настройках OAuth-приложения.',
+        );
+      }
+    })();
+  }, []);
 
   function switchTab(next: Tab) {
     setError(null);
@@ -387,19 +457,61 @@ export default function AuthPage() {
             </div>
 
             <div className="auth-sso">
-              {SSO_PROVIDERS.map((provider) => (
-                <button
-                  className="auth-sso-button"
-                  key={provider.id}
-                  type="button"
-                  onClick={() => handleSso(provider.label)}
-                >
-                  <span className={`sso-badge ${provider.className}`}>
-                    {provider.id === 'sber' ? <CheckIcon /> : provider.badge}
-                  </span>
-                  <span>{provider.label}</span>
-                </button>
-              ))}
+              <div className="auth-yandex">
+                <div className="auth-yandex-sdk" id="yandex-auth-button" />
+                {!yandexReady && (
+                  <button
+                    className="auth-sso-button auth-yandex-fallback"
+                    type="button"
+                    onClick={() => handleSso('Яндекс ID')}
+                  >
+                    <img className="auth-sso-logo" src={yandexLogo} alt="" />
+                    <span>Яндекс ID</span>
+                  </button>
+                )}
+              </div>
+
+              <button
+                className="auth-sso-button"
+                type="button"
+                onClick={() => handleSso('VK ID')}
+              >
+                <img className="auth-sso-wordmark" src={vkIdLogo} alt="VK ID" />
+              </button>
+              <button
+                className="auth-sso-button"
+                type="button"
+                onClick={() => handleSso('Сбер ID')}
+              >
+                <img className="auth-sso-logo" src={sberLogo} alt="" />
+                <span>Сбер ID</span>
+              </button>
+              <button
+                className="auth-sso-button"
+                type="button"
+                onClick={() => handleSso('Т-Банк ID')}
+              >
+                <img className="auth-sso-wordmark" src={tIdLogo} alt="Т-Банк ID" />
+              </button>
+              <button
+                className="auth-sso-button"
+                type="button"
+                onClick={() => handleSso('Альфа ID')}
+              >
+                <img className="auth-sso-logo" src={alfaLogo} alt="" />
+                <span>Альфа ID</span>
+              </button>
+              <button
+                className="auth-sso-button auth-sso-button--wide"
+                type="button"
+                onClick={() => handleSso('Госуслуги')}
+              >
+                <img
+                  className="auth-sso-wordmark"
+                  src={gosuslugiLogo}
+                  alt="Госуслуги"
+                />
+              </button>
             </div>
           </section>
         </div>

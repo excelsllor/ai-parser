@@ -71,3 +71,22 @@ export default defineConfig([
   },
 ])
 ```
+
+## Запуск
+
+```bash
+bun install
+bun run dev
+```
+
+Vite проксирует `/api` на `http://127.0.0.1:8080`, поэтому backend должен быть запущен через Docker Compose.
+
+## Яндекс ID
+
+Официальная кнопка Яндекс ID подключается через `sdk-suggest.js`. Для неё нужны:
+
+- `VITE_YANDEX_CLIENT_ID` — client_id OAuth-приложения;
+- `VITE_YANDEX_REDIRECT_URI` — URL вспомогательной страницы, совпадающий с Redirect URI в настройках OAuth-приложения (по умолчанию `/auth/yandex/token`);
+- HTTPS на стандартном порту 443: Яндекс не разрешает встраивать кнопку на HTTP или нестандартном порту.
+
+`client_secret` в frontend не передаётся. Он хранится только в серверном `.env` и понадобится, если позже понадобится обменивать код на токен на backend.

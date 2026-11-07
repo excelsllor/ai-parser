@@ -9,6 +9,7 @@ import {
 import { getAccessToken } from '@api/auth';
 import DefaultLayout from '@layout/DefaultLayout';
 import AuthPage from '@pages/auth/AuthPage';
+import YandexTokenPage from '@pages/auth/YandexTokenPage';
 import HomePage from '@pages/Home/HomePage';
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -25,6 +26,7 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
+        <Route path="/auth/yandex/token" element={<YandexTokenPage />} />
         <Route element={<DefaultLayout />}>
           <Route
             path="/"
