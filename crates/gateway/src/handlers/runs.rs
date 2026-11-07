@@ -101,12 +101,18 @@ pub async fn create(
                 }
             }
             "files" | "file" => {
+                let Some(raw_name) = field.file_name().map(str::to_owned) else {
+                    let _ = field.bytes().await;
+                    continue;
+                };
+                if raw_name.trim().is_empty() {
+                    let _ = field.bytes().await;
+                    continue;
+                }
                 if files.len() >= 20 {
                     return Err(AppError::BadRequest("too many files (max 20)".into()));
                 }
-                let filename = field
-                    .file_name()
-                    .and_then(sanitize_filename)
+                let filename = sanitize_filename(&raw_name)
                     .ok_or_else(|| AppError::BadRequest("invalid file name".into()))?;
                 let bytes = field
                     .bytes()

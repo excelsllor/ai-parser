@@ -170,7 +170,7 @@ pub fn sanitize_filename(name: &str) -> Option<String> {
     }
     let mut out = String::with_capacity(base.len());
     for ch in base.chars() {
-        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_') {
+        if ch.is_alphanumeric() || matches!(ch, '.' | '-' | '_') {
             out.push(ch);
         } else if ch.is_whitespace() {
             out.push('_');
@@ -254,6 +254,10 @@ mod tests {
     fn sanitizes_filenames() {
         assert_eq!(sanitize_filename("../../etc/passwd").unwrap(), "passwd");
         assert_eq!(sanitize_filename(" digest.md ").unwrap(), "digest.md");
+        assert_eq!(
+            sanitize_filename("новости за ноябрь.zip").unwrap(),
+            "новости_за_ноябрь.zip"
+        );
         assert!(sanitize_filename("..").is_none());
     }
 
