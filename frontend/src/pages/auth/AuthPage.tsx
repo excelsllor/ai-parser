@@ -4,11 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { login, saveSession } from '@api/auth';
 import { ApiError } from '@api/http';
-import alfaLogo from '@assets/providers/alfa.svg';
-import gosuslugiLogo from '@assets/providers/gosuslugi.svg';
-import sberLogo from '@assets/providers/sber.svg';
-import tIdLogo from '@assets/providers/t-id.svg';
-import vkIdLogo from '@assets/providers/vk-id.svg';
+import vkLogo from '@assets/providers/vk.svg';
 import yandexLogo from '@assets/providers/yandex.svg';
 import {
   AlertCircleIcon,
@@ -34,6 +30,10 @@ const YANDEX_REDIRECT_URI = import.meta.env.VITE_YANDEX_REDIRECT_URI as
   | string
   | undefined;
 
+const VK_SDK_URL = 'https://unpkg.com/@vkid/sdk@%3C3.0.0/dist-sdk/umd/index.js';
+const VK_APP_ID = Number(import.meta.env.VITE_VK_APP_ID || 54883348);
+const VK_REDIRECT_URL = import.meta.env.VITE_VK_REDIRECT_URL as string | undefined;
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,6 +56,10 @@ export default function AuthPage() {
   const yandexStarted = useRef(false);
   const [yandexReady, setYandexReady] = useState(false);
 
+  const vkStarted = useRef(false);
+  const vkContainerRef = useRef<HTMLDivElement>(null);
+  const [vkStatus, setVkStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+
   useEffect(() => {
     if (yandexStarted.current) {
       return;
@@ -69,8 +73,11 @@ export default function AuthPage() {
     const isStandardHttps =
       window.location.protocol === 'https:' &&
       (window.location.port === '' || window.location.port === '443');
+    const isLocalhost =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
 
-    if (!isStandardHttps) {
+    if (!isStandardHttps && !isLocalhost) {
       return;
     }
 
@@ -115,6 +122,63 @@ export default function AuthPage() {
         setNotice(
           'Кнопка Яндекс ID недоступна. Проверьте Redirect URI в настройках OAuth-приложения.',
         );
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (vkStarted.current) {
+      return;
+    }
+    vkStarted.current = true;
+
+    const container = vkContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const redirectUrl =
+      VK_REDIRECT_URL || `${window.location.origin}/auth/vk/callback`;
+
+    void (async () => {
+      try {
+        await loadScript(VK_SDK_URL);
+        const VKID = window.VKIDSDK;
+        if (!VKID) {
+          throw new Error('VK ID SDK is unavailable');
+        }
+
+        VKID.Config.init({
+          app: VK_APP_ID,
+          redirectUrl,
+          responseMode: VKID.ConfigResponseMode.Callback,
+          source: VKID.ConfigSource.LOWCODE,
+          scope: '',
+        });
+
+        const oneTap = new VKID.OneTap();
+        oneTap
+          .render({
+            container,
+            showAlternativeLogin: true,
+            styles: {
+              width: 280,
+            },
+            oauthList: ['ok_ru', 'mail_ru'],
+          })
+          .on(VKID.WidgetEvents.ERROR, () => {
+            setNotice('VK ID: не удалось открыть виджет. Попробуйте позже.');
+          })
+          .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, () => {
+            setNotice(
+              'VK ID: вход выполнен. Это тестовый режим — токен не запрашивается.',
+            );
+          });
+
+        setVkStatus('ready');
+      } catch {
+        setVkStatus('failed');
+        setNotice('Виджет VK ID недоступен. Проверьте блокировку скриптов.');
       }
     })();
   }, []);
@@ -185,6 +249,24 @@ export default function AuthPage() {
   function handleSso(provider: string) {
     setError(null);
     setNotice(`Вход через ${provider} пока не подключён.`);
+  }
+
+  function startYandexOAuth() {
+    setError(null);
+    setNotice(null);
+
+    if (!YANDEX_CLIENT_ID) {
+      setNotice('Яндекс ID не настроен: отсутствует client_id.');
+      return;
+    }
+
+    const redirectUri =
+      YANDEX_REDIRECT_URI || `${window.location.origin}/auth/yandex/token`;
+    const url = new URL('https://oauth.yandex.ru/authorize');
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('client_id', YANDEX_CLIENT_ID);
+    url.searchParams.set('redirect_uri', redirectUri);
+    window.location.assign(url.toString());
   }
 
   return (
@@ -463,7 +545,7 @@ export default function AuthPage() {
                   <button
                     className="auth-sso-button auth-yandex-fallback"
                     type="button"
-                    onClick={() => handleSso('Яндекс ID')}
+                    onClick={startYandexOAuth}
                   >
                     <img className="auth-sso-logo" src={yandexLogo} alt="" />
                     <span>Яндекс ID</span>
@@ -471,47 +553,19 @@ export default function AuthPage() {
                 )}
               </div>
 
-              <button
-                className="auth-sso-button"
-                type="button"
-                onClick={() => handleSso('VK ID')}
-              >
-                <img className="auth-sso-wordmark" src={vkIdLogo} alt="VK ID" />
-              </button>
-              <button
-                className="auth-sso-button"
-                type="button"
-                onClick={() => handleSso('Сбер ID')}
-              >
-                <img className="auth-sso-logo" src={sberLogo} alt="" />
-                <span>Сбер ID</span>
-              </button>
-              <button
-                className="auth-sso-button"
-                type="button"
-                onClick={() => handleSso('Т-Банк ID')}
-              >
-                <img className="auth-sso-wordmark" src={tIdLogo} alt="Т-Банк ID" />
-              </button>
-              <button
-                className="auth-sso-button"
-                type="button"
-                onClick={() => handleSso('Альфа ID')}
-              >
-                <img className="auth-sso-logo" src={alfaLogo} alt="" />
-                <span>Альфа ID</span>
-              </button>
-              <button
-                className="auth-sso-button auth-sso-button--wide"
-                type="button"
-                onClick={() => handleSso('Госуслуги')}
-              >
-                <img
-                  className="auth-sso-wordmark"
-                  src={gosuslugiLogo}
-                  alt="Госуслуги"
-                />
-              </button>
+              <div className="auth-vk">
+                <div className="auth-vk-sdk" ref={vkContainerRef} />
+                {vkStatus === 'failed' && (
+                  <button
+                    className="auth-sso-button auth-vk-fallback"
+                    type="button"
+                    onClick={() => handleSso('VK ID')}
+                  >
+                    <img className="auth-sso-logo" src={vkLogo} alt="" />
+                    <span>VK ID</span>
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         </div>

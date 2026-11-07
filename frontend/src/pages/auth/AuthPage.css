@@ -393,34 +393,38 @@
 }
 
 .auth-sso {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.auth-yandex {
-  grid-column: 1 / -1;
+.auth-yandex,
+.auth-vk {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   min-height: 0;
 }
 
-.auth-yandex-sdk {
+.auth-yandex-sdk,
+.auth-vk-sdk {
   display: flex;
   justify-content: center;
 }
 
-.auth-yandex-sdk:empty {
+.auth-yandex-sdk:empty,
+.auth-vk-sdk:empty {
   display: none;
 }
 
-.auth-yandex-sdk iframe {
+.auth-yandex-sdk iframe,
+.auth-vk-sdk iframe {
   max-width: 100%;
   border: 0;
 }
 
-.auth-yandex-fallback {
+.auth-yandex-fallback,
+.auth-vk-fallback {
   width: 100%;
 }
 
@@ -454,21 +458,11 @@
   outline-offset: 2px;
 }
 
-.auth-sso-button--wide {
-  grid-column: 1 / -1;
-}
-
 .auth-sso-logo {
   width: 20px;
   height: 20px;
   flex: 0 0 auto;
   border-radius: 4px;
-  object-fit: contain;
-}
-
-.auth-sso-wordmark {
-  max-width: 100%;
-  height: 22px;
   object-fit: contain;
 }
 
@@ -511,6 +505,11 @@
   color: var(--auth-muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.auth-token-footer {
+  margin: 16px 0 0;
+  font-size: 12px;
 }
 
 @media (min-width: 640px) {
