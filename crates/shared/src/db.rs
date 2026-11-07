@@ -81,24 +81,65 @@ pub async fn bootstrap_admin(pool: &PgPool, config: &Config) -> AppResult<()> {
 }
 
 pub async fn seed_sources(pool: &PgPool) -> AppResult<()> {
+    // Appendix 1 of the hackathon case. RSS feeds are preferred; sites without a
+    // stable feed are connected through HTML extraction.
     let defaults = [
+        (
+            "SecurityLab",
+            "rss",
+            "https://www.securitylab.ru/_services/export/rss/news/",
+            "reprint",
+        ),
         ("Хакер", "rss", "https://xakep.ru/feed/", "reprint"),
+        ("ComNews", "rss", "https://www.comnews.ru/rss", "reprint"),
         (
             "Коммерсантъ",
             "rss",
             "https://www.kommersant.ru/RSS/news.xml",
             "reprint",
         ),
+        ("ТАСС", "rss", "https://tass.ru/rss/v2.xml", "reprint"),
         (
             "РИА Новости",
             "rss",
             "https://ria.ru/export/rss2/archive/index.xml",
             "reprint",
         ),
+        ("IT-World", "rss", "https://www.it-world.ru/rss/", "reprint"),
         (
-            "iXBT",
+            "SecurityMedia",
             "rss",
-            "https://www.ixbt.com/export/news.rss",
+            "https://securitymedia.org/rss/",
+            "reprint",
+        ),
+        (
+            "InfoWatch",
+            "html",
+            "https://www.infowatch.ru/sitemap.xml",
+            "primary",
+        ),
+        (
+            "Инфобезопасность",
+            "rss",
+            "https://infobezopasnost.ru/blog/news/rss/",
+            "reprint",
+        ),
+        (
+            "ICT.Moscow",
+            "html",
+            "https://ict.moscow/projects/cybersecurity/",
+            "reprint",
+        ),
+        (
+            "Газета.Ru",
+            "rss",
+            "https://www.gazeta.ru/export/rss/first.xml",
+            "reprint",
+        ),
+        (
+            "Аргументы и факты",
+            "rss",
+            "https://aif.ru/rss/techno.php",
             "reprint",
         ),
         (
@@ -113,12 +154,86 @@ pub async fn seed_sources(pool: &PgPool) -> AppResult<()> {
             "https://habr.com/ru/rss/hubs/infosecurity/all/?fl=ru",
             "reprint",
         ),
+        ("RB.RU", "rss", "https://rb.ru/feeds/news_ex/", "reprint"),
+        ("3DNews", "rss", "https://3dnews.ru/news/rss/", "reprint"),
+        (
+            "Компьютерра",
+            "rss",
+            "https://www.computerra.ru/tag/security/feed/",
+            "reprint",
+        ),
+        (
+            "ITWeek",
+            "rss",
+            "https://www.itweek.ru/rss/index.php",
+            "reprint",
+        ),
+        (
+            "iXBT",
+            "rss",
+            "https://www.ixbt.com/export/news.rss",
+            "reprint",
+        ),
+        (
+            "Overclockers",
+            "html",
+            "https://overclockers.ru/news",
+            "reprint",
+        ),
+        (
+            "Российская газета",
+            "rss",
+            "https://rg.ru/xml/index.xml",
+            "reprint",
+        ),
+        (
+            "Известия",
+            "rss",
+            "https://iz.ru/xml/rss/all.xml",
+            "reprint",
+        ),
+        (
+            "Positive Technologies",
+            "html",
+            "https://ptsecurity.com/about/news/",
+            "primary",
+        ),
+        (
+            "Солар",
+            "html",
+            "https://rt-solar.ru/events/news/",
+            "primary",
+        ),
+        (
+            "Лаборатория Касперского",
+            "rss",
+            "https://www.kaspersky.ru/blog/feed/",
+            "primary",
+        ),
+        (
+            "UserGate",
+            "html",
+            "https://usergate.com/sitemap-iblock-11.xml",
+            "primary",
+        ),
+        (
+            "ИнфоТеКС",
+            "html",
+            "https://infotecs.ru/press-center/publications/?filter%5Bsection_id%5D%5B%5D=109",
+            "primary",
+        ),
     ];
+
+    sqlx::query("DELETE FROM sources WHERE name = $1 AND url <> $2")
+        .bind("InfoWatch")
+        .bind("https://www.infowatch.ru/sitemap.xml")
+        .execute(pool)
+        .await?;
 
     for (name, kind, url, trust) in defaults {
         sqlx::query(
             "INSERT INTO sources (name, kind, url, trust) VALUES ($1, $2, $3, $4)
-             ON CONFLICT (url) DO NOTHING",
+             ON CONFLICT (url) DO UPDATE SET name = EXCLUDED.name, kind = EXCLUDED.kind, trust = EXCLUDED.trust",
         )
         .bind(name)
         .bind(kind)
@@ -129,7 +244,6 @@ pub async fn seed_sources(pool: &PgPool) -> AppResult<()> {
     }
     Ok(())
 }
-
 pub async fn seed_keywords(pool: &PgPool) -> AppResult<()> {
     let words = [
         "кибербезопасность",

@@ -3,12 +3,15 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use dom_smoothie::Readability;
 use futures::StreamExt;
 use news_shared::db;
 use news_shared::error::{AppError, AppResult};
 use news_shared::security::validate_public_url;
 use news_shared::telemetry::metrics;
-use news_shared::text::{canonicalize_url, decode_bytes, parse_date, strip_html, truncate_chars};
+use news_shared::text::{
+    canonicalize_url, decode_bytes, normalize_whitespace, parse_date, strip_html, truncate_chars,
+};
 use scraper::{Html, Selector};
 use serde_json::Value;
 use url::Url;
@@ -535,7 +538,11 @@ async fn fetch_rss_source(
     let feed = feed_rs::parser::parse(&body[..])
         .map_err(|e| AppError::BadRequest(format!("invalid feed {}: {e}", source.name)))?;
 
-    let entries = feed.entries.into_iter().take(20).collect::<Vec<_>>();
+    let entries = feed
+        .entries
+        .into_iter()
+        .take(state.config.max_articles_per_source)
+        .collect::<Vec<_>>();
     for entry in entries {
         if out.len() >= state.config.max_articles_per_run {
             break;
@@ -605,6 +612,64 @@ async fn fetch_rss_source(
     Ok(())
 }
 
+fn is_probable_article_link(source_url: &str, candidate: &Url) -> bool {
+    if !matches!(candidate.scheme(), "http" | "https") {
+        return false;
+    }
+    let path = candidate.path().trim_end_matches('/');
+    if path.is_empty() || path == "/" {
+        return false;
+    }
+    let source_path = Url::parse(source_url)
+        .map(|url| url.path().trim_end_matches('/').to_string())
+        .unwrap_or_default();
+    if path == source_path {
+        return false;
+    }
+    let lower = path.to_lowercase();
+    for skip in [
+        "/tag/",
+        "/tags/",
+        "/search",
+        "/login",
+        "/auth",
+        "/privacy",
+        "/contacts",
+        "/rss",
+        "/feed",
+        "/sitemap",
+        "/wp-",
+        "/category/",
+    ] {
+        if lower.contains(skip) {
+            return false;
+        }
+    }
+    let segments = path
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    if segments.len() < 2 {
+        return false;
+    }
+    let has_long_segment = segments.iter().any(|segment| segment.chars().count() >= 8);
+    let has_numeric_id = segments
+        .iter()
+        .any(|segment| segment.len() >= 4 && segment.chars().all(|c| c.is_ascii_digit()));
+    let known_section = [
+        "/news/",
+        "/blog/",
+        "/press-center/publications/",
+        "/security-reports/",
+        "/about/news/",
+        "/events/news/",
+        "/analytics/",
+    ]
+    .iter()
+    .any(|prefix| lower.contains(prefix));
+    has_long_segment || has_numeric_id || known_section
+}
+
 async fn fetch_html_source(
     state: &CollectorState,
     client: &reqwest::Client,
@@ -612,7 +677,7 @@ async fn fetch_html_source(
     allowed_hosts: &[String],
     out: &mut Vec<RawArticle>,
 ) -> AppResult<()> {
-    let (base_url, body, _) = fetch_bytes(
+    let (base_url, body, content_type) = fetch_bytes(
         state,
         client,
         &source.url,
@@ -621,14 +686,41 @@ async fn fetch_html_source(
     )
     .await?;
     let html = decode_bytes(&body);
-    let links = {
+    let is_xml = content_type
+        .as_deref()
+        .map(|value| value.contains("xml"))
+        .unwrap_or(false)
+        || html.trim_start().starts_with("<?xml")
+        || html.contains("<urlset")
+        || html.contains("<sitemapindex");
+
+    let links = if is_xml {
+        // Sitemap sources (for example UserGate) expose <loc> URLs instead of links.
+        let re = regex::Regex::new(r"<loc>\s*([^<\s]+)\s*</loc>").expect("sitemap regex");
+        let mut links = Vec::new();
+        for capture in re.captures_iter(&html) {
+            let raw = capture.get(1).map(|m| m.as_str()).unwrap_or_default();
+            if let Ok(joined) = base_url.join(raw) {
+                if joined.host_str() == base_url.host_str() {
+                    let canonical =
+                        canonicalize_url(joined.as_str()).unwrap_or_else(|| joined.to_string());
+                    if !links.contains(&canonical) {
+                        links.push(canonical);
+                    }
+                }
+            }
+        }
+        links
+    } else {
         let doc = Html::parse_document(&html);
         let selector = Selector::parse("a[href]").expect("selector");
         let mut links = Vec::new();
         for element in doc.select(&selector) {
             if let Some(href) = element.value().attr("href") {
                 if let Ok(joined) = base_url.join(href) {
-                    if joined.host_str() == base_url.host_str() {
+                    if joined.host_str() == base_url.host_str()
+                        && is_probable_article_link(&source.url, &joined)
+                    {
                         let canonical =
                             canonicalize_url(joined.as_str()).unwrap_or_else(|| joined.to_string());
                         if !links.contains(&canonical) {
@@ -641,7 +733,28 @@ async fn fetch_html_source(
         links
     };
 
-    for link in links.into_iter().take(20) {
+    if base_url.host_str() == Some("usergate.com") {
+        for link in links.into_iter().take(state.config.max_articles_per_source) {
+            if out.len() >= state.config.max_articles_per_run {
+                break;
+            }
+            match fetch_usergate_article(state, client, &link, allowed_hosts).await {
+                Ok(mut article) => {
+                    article.source_id = Some(source.id);
+                    article.source_name = source.name.clone();
+                    article.source_trust = source.trust.clone();
+                    out.push(article);
+                }
+                Err(error) => {
+                    tracing::debug!(url = %link, error = %error, "UserGate article fetch failed");
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        return Ok(());
+    }
+
+    for link in links.into_iter().take(state.config.max_articles_per_source) {
         if out.len() >= state.config.max_articles_per_run {
             break;
         }
@@ -659,6 +772,100 @@ async fn fetch_html_source(
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
     Ok(())
+}
+
+async fn fetch_usergate_article(
+    state: &CollectorState,
+    client: &reqwest::Client,
+    link: &str,
+    allowed_hosts: &[String],
+) -> AppResult<RawArticle> {
+    let parsed = Url::parse(link)
+        .map_err(|error| AppError::BadRequest(format!("invalid UserGate url: {error}")))?;
+    let path = parsed.path();
+    let api_url = format!("https://usergate.com/api/v1/page/ru{path}");
+    let (_, body, _) = fetch_bytes(
+        state,
+        client,
+        &api_url,
+        allowed_hosts,
+        state.config.max_fetch_bytes,
+    )
+    .await?;
+    let value: serde_json::Value = serde_json::from_slice(&body)?;
+    let data = value
+        .get("data")
+        .ok_or_else(|| AppError::BadRequest("UserGate API returned no data".into()))?;
+    let title = data
+        .pointer("/seo/title")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    let mut text_parts = Vec::new();
+    let mut date_raw = String::new();
+    if let Some(blocks) = data.get("blocks").and_then(serde_json::Value::as_array) {
+        for block in blocks {
+            let Some(content) = block.get("content") else {
+                continue;
+            };
+            if date_raw.is_empty() {
+                if let Some(date) = content.get("date").and_then(serde_json::Value::as_str) {
+                    date_raw = date.to_string();
+                }
+            }
+            for key in ["description", "text", "body", "content"] {
+                if let Some(raw) = content.get(key).and_then(serde_json::Value::as_str) {
+                    let clean = strip_html(raw);
+                    if clean.chars().count() > 20 {
+                        text_parts.push(clean);
+                    }
+                }
+            }
+        }
+    }
+
+    let text = normalize_whitespace(&text_parts.join("\n"));
+    if text.chars().count() < 50 {
+        return Err(AppError::BadRequest(
+            "UserGate article text is too short".into(),
+        ));
+    }
+    let parsed_date = parse_date(&date_raw, state.config.control_timezone);
+    Ok(RawArticle {
+        external_id: path.trim_start_matches('/').to_string(),
+        source_id: None,
+        source_name: "UserGate".to_string(),
+        source_trust: "primary".to_string(),
+        title: if title.trim().is_empty() {
+            path.trim_start_matches('/').to_string()
+        } else {
+            title
+        },
+        text,
+        url: link.to_string(),
+        published_at: parsed_date.value,
+        date_confirmed: parsed_date.confirmed,
+    })
+}
+
+fn looks_like_challenge(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    let markers = [
+        "get_cookie_spsn",
+        "js-challenge",
+        "captcha",
+        "проверка браузера",
+        "ddos-guard",
+        "just a moment",
+        "access denied",
+        "enable javascript",
+        "включите javascript",
+        "document.addeventlistener",
+        "window.location",
+        "document.cookie",
+    ];
+    text.chars().count() < 200 || markers.iter().any(|marker| lower.contains(marker))
 }
 
 async fn fetch_article_page(
@@ -692,6 +899,11 @@ async fn fetch_article_page(
         "live",
         state.config.control_timezone,
     );
+    if looks_like_challenge(&article.text) {
+        return Err(AppError::BadRequest(
+            "article page is a JavaScript or captcha challenge".into(),
+        ));
+    }
     article.url = final_url.to_string();
     Ok(article)
 }
@@ -784,13 +996,12 @@ pub fn parse_html_article(
     tz: chrono_tz::Tz,
 ) -> RawArticle {
     let doc = Html::parse_document(html);
-    let title = meta_content(&doc, "meta[property='og:title']")
+    let fallback_title = meta_content(&doc, "meta[property='og:title']")
         .or_else(|| meta_content(&doc, "meta[name='twitter:title']"))
         .or_else(|| text_of(&doc, "h1"))
         .or_else(|| text_of(&doc, "title"))
         .unwrap_or_default();
-    let text = strip_html(html);
-    let raw_date = meta_content(&doc, "meta[property='article:published_time']")
+    let fallback_date = meta_content(&doc, "meta[property='article:published_time']")
         .or_else(|| meta_content(&doc, "meta[property='og:published_time']"))
         .or_else(|| meta_content(&doc, "meta[name='date']"))
         .or_else(|| meta_content(&doc, "meta[name='pubdate']"))
@@ -798,6 +1009,39 @@ pub fn parse_html_article(
         .or_else(|| attr_of(&doc, "time[datetime]", "datetime"))
         .or_else(|| json_ld_value(&doc, &["datePublished", "dateCreated"]))
         .unwrap_or_default();
+
+    // Readability removes navigation, scripts and boilerplate. Fall back to the
+    // simple DOM extraction only when the readable body is too short.
+    let readable = Readability::new(html, Some(url), None)
+        .ok()
+        .and_then(|mut readability| readability.parse().ok());
+    let (title, text, raw_date) = if let Some(article) = readable {
+        let text = normalize_whitespace(&article.text_content);
+        if text.chars().count() >= 200 {
+            (
+                if article.title.trim().is_empty() {
+                    fallback_title.clone()
+                } else {
+                    article.title
+                },
+                text,
+                article.published_time.unwrap_or(fallback_date.clone()),
+            )
+        } else {
+            (
+                fallback_title.clone(),
+                strip_html(html),
+                fallback_date.clone(),
+            )
+        }
+    } else {
+        (
+            fallback_title.clone(),
+            strip_html(html),
+            fallback_date.clone(),
+        )
+    };
+
     let parsed = parse_date(&raw_date, tz);
     let canonical = meta_content(&doc, "link[rel='canonical']")
         .and_then(|href| canonicalize_url(&href))

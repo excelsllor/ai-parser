@@ -678,7 +678,10 @@ async fn run_checks(
         .collect::<Vec<_>>();
     let outside_excluded = outside.iter().all(|item| {
         journal.iter().any(|row| {
-            row.item_id == item.id && row.status == "исключён" && row.reason.contains("вне периода")
+            row.item_id == item.id
+                && row.status == "исключён"
+                && (row.reason.contains("вне периода")
+                    || row.reason.contains("дата публикации не подтверждена"))
         })
     });
     checks.push(CheckRow {

@@ -90,6 +90,7 @@ pub struct Config {
     pub allowed_source_hosts: Vec<String>,
     pub max_fetch_bytes: usize,
     pub max_articles_per_run: usize,
+    pub max_articles_per_source: usize,
     pub max_article_chars: usize,
     pub prompt_version: String,
     pub critic_llm: bool,
@@ -269,14 +270,18 @@ impl Config {
             smtp,
             live_fetch_enabled: env_or("LIVE_FETCH_ENABLED", "true").parse().unwrap_or(true),
             allowed_source_hosts,
-            max_fetch_bytes: env_or("MAX_FETCH_BYTES", "2097152")
+            max_fetch_bytes: env_or("MAX_FETCH_BYTES", "4194304")
                 .parse()
                 .unwrap_or(2_097_152)
                 .clamp(65_536, 16_777_216),
-            max_articles_per_run: env_or("MAX_ARTICLES_PER_RUN", "200")
+            max_articles_per_run: env_or("MAX_ARTICLES_PER_RUN", "150")
                 .parse()
-                .unwrap_or(200)
+                .unwrap_or(150)
                 .clamp(1, 2000),
+            max_articles_per_source: env_or("MAX_ARTICLES_PER_SOURCE", "5")
+                .parse()
+                .unwrap_or(5)
+                .clamp(1, 100),
             max_article_chars: env_or("MAX_ARTICLE_CHARS", "20000")
                 .parse()
                 .unwrap_or(20_000)

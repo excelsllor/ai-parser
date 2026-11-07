@@ -208,7 +208,7 @@ async function renderNewRun() {
         <div id="liveBox" style="margin-top:14px">
           <div class="pill">Источники для живого сбора</div>
           <div class="grid" style="margin-top:8px">
-            ${sources.map((s) => `<label class="badge"><input type="checkbox" name="sources" value="${esc(s.id)}" style="width:auto;margin-right:6px"> ${esc(s.name)} (${esc(s.kind)})</label>`).join("") || '<span class="muted">Нет включённых источников</span>'}
+            ${sources.map((s, index) => `<label class="badge"><input type="checkbox" name="sources" value="${esc(s.id)}" style="width:auto;margin-right:6px" ${index < 5 ? "checked" : ""}> ${esc(s.name)} (${esc(s.kind)})</label>`).join("") || '<span class="muted">Нет включённых источников</span>'}
           </div>
         </div>
         <div id="fileBox" class="hidden" style="margin-top:14px">

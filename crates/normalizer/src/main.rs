@@ -124,6 +124,7 @@ pub(crate) async fn process_items_collected(
         if item.title.trim().is_empty() {
             item.title = guess_title(&clean);
         }
+        let injection = detect_injection(&format!("{} {}", item.title, clean));
 
         let parsed = match item.published_at {
             Some(value) => news_shared::text::ParsedDate {
@@ -134,8 +135,9 @@ pub(crate) async fn process_items_collected(
         };
 
         if !parsed.confirmed {
+            let reason = with_injection("дата публикации не подтверждена", &injection);
             item.status = "excluded".to_string();
-            item.reason = Some("дата публикации не подтверждена".to_string());
+            item.reason = Some(reason.clone());
             item.date_confirmed = false;
             db::insert_item(&state.pool, &item).await?;
             db::upsert_journal(
@@ -144,7 +146,7 @@ pub(crate) async fn process_items_collected(
                 item.id,
                 "исключён",
                 None,
-                "дата публикации не подтверждена",
+                &reason,
                 None,
             )
             .await?;
@@ -154,11 +156,15 @@ pub(crate) async fn process_items_collected(
         if let Some(published) = parsed.value {
             item.published_at = Some(published);
             if published <= run.period_start || published > run.period_end {
+                let reason = with_injection(
+                    &format!(
+                        "публикация вне периода: {} не входит в ({}; {}]",
+                        published, run.period_start, run.period_end
+                    ),
+                    &injection,
+                );
                 item.status = "excluded".to_string();
-                item.reason = Some(format!(
-                    "публикация вне периода: {} не входит в ({}; {}]",
-                    published, run.period_start, run.period_end
-                ));
+                item.reason = Some(reason.clone());
                 db::insert_item(&state.pool, &item).await?;
                 db::upsert_journal(
                     &state.pool,
@@ -166,15 +172,16 @@ pub(crate) async fn process_items_collected(
                     item.id,
                     "исключён",
                     None,
-                    item.reason.as_deref().unwrap_or(""),
+                    &reason,
                     None,
                 )
                 .await?;
                 continue;
             }
         } else {
+            let reason = with_injection("не удалось разобрать дату публикации", &injection);
             item.status = "excluded".to_string();
-            item.reason = Some("не удалось разобрать дату публикации".to_string());
+            item.reason = Some(reason.clone());
             db::insert_item(&state.pool, &item).await?;
             db::upsert_journal(
                 &state.pool,
@@ -182,7 +189,7 @@ pub(crate) async fn process_items_collected(
                 item.id,
                 "исключён",
                 None,
-                "не удалось разобрать дату публикации",
+                &reason,
                 None,
             )
             .await?;
@@ -190,11 +197,12 @@ pub(crate) async fn process_items_collected(
         }
 
         if clean.chars().count() < 120 {
-            item.status = "excluded".to_string();
-            item.reason = Some(
-                "недостаточно данных для пересказа (только заголовок или обрывок текста)"
-                    .to_string(),
+            let reason = with_injection(
+                "недостаточно данных для пересказа (только заголовок или обрывок текста)",
+                &injection,
             );
+            item.status = "excluded".to_string();
+            item.reason = Some(reason.clone());
             db::insert_item(&state.pool, &item).await?;
             db::upsert_journal(
                 &state.pool,
@@ -202,7 +210,7 @@ pub(crate) async fn process_items_collected(
                 item.id,
                 "исключён",
                 None,
-                item.reason.as_deref().unwrap_or(""),
+                &reason,
                 None,
             )
             .await?;
@@ -221,7 +229,8 @@ pub(crate) async fn process_items_collected(
                 item.status = "duplicate".to_string();
                 item.duplicate_of = Some(existing);
                 item.group_key = Some(canonical.clone());
-                item.reason = Some("дубликат URL в наборе".to_string());
+                let reason = with_injection("дубликат URL в наборе", &injection);
+                item.reason = Some(reason.clone());
                 db::insert_item(&state.pool, &item).await?;
                 db::upsert_journal(
                     &state.pool,
@@ -229,7 +238,7 @@ pub(crate) async fn process_items_collected(
                     item.id,
                     "объединён",
                     Some(&canonical),
-                    "дубликат URL в наборе",
+                    &reason,
                     None,
                 )
                 .await?;
@@ -245,7 +254,8 @@ pub(crate) async fn process_items_collected(
             item.status = "duplicate".to_string();
             item.duplicate_of = Some(*existing);
             item.group_key = Some(format!("title:{}", item.title.to_lowercase()));
-            item.reason = Some("дубликат заголовка в наборе".to_string());
+            let reason = with_injection("дубликат заголовка в наборе", &injection);
+            item.reason = Some(reason.clone());
             db::insert_item(&state.pool, &item).await?;
             db::upsert_journal(
                 &state.pool,
@@ -253,7 +263,7 @@ pub(crate) async fn process_items_collected(
                 item.id,
                 "объединён",
                 item.group_key.as_deref(),
-                "дубликат заголовка в наборе",
+                &reason,
                 None,
             )
             .await?;
@@ -262,21 +272,21 @@ pub(crate) async fn process_items_collected(
         title_seen.push((item.title.clone(), item.id));
 
         let keyword_hit = contains_keyword(&format!("{} {}", item.title, clean), &keywords);
-        let injection = detect_injection(&format!("{} {}", item.title, clean));
+        let injection_detected = injection.is_some();
         let ad = looks_like_ad(&clean);
 
         item.status = "normalized".to_string();
         item.reason = None;
         item.analysis = json!({
             "keyword_hit": keyword_hit,
-            "injection_detected": injection.is_some(),
+            "injection_detected": injection_detected,
             "injection_snippet": injection,
             "ad_suspected": ad,
             "source_trust": item.analysis.get("source_trust").cloned().unwrap_or_else(|| json!("unknown")),
         });
         db::insert_item(&state.pool, &item).await?;
 
-        let journal_reason = if injection.is_some() {
+        let journal_reason = if injection_detected {
             "обнаружена посторонняя инструкция, обработана как данные"
         } else if keyword_hit {
             "материал относится к теме и входит в период"
@@ -327,6 +337,14 @@ async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult
         Err(error) => tracing::error!(error = %error, "normalization failed"),
     }
     Ok(())
+}
+
+fn with_injection(reason: &str, injection: &Option<String>) -> String {
+    if injection.is_some() {
+        format!("{reason}; обнаружена посторонняя инструкция")
+    } else {
+        reason.to_string()
+    }
 }
 
 fn guess_title(text: &str) -> String {

@@ -17,6 +17,7 @@ chrono.workspace = true
 chrono-tz.workspace = true
 csv.workspace = true
 encoding_rs.workspace = true
+dom_smoothie.workspace = true
 feed-rs.workspace = true
 futures.workspace = true
 regex.workspace = true

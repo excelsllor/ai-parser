@@ -102,6 +102,7 @@ CI/CD: `.github/workflows/ci.yml` — fmt, clippy, tests, cargo-audit, Trivy,
 - `docs/SECURITY_AUDIT_2026-11-07.md` — аудит работающего стека.
 - `docs/AI.md` — модель, промпты, проверка фактов, ограничения.
 - `docs/CHECKS.md` — обязательные проверки и результаты.
+- `docs/SOURCES.md` — все 28 источников и способы подключения.
 - `docs/RUNBOOK.md` — контрольный прогон и диагностика.
 - `docs/CI_CD.md` — пайплайн и секреты.
 - `deploy/Caddyfile.example` — TLS 1.3 reverse proxy.

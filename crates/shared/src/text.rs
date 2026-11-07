@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 use url::Url;
 
+static SCRIPT_STYLE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?is)<(script|style|noscript|template|svg)\b[^>]*>.*?</(script|style|noscript|template|svg)>").expect("script regex")
+});
 static URL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"https?://[^\s<>"']+"#).expect("url regex"));
 static TRACKING_PARAMS: Lazy<Vec<&'static str>> = Lazy::new(|| {
     vec![
@@ -62,7 +65,8 @@ pub fn decode_bytes(bytes: &[u8]) -> String {
 }
 
 pub fn strip_html(html: &str) -> String {
-    let doc = Html::parse_document(html);
+    let cleaned = SCRIPT_STYLE_RE.replace_all(html, " ");
+    let doc = Html::parse_document(&cleaned);
     let selectors = [
         "article",
         "main",
@@ -275,9 +279,24 @@ pub fn similarity(a: &str, b: &str) -> f64 {
 
 pub fn contains_keyword(text: &str, keywords: &[String]) -> bool {
     let lower = text.to_lowercase();
-    keywords
-        .iter()
-        .any(|k| !k.is_empty() && lower.contains(&k.to_lowercase()))
+    keywords.iter().any(|keyword| {
+        let keyword = keyword.trim().to_lowercase();
+        if keyword.is_empty() {
+            return false;
+        }
+        if keyword
+            .chars()
+            .any(|c| c.is_whitespace() || c == '-' || c == '/')
+        {
+            lower.contains(&keyword)
+        } else {
+            // Short terms such as "ИБ" must match a whole token, otherwise they
+            // match inside words like "либо" or "гибрид".
+            lower
+                .split(|c: char| !c.is_alphanumeric())
+                .any(|token| token == keyword)
+        }
+    })
 }
 
 pub fn detect_injection(text: &str) -> Option<String> {
@@ -384,6 +403,14 @@ mod tests {
     #[test]
     fn removes_em_dash() {
         assert_eq!(remove_em_dash("а — б"), "а - б");
+    }
+
+    #[test]
+    fn keyword_matches_whole_token() {
+        let keywords = vec!["ИБ".to_string(), "кибербезопасность".to_string()];
+        assert!(contains_keyword("угроза ИБ", &keywords));
+        assert!(contains_keyword("кибербезопасность", &keywords));
+        assert!(!contains_keyword("либо гибрид", &keywords));
     }
 
     #[test]
