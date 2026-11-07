@@ -163,7 +163,9 @@ export default function AuthPage() {
             container,
             showAlternativeLogin: true,
             styles: {
-              width: 280,
+              width: 260,
+              height: 56,
+              borderRadius: 8,
             },
             oauthList: ['ok_ru', 'mail_ru'],
           })
