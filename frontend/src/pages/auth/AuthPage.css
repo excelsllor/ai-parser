@@ -423,7 +423,29 @@
   border: 0;
 }
 
-.auth-yandex-fallback,
+.auth-yandex-official {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-yandex-official img {
+  display: block;
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+}
+
+.auth-yandex-official:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
 .auth-vk-fallback {
   width: 100%;
 }

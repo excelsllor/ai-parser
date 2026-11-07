@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { login, saveSession } from '@api/auth';
 import { ApiError } from '@api/http';
 import vkLogo from '@assets/providers/vk.svg';
-import yandexLogo from '@assets/providers/yandex.svg';
+import yandexButton from '@assets/providers/yandex-button.svg';
 import {
   AlertCircleIcon,
   ArrowRightIcon,
@@ -544,12 +544,12 @@ export default function AuthPage() {
                 <div className="auth-yandex-sdk" id="yandex-auth-button" />
                 {!yandexReady && (
                   <button
-                    className="auth-sso-button auth-yandex-fallback"
+                    className="auth-yandex-official"
                     type="button"
                     onClick={startYandexOAuth}
+                    aria-label="Войти с Яндекс ID"
                   >
-                    <img className="auth-sso-logo" src={yandexLogo} alt="" />
-                    <span>Яндекс ID</span>
+                    <img src={yandexButton} alt="Войти с Яндекс ID" />
                   </button>
                 )}
               </div>
