@@ -1,3 +1,5 @@
+name: ai-parser
+
 x-common: &common
   image: ${IMAGE:-news-backend:latest}
   env_file:
