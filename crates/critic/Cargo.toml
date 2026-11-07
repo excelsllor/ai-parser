@@ -1,0 +1,22 @@
+[package]
+name = "news-critic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "critic"
+path = "src/main.rs"
+
+[dependencies]
+news-shared = { path = "../shared" }
+chrono.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true

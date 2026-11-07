@@ -1,0 +1,22 @@
+# Пример TLS 1.3 reverse proxy для production.
+# Замените digest.example.com на свой домен и настройте DNS.
+# Caddy автоматически получит сертификат Let's Encrypt.
+
+digest.example.com {
+    encode zstd gzip
+
+    tls {
+        protocols tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+        -Server
+    }
+
+    reverse_proxy gateway:8080
+}

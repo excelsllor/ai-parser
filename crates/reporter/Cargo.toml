@@ -1,0 +1,25 @@
+[package]
+name = "news-reporter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "reporter"
+path = "src/main.rs"
+
+[dependencies]
+news-shared = { path = "../shared" }
+chrono.workspace = true
+chrono-tz.workspace = true
+csv.workspace = true
+mime_guess.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true

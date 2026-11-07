@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    # rsa is present in Cargo.lock only through the optional sqlx-mysql driver.
+    # This build uses PostgreSQL only (sqlx default-features = false), so rsa is not compiled.
+    "RUSTSEC-2023-0071",
+    # fxhash is unmaintained but has no known vulnerability; it is pulled by scraper/selectors.
+    "RUSTSEC-2025-0057",
+]
