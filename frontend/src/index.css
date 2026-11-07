@@ -1,9 +1,29 @@
-body {
-  font-family: "Inter", sans-serif;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-root {
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#root {
   width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 .react-icon {

@@ -3,6 +3,6 @@ import 'csstype';
 declare module 'csstype' {
   interface Properties {
     // Allow any CSS Custom Properties
-    [index: `--${string}`]: any;
+    [index: `--${string}`]: string | number;
   }
 }
