@@ -11,5 +11,5 @@ if [ ! -f .env ]; then
 fi
 docker compose up --build -d
 echo "Gateway: http://127.0.0.1:8080"
-echo "MailHog: http://127.0.0.1:8025"
+echo "Mailpit: http://127.0.0.1:8025"
 echo "Логи:    docker compose logs -f gateway collector normalizer analyst critic reporter"

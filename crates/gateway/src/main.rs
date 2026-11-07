@@ -10,7 +10,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::header::{AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method, StatusCode};
 use axum::middleware as axum_mw;
-use axum::routing::{get, post, put};
+use axum::routing::{any, get, post, put};
 use axum::Router;
 use news_shared::bus::KafkaBus;
 use news_shared::config::Config;
@@ -157,6 +157,7 @@ fn build_router(state: AppState) -> Router {
 
     let api = public
         .merge(protected)
+        .route("/api/{*rest}", any(handlers::health::api_not_found))
         .layer(axum_mw::from_fn(middleware::metrics_middleware))
         .layer(axum_mw::from_fn_with_state(
             state.clone(),

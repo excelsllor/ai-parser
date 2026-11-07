@@ -31,6 +31,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    security_opt:
+      - no-new-privileges:true
     networks:
       - news_net
     restart: unless-stopped
@@ -47,6 +49,8 @@ services:
       retries: 20
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
     networks:
       - news_net
     restart: unless-stopped
@@ -73,14 +77,18 @@ services:
       interval: 10s
       timeout: 10s
       retries: 30
+    security_opt:
+      - no-new-privileges:true
     networks:
       - news_net
     restart: unless-stopped
 
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
+  mailpit:
+    image: axllent/mailpit:v1.33
     ports:
       - "127.0.0.1:8025:8025"
+    security_opt:
+      - no-new-privileges:true
     networks:
       - news_net
     restart: unless-stopped
@@ -106,7 +114,7 @@ services:
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-4}
       CRITIC_LLM: ${CRITIC_LLM:-true}
       CRITIC_MAX_LLM_CLAIMS: ${CRITIC_MAX_LLM_CLAIMS:-10}
-      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_FROM: ${SMTP_FROM:-digest@example.local}
       SMTP_TLS: ${SMTP_TLS:-false}
@@ -120,7 +128,7 @@ services:
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,redis,kafka,mailhog}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,redis,kafka,mailpit}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -130,7 +138,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      mailhog:
+      mailpit:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/api/health || exit 1"]
@@ -160,7 +168,7 @@ services:
       METRICS_PUBLIC: "false"
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,redis,kafka,mailhog}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,redis,kafka,mailpit}
     depends_on:
       postgres:
         condition: service_healthy

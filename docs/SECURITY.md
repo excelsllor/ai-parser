@@ -11,7 +11,7 @@
         └── внешние источники RSS/HTML и vLLM API
 ```
 
-- Наружу опубликован только `gateway` (и MailHog UI в демо-режиме).
+- Наружу опубликован только `gateway` (и Mailpit UI в демо-режиме).
 - PostgreSQL, Redis и Kafka доступны только внутри Docker-сети.
 - Все сервисы работают от `uid 10001`, root FS `read-only`, `cap_drop: ALL`,
   `no-new-privileges: true`.
@@ -99,7 +99,7 @@
 | Проверка | Результат |
 |---|---|
 | `cargo clippy --workspace --all-targets -- -D warnings` | без предупреждений |
-| `cargo test --workspace` | 23 теста пройдено |
+| `cargo test --workspace` | 24 теста пройдено |
 | `cargo audit` | `zip` обновлён до 9.4.1; `rsa` остаётся в lock только как optional-зависимость `sqlx-mysql` и не компилируется; `fxhash` — unmaintained, без известных уязвимостей |
 | `docker compose config` | конфигурация валидна |
 | Ручной обзор | секретов в коде нет; SQL параметризован; SSRF-проверки есть; path traversal закрыт; HTML экранируется; получатели почты ограничены |
@@ -136,6 +136,8 @@
    для реальной рассылки нужен явный список подписчиков и подтверждение.
 10. **Аудит зависимостей.** `cargo audit` в CI, регулярное обновление
     зависимостей через Dependabot, SBOM/Trivy в пайплайне.
+
+Подробный отчёт по работающему стеку: `docs/SECURITY_AUDIT_2026-11-07.md`.
 
 ## 10. Команды проверки
 

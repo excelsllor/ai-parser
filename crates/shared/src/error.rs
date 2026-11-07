@@ -66,7 +66,7 @@ impl AppError {
 
     pub fn status(&self) -> StatusCode {
         match self {
-            Self::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized(_) | Self::Jwt(_) => StatusCode::UNAUTHORIZED,
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::BadRequest(_) | Self::Validation(_) | Self::UnsafeUrl(_) => {
@@ -89,7 +89,7 @@ impl AppError {
             Self::Http(_) => "http_error",
             Self::Serialization(_) => "serialization_error",
             Self::Io(_) => "io_error",
-            Self::Jwt(_) => "jwt_error",
+            Self::Jwt(_) => "invalid_token",
             Self::Hash(_) => "hash_error",
             Self::Unauthorized(_) => "unauthorized",
             Self::Forbidden(_) => "forbidden",
@@ -106,6 +106,7 @@ impl AppError {
     fn public_message(&self) -> String {
         match self {
             Self::Unauthorized(m) | Self::Forbidden(m) | Self::NotFound(m) => m.clone(),
+            Self::Jwt(_) => "invalid or expired token".to_string(),
             Self::BadRequest(m) | Self::Conflict(m) | Self::RateLimited(m) => m.clone(),
             Self::Validation(m) => m.clone(),
             Self::UnsafeUrl(_) => "URL is not allowed".to_string(),
@@ -180,5 +181,19 @@ impl From<argon2::password_hash::Error> for AppError {
 impl From<uuid::Error> for AppError {
     fn from(value: uuid::Error) -> Self {
         Self::BadRequest(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jwt_errors_are_unauthorized() {
+        let error = AppError::Jwt(jsonwebtoken::errors::Error::from(
+            jsonwebtoken::errors::ErrorKind::InvalidToken,
+        ));
+        assert_eq!(error.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(error.code(), "invalid_token");
     }
 }

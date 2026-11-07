@@ -17,7 +17,7 @@ cp .env.example .env
 ```
 
 - UI и API: http://127.0.0.1:8080
-- MailHog (тестовая почта): http://127.0.0.1:8025
+- Mailpit (тестовая почта): http://127.0.0.1:8025
 - Логин: `BOOTSTRAP_ADMIN_USERNAME` / `BOOTSTRAP_ADMIN_PASSWORD`.
   Если пароль не задан, он генерируется в томе: `docker compose exec gateway cat /data/bootstrap_password.txt`.
 
@@ -99,6 +99,7 @@ CI/CD: `.github/workflows/ci.yml` — fmt, clippy, tests, cargo-audit, Trivy,
 
 - `docs/ARCHITECTURE.md` — архитектура, Kafka, Redis, PostgreSQL.
 - `docs/SECURITY.md` — модель угроз, меры защиты, аудит, остаточные риски.
+- `docs/SECURITY_AUDIT_2026-11-07.md` — аудит работающего стека.
 - `docs/AI.md` — модель, промпты, проверка фактов, ограничения.
 - `docs/CHECKS.md` — обязательные проверки и результаты.
 - `docs/RUNBOOK.md` — контрольный прогон и диагностика.

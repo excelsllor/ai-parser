@@ -43,7 +43,7 @@
 | LLM таймаут | уменьшить `LLM_CONCURRENCY`, увеличить `LLM_TIMEOUT_SECS` |
 | Нет новостей | проверить `LIVE_FETCH_ENABLED`, `ALLOWED_SOURCE_HOSTS`, доступность сайтов |
 | Пустой журнал | проверить Kafka-топики и логи normalizer |
-| Письмо не отправляется | MailHog `http://127.0.0.1:8025`, `SMTP_HOST/PORT` |
+| Письмо не отправляется | Mailpit `http://127.0.0.1:8025`, `SMTP_HOST/PORT` |
 | 429 | сработал rate limit; подождать или изменить лимиты |
 
 ## Обновление и деплой

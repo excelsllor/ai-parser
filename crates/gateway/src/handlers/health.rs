@@ -3,7 +3,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use news_shared::db;
-use news_shared::error::AppResult;
+use news_shared::error::{AppError, AppResult};
 use news_shared::telemetry::render_metrics;
 
 use crate::state::AppState;
@@ -47,4 +47,8 @@ pub async fn ready(State(state): State<AppState>) -> AppResult<StatusCode> {
     } else {
         Ok(StatusCode::SERVICE_UNAVAILABLE)
     }
+}
+
+pub async fn api_not_found() -> AppResult<Json<serde_json::Value>> {
+    Err(AppError::NotFound("api endpoint not found".into()))
 }
