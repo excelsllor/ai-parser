@@ -412,8 +412,7 @@
   justify-content: center;
 }
 
-.auth-yandex-sdk:empty,
-.auth-vk-sdk:empty {
+.auth-yandex-sdk:empty {
   display: none;
 }
 
@@ -425,11 +424,14 @@
 
 .auth-yandex-official {
   display: flex;
+  align-items: center;
   justify-content: center;
   width: 100%;
+  height: 56px;
   padding: 0;
   border: 0;
-  background: transparent;
+  border-radius: 28px;
+  background: #000;
   cursor: pointer;
 }
 

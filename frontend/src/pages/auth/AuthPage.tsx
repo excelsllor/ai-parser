@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { login, saveSession } from '@api/auth';
 import { ApiError } from '@api/http';
 import vkLogo from '@assets/providers/vk.svg';
-import yandexButton from '@assets/providers/yandex-button.svg';
+import yandexButton from '@assets/providers/yandex-button-content.svg';
 import {
   AlertCircleIcon,
   ArrowRightIcon,
@@ -157,13 +157,15 @@ export default function AuthPage() {
           scope: '',
         });
 
+        const vkWidth = Math.max(Math.round(container.clientWidth), 260);
+
         const oneTap = new VKID.OneTap();
         oneTap
           .render({
             container,
             showAlternativeLogin: true,
             styles: {
-              width: 260,
+              width: vkWidth,
               height: 56,
               borderRadius: 8,
             },
