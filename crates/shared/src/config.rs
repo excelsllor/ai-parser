@@ -66,6 +66,14 @@ pub struct Config {
     pub kafka_sasl_username: String,
     pub kafka_sasl_password: String,
     pub kafka_ssl_ca_file: String,
+    pub grpc_addr: SocketAddr,
+    pub pipeline_transport: String,
+    pub collector_grpc_url: String,
+    pub normalizer_grpc_url: String,
+    pub analyst_grpc_url: String,
+    pub critic_grpc_url: String,
+    pub reporter_grpc_url: String,
+    pub grpc_timeout_secs: u64,
     pub jwt_secret: String,
     pub access_token_ttl_minutes: i64,
     pub refresh_token_ttl_days: i64,
@@ -109,6 +117,19 @@ impl Config {
         let kafka_sasl_username = env_or("KAFKA_SASL_USERNAME", "");
         let kafka_sasl_password = env_or("KAFKA_SASL_PASSWORD", "");
         let kafka_ssl_ca_file = env_or("KAFKA_SSL_CA_FILE", "");
+        let grpc_addr = env_or("GRPC_ADDR", "0.0.0.0:50051")
+            .parse()
+            .map_err(|e| AppError::config(format!("invalid GRPC_ADDR: {e}")))?;
+        let pipeline_transport = env_or("PIPELINE_TRANSPORT", "grpc").to_lowercase();
+        let collector_grpc_url = env_or("COLLECTOR_GRPC_URL", "http://127.0.0.1:50051");
+        let normalizer_grpc_url = env_or("NORMALIZER_GRPC_URL", "http://127.0.0.1:50051");
+        let analyst_grpc_url = env_or("ANALYST_GRPC_URL", "http://127.0.0.1:50051");
+        let critic_grpc_url = env_or("CRITIC_GRPC_URL", "http://127.0.0.1:50051");
+        let reporter_grpc_url = env_or("REPORTER_GRPC_URL", "http://127.0.0.1:50051");
+        let grpc_timeout_secs = env_or("GRPC_TIMEOUT_SECS", "600")
+            .parse()
+            .unwrap_or(600)
+            .clamp(5, 3600);
 
         let jwt_secret = match env::var("JWT_SECRET") {
             Ok(v) if v.len() >= 32 => v,
@@ -220,6 +241,14 @@ impl Config {
             kafka_sasl_username,
             kafka_sasl_password,
             kafka_ssl_ca_file,
+            grpc_addr,
+            pipeline_transport,
+            collector_grpc_url,
+            normalizer_grpc_url,
+            analyst_grpc_url,
+            critic_grpc_url,
+            reporter_grpc_url,
+            grpc_timeout_secs,
             jwt_secret,
             access_token_ttl_minutes: env_or("ACCESS_TOKEN_TTL_MINUTES", "60")
                 .parse()

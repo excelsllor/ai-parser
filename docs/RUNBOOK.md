@@ -33,6 +33,9 @@
 - `GET /api/admin/debug/runs/{id}` — этапы, материалы, проверки.
 - `GET /api/admin/audit` — действия пользователей.
 - `GET /metrics` — Prometheus (в prod нужен `X-Metrics-Token`).
+- gRPC: gateway пишет `gRPC stage completed` по каждой стадии; воркеры
+  пишут `gRPC transport enabled; Kafka consumer disabled`.
+- gRPC-порты 50051 не публикуются наружу, доступны только в Docker-сети.
 
 ## Типовые проблемы
 

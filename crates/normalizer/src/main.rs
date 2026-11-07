@@ -1,3 +1,5 @@
+mod grpc;
+
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -41,26 +43,45 @@ async fn main() -> AppResult<()> {
     };
 
     tracing::info!("normalizer started");
-    let handler_state = state.clone();
-    state
-        .bus
-        .consume_forever(
-            news_shared::TOPIC_ITEMS_COLLECTED,
-            "normalizer",
-            move |payload| {
-                let state = handler_state.clone();
-                async move { handle(state, payload).await }
-            },
-        )
-        .await
+    let grpc_state = state.clone();
+    let grpc_addr = state.config.grpc_addr;
+    tokio::spawn(async move {
+        if let Err(error) = grpc::serve(grpc_state, grpc_addr).await {
+            tracing::error!(error = %error, "normalizer gRPC server failed");
+        }
+    });
+
+    if state.config.pipeline_transport == "kafka" {
+        let handler_state = state.clone();
+        state
+            .bus
+            .consume_forever(
+                news_shared::TOPIC_ITEMS_COLLECTED,
+                "normalizer",
+                move |payload| {
+                    let state = handler_state.clone();
+                    async move { handle(state, payload).await }
+                },
+            )
+            .await
+    } else {
+        tracing::info!("gRPC transport enabled; Kafka consumer disabled");
+        tokio::signal::ctrl_c().await?;
+        Ok(())
+    }
 }
 
-async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult<()> {
-    let event: ItemsCollectedEvent = serde_json::from_value(payload)?;
+pub(crate) async fn process_items_collected(
+    state: NormalizerState,
+    event: ItemsCollectedEvent,
+) -> AppResult<ItemsNormalizedEvent> {
     let run = db::get_run(&state.pool, event.run_id).await?;
     if run.status == "cancelled" || run.status == "failed" {
         tracing::info!(run_id = %event.run_id, "run is not active, skipping normalization");
-        return Ok(());
+        return Ok(ItemsNormalizedEvent {
+            run_id: event.run_id,
+            count: 0,
+        });
     }
 
     let stage_id = db::add_stage(&state.pool, event.run_id, "normalize", "running", None).await?;
@@ -283,19 +304,28 @@ async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult
     )
     .await;
 
-    state
-        .bus
-        .publish(
-            news_shared::TOPIC_ITEMS_NORMALIZED,
-            &event.run_id.to_string(),
-            &ItemsNormalizedEvent {
-                run_id: event.run_id,
-                count: normalized,
-            },
-        )
-        .await?;
-
     tracing::info!(run_id = %event.run_id, normalized, "normalization completed");
+    Ok(ItemsNormalizedEvent {
+        run_id: event.run_id,
+        count: normalized,
+    })
+}
+
+async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult<()> {
+    let event: ItemsCollectedEvent = serde_json::from_value(payload)?;
+    match process_items_collected(state.clone(), event).await {
+        Ok(out) => {
+            state
+                .bus
+                .publish(
+                    news_shared::TOPIC_ITEMS_NORMALIZED,
+                    &out.run_id.to_string(),
+                    &out,
+                )
+                .await?;
+        }
+        Err(error) => tracing::error!(error = %error, "normalization failed"),
+    }
     Ok(())
 }
 

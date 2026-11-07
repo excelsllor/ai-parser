@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 news-shared = { path = "../shared" }
+news-proto = { path = "../proto" }
 chrono.workspace = true
 chrono-tz.workspace = true
 csv.workspace = true
@@ -25,6 +26,7 @@ serde.workspace = true
 serde_json.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
+tonic.workspace = true
 tracing.workspace = true
 url.workspace = true
 uuid.workspace = true

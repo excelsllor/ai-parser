@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package news.pipeline.v1;
+
+service Pipeline {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc ProcessRun(ProcessRunRequest) returns (ProcessRunResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool ok = 1;
+  string service = 2;
+  string version = 3;
+}
+
+message ProcessRunRequest {
+  string run_id = 1;
+  string payload_json = 2;
+}
+
+message ProcessRunResponse {
+  bool ok = 1;
+  string run_id = 2;
+  string stage = 3;
+  string payload_json = 4;
+  string error = 5;
+}

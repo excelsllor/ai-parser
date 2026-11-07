@@ -1,3 +1,4 @@
+mod grpc;
 mod prompts;
 
 use std::collections::{HashMap, HashSet};
@@ -55,21 +56,42 @@ async fn main() -> AppResult<()> {
     };
 
     tracing::info!("critic started");
-    let handler_state = state.clone();
-    state
-        .bus
-        .consume_forever(news_shared::TOPIC_DIGEST_DRAFT, "critic", move |payload| {
-            let state = handler_state.clone();
-            async move { handle(state, payload).await }
-        })
-        .await
+    let grpc_state = state.clone();
+    let grpc_addr = state.config.grpc_addr;
+    tokio::spawn(async move {
+        if let Err(error) = grpc::serve(grpc_state, grpc_addr).await {
+            tracing::error!(error = %error, "critic gRPC server failed");
+        }
+    });
+
+    if state.config.pipeline_transport == "kafka" {
+        let handler_state = state.clone();
+        state
+            .bus
+            .consume_forever(news_shared::TOPIC_DIGEST_DRAFT, "critic", move |payload| {
+                let state = handler_state.clone();
+                async move { handle(state, payload).await }
+            })
+            .await
+    } else {
+        tracing::info!("gRPC transport enabled; Kafka consumer disabled");
+        tokio::signal::ctrl_c().await?;
+        Ok(())
+    }
 }
 
-async fn handle(state: CriticState, payload: serde_json::Value) -> AppResult<()> {
-    let draft: DigestDraftEvent = serde_json::from_value(payload)?;
+pub(crate) async fn process_digest_draft(
+    state: CriticState,
+    draft: DigestDraftEvent,
+) -> AppResult<DigestVerifiedEvent> {
     let run = db::get_run(&state.pool, draft.run_id).await?;
     if run.status == "cancelled" || run.status == "failed" {
-        return Ok(());
+        return Ok(DigestVerifiedEvent {
+            run_id: draft.run_id,
+            events: Vec::new(),
+            verification: VerificationReport::default(),
+            notes: vec!["прогон отменён или завершился ошибкой".to_string()],
+        });
     }
 
     let stage_id = db::add_stage(&state.pool, draft.run_id, "critic", "running", None).await?;
@@ -307,16 +329,25 @@ async fn handle(state: CriticState, payload: serde_json::Value) -> AppResult<()>
         verification,
         notes,
     };
-    state
-        .bus
-        .publish(
-            news_shared::TOPIC_DIGEST_VERIFIED,
-            &draft.run_id.to_string(),
-            &verified,
-        )
-        .await?;
-
     tracing::info!(run_id = %draft.run_id, events = verified.events.len(), "critic completed");
+    Ok(verified)
+}
+
+async fn handle(state: CriticState, payload: serde_json::Value) -> AppResult<()> {
+    let draft: DigestDraftEvent = serde_json::from_value(payload)?;
+    match process_digest_draft(state.clone(), draft).await {
+        Ok(out) => {
+            state
+                .bus
+                .publish(
+                    news_shared::TOPIC_DIGEST_VERIFIED,
+                    &out.run_id.to_string(),
+                    &out,
+                )
+                .await?;
+        }
+        Err(error) => tracing::error!(error = %error, "critic failed"),
+    }
     Ok(())
 }
 

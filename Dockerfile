@@ -37,6 +37,6 @@ ENV DATA_DIR=/data \
     RUST_LOG=info
 
 USER 10001:10001
-EXPOSE 8080
+EXPOSE 8080 50051
 
 CMD ["/usr/local/bin/gateway"]

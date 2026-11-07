@@ -1,4 +1,5 @@
 mod extract;
+mod grpc;
 
 use std::sync::Arc;
 
@@ -48,26 +49,45 @@ async fn main() -> AppResult<()> {
     let state = CollectorState::new().await?;
     tracing::info!("collector started");
 
-    let handler_state = state.clone();
-    state
-        .bus
-        .consume_forever(
-            news_shared::TOPIC_RUN_STARTED,
-            "collector",
-            move |payload| {
-                let state = handler_state.clone();
-                async move { handle_run_started(state, payload).await }
-            },
-        )
-        .await
+    let grpc_state = state.clone();
+    let grpc_addr = state.config.grpc_addr;
+    tokio::spawn(async move {
+        if let Err(error) = grpc::serve(grpc_state, grpc_addr).await {
+            tracing::error!(error = %error, "collector gRPC server failed");
+        }
+    });
+
+    if state.config.pipeline_transport == "kafka" {
+        let handler_state = state.clone();
+        state
+            .bus
+            .consume_forever(
+                news_shared::TOPIC_RUN_STARTED,
+                "collector",
+                move |payload| {
+                    let state = handler_state.clone();
+                    async move { handle_run_started(state, payload).await }
+                },
+            )
+            .await
+    } else {
+        tracing::info!("gRPC transport enabled; Kafka consumer disabled");
+        tokio::signal::ctrl_c().await?;
+        Ok(())
+    }
 }
 
-async fn handle_run_started(state: CollectorState, payload: serde_json::Value) -> AppResult<()> {
-    let event: RunStartedEvent = serde_json::from_value(payload)?;
+pub(crate) async fn process_run_started(
+    state: CollectorState,
+    event: RunStartedEvent,
+) -> AppResult<ItemsCollectedEvent> {
     let run = db::get_run(&state.pool, event.run_id).await?;
     if run.status == "cancelled" {
         tracing::info!(run_id = %event.run_id, "run cancelled, skipping collection");
-        return Ok(());
+        return Ok(ItemsCollectedEvent {
+            run_id: event.run_id,
+            count: 0,
+        });
     }
 
     db::set_run_status(&state.pool, event.run_id, "running", None).await?;
@@ -123,24 +143,16 @@ async fn handle_run_started(state: CollectorState, payload: serde_json::Value) -
             )
             .await;
             metrics().active_runs.dec();
-            state
-                .bus
-                .publish(
-                    TOPIC_ITEMS_COLLECTED,
-                    &event.run_id.to_string(),
-                    &ItemsCollectedEvent {
-                        run_id: event.run_id,
-                        count: count + source_errors.len(),
-                    },
-                )
-                .await?;
             tracing::info!(
                 run_id = %event.run_id,
                 count,
                 source_errors = source_errors.len(),
                 "collection completed"
             );
-            Ok(())
+            Ok(ItemsCollectedEvent {
+                run_id: event.run_id,
+                count: count + source_errors.len(),
+            })
         }
         Err(error) => {
             metrics().active_runs.dec();
@@ -148,9 +160,23 @@ async fn handle_run_started(state: CollectorState, payload: serde_json::Value) -
             let _ = db::finish_stage(&state.pool, stage_id, "failed", Some(&message)).await;
             let _ = db::set_run_status(&state.pool, event.run_id, "failed", Some(&message)).await;
             tracing::error!(run_id = %event.run_id, error = %message, "collection failed");
-            Ok(())
+            Err(AppError::internal(message))
         }
     }
+}
+
+async fn handle_run_started(state: CollectorState, payload: serde_json::Value) -> AppResult<()> {
+    let event: RunStartedEvent = serde_json::from_value(payload)?;
+    match process_run_started(state.clone(), event).await {
+        Ok(out) => {
+            state
+                .bus
+                .publish(TOPIC_ITEMS_COLLECTED, &out.run_id.to_string(), &out)
+                .await?;
+        }
+        Err(error) => tracing::error!(error = %error, "collection failed"),
+    }
+    Ok(())
 }
 
 async fn collect(

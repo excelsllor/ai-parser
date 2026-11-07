@@ -223,10 +223,30 @@ pub async fn create(
         sources,
         dataset_dir,
     };
-    state
-        .bus
-        .publish(TOPIC_RUN_STARTED, &run.id.to_string(), &event)
-        .await?;
+    let run_id = run.id;
+    if state.config.pipeline_transport == "kafka" {
+        state
+            .bus
+            .publish(TOPIC_RUN_STARTED, &run_id.to_string(), &event)
+            .await?;
+    } else {
+        let pipeline_state = state.clone();
+        let pipeline_event = event.clone();
+        tokio::spawn(async move {
+            if let Err(error) =
+                crate::grpc_client::run_pipeline(pipeline_state.clone(), pipeline_event).await
+            {
+                tracing::error!(run_id = %run_id, error = %error, "gRPC pipeline failed");
+                let _ = db::set_run_status(
+                    &pipeline_state.pool,
+                    run_id,
+                    "failed",
+                    Some(&error.to_string()),
+                )
+                .await;
+            }
+        });
+    }
 
     let _ = write_audit(
         &state.pool,
@@ -360,10 +380,30 @@ pub async fn rerun(
         sources: Vec::new(),
         dataset_dir,
     };
-    state
-        .bus
-        .publish(TOPIC_RUN_STARTED, &run.id.to_string(), &event)
-        .await?;
+    let run_id = run.id;
+    if state.config.pipeline_transport == "kafka" {
+        state
+            .bus
+            .publish(TOPIC_RUN_STARTED, &run_id.to_string(), &event)
+            .await?;
+    } else {
+        let pipeline_state = state.clone();
+        let pipeline_event = event.clone();
+        tokio::spawn(async move {
+            if let Err(error) =
+                crate::grpc_client::run_pipeline(pipeline_state.clone(), pipeline_event).await
+            {
+                tracing::error!(run_id = %run_id, error = %error, "gRPC pipeline failed");
+                let _ = db::set_run_status(
+                    &pipeline_state.pool,
+                    run_id,
+                    "failed",
+                    Some(&error.to_string()),
+                )
+                .await;
+            }
+        });
+    }
 
     let _ = write_audit(
         &state.pool,
@@ -543,14 +583,29 @@ pub async fn add_item(
     };
     db::insert_item(&state.pool, &item).await?;
 
-    state
-        .bus
-        .publish(
-            TOPIC_ITEMS_COLLECTED,
-            &run.id.to_string(),
-            &ItemsCollectedEvent { run_id, count: 1 },
-        )
-        .await?;
+    let collected = ItemsCollectedEvent { run_id, count: 1 };
+    if state.config.pipeline_transport == "kafka" {
+        state
+            .bus
+            .publish(TOPIC_ITEMS_COLLECTED, &run.id.to_string(), &collected)
+            .await?;
+    } else {
+        let pipeline_state = state.clone();
+        tokio::spawn(async move {
+            if let Err(error) =
+                crate::grpc_client::run_from_normalizer(pipeline_state.clone(), collected).await
+            {
+                tracing::error!(run_id = %run_id, error = %error, "gRPC pipeline failed");
+                let _ = db::set_run_status(
+                    &pipeline_state.pool,
+                    run_id,
+                    "failed",
+                    Some(&error.to_string()),
+                )
+                .await;
+            }
+        });
+    }
 
     let _ = write_audit(
         &state.pool,

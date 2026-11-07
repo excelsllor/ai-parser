@@ -106,6 +106,8 @@
 6. Использовать secrets manager/Vault вместо `.env` в production.
 7. Добавить в CI скан образов Trivy после сборки и Dependabot-обновления.
 8. Ограничить egress контейнеров allowlist-прокси (снижает SSRF/DNS rebinding).
+9. gRPC между сервисами работает по h2c (без TLS) внутри Docker-сети;
+   для production включить TLS/mTLS.
 
 ## Итог
 

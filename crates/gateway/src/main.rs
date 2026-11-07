@@ -1,3 +1,4 @@
+mod grpc_client;
 mod handlers;
 mod middleware;
 mod state;

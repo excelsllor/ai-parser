@@ -40,6 +40,8 @@
   `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP/CORP.
 - CSP запрещает inline-скрипты и сторонние источники; UI использует `/app.js`.
 - CORS — только явный allowlist из `CORS_ORIGINS`.
+- gRPC между сервисами работает по h2c внутри Docker-сети; порты 50051 не
+  публикуются. Для production включите TLS/mTLS для gRPC.
 - Внутренние сервисы не публикуют порты. Kafka-клиент поддерживает `SASL_SSL`
   (`KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_*`, `KAFKA_SSL_CA_FILE`); в compose
   по умолчанию PLAINTEXT внутри изолированной сети. Для production включите

@@ -1,3 +1,4 @@
+mod grpc;
 mod prompts;
 
 use std::collections::HashMap;
@@ -56,25 +57,47 @@ async fn main() -> AppResult<()> {
     };
 
     tracing::info!("analyst started");
-    let handler_state = state.clone();
-    state
-        .bus
-        .consume_forever(
-            news_shared::TOPIC_ITEMS_NORMALIZED,
-            "analyst",
-            move |payload| {
-                let state = handler_state.clone();
-                async move { handle(state, payload).await }
-            },
-        )
-        .await
+    let grpc_state = state.clone();
+    let grpc_addr = state.config.grpc_addr;
+    tokio::spawn(async move {
+        if let Err(error) = grpc::serve(grpc_state, grpc_addr).await {
+            tracing::error!(error = %error, "analyst gRPC server failed");
+        }
+    });
+
+    if state.config.pipeline_transport == "kafka" {
+        let handler_state = state.clone();
+        state
+            .bus
+            .consume_forever(
+                news_shared::TOPIC_ITEMS_NORMALIZED,
+                "analyst",
+                move |payload| {
+                    let state = handler_state.clone();
+                    async move { handle(state, payload).await }
+                },
+            )
+            .await
+    } else {
+        tracing::info!("gRPC transport enabled; Kafka consumer disabled");
+        tokio::signal::ctrl_c().await?;
+        Ok(())
+    }
 }
 
-async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()> {
-    let event: ItemsNormalizedEvent = serde_json::from_value(payload)?;
+pub(crate) async fn process_items_normalized(
+    state: AnalystState,
+    event: ItemsNormalizedEvent,
+) -> AppResult<DigestDraftEvent> {
     let run = db::get_run(&state.pool, event.run_id).await?;
     if run.status == "cancelled" || run.status == "failed" {
-        return Ok(());
+        return Ok(DigestDraftEvent {
+            run_id: event.run_id,
+            events: Vec::new(),
+            notes: vec!["прогон отменён или завершился ошибкой".to_string()],
+            model: run.model,
+            prompt_version: run.prompt_version,
+        });
     }
 
     let stage_id = db::add_stage(&state.pool, event.run_id, "analyze", "running", None).await?;
@@ -90,6 +113,20 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
         .iter()
         .filter(|i| i.status == "normalized")
         .cloned()
+        .collect::<Vec<_>>();
+
+    // Incremental runs (add publication) must keep previously analyzed events.
+    let existing_analyzed = all_items
+        .iter()
+        .filter(|i| i.status == "analyzed")
+        .filter_map(|item| {
+            let analysis = item.analysis.get("analysis")?.clone();
+            let analysis = serde_json::from_value::<LlmItemAnalysis>(analysis).ok()?;
+            Some(AnalyzedItem {
+                item: item.clone(),
+                analysis,
+            })
+        })
         .collect::<Vec<_>>();
 
     let concurrency = state.config.llm.concurrency.max(1);
@@ -161,6 +198,8 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
             }
         }
     }
+
+    accepted.extend(existing_analyzed);
 
     let mut groups: HashMap<String, Vec<AnalyzedItem>> = HashMap::new();
     for item in accepted {
@@ -349,16 +388,25 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
         model: run.model.clone(),
         prompt_version: run.prompt_version.clone(),
     };
-    state
-        .bus
-        .publish(
-            news_shared::TOPIC_DIGEST_DRAFT,
-            &event.run_id.to_string(),
-            &draft_event,
-        )
-        .await?;
-
     tracing::info!(run_id = %event.run_id, events = draft_event.events.len(), "analysis completed");
+    Ok(draft_event)
+}
+
+async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()> {
+    let event: ItemsNormalizedEvent = serde_json::from_value(payload)?;
+    match process_items_normalized(state.clone(), event).await {
+        Ok(out) => {
+            state
+                .bus
+                .publish(
+                    news_shared::TOPIC_DIGEST_DRAFT,
+                    &out.run_id.to_string(),
+                    &out,
+                )
+                .await?;
+        }
+        Err(error) => tracing::error!(error = %error, "analysis failed"),
+    }
     Ok(())
 }
 

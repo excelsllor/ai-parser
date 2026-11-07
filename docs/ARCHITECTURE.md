@@ -10,26 +10,43 @@
         │                 │
         │                 └── Redis (кэш LLM, rate limit, блокировки, статусы)
         │
-        └── Kafka ──► [collector] ──► [normalizer] ──► [analyst] ──► [critic] ──► [reporter]
-                          │              │               │              │            │
-                          └── live RSS   └── даты/дедуп  └── vLLM       └── факты    └── артефакты
-                              + files
+        └── gRPC (primary) ──► [collector] ──► [normalizer] ──► [analyst] ──► [critic] ──► [reporter]
+                                │              │               │              │            │
+                                └── live RSS   └── даты/дедуп  └── vLLM       └── факты    └── артефакты
+                                    + files
+        Kafka — опциональный резервный транспорт (PIPELINE_TRANSPORT=kafka).
 ```
 
 ## Сервисы и ответственность
 
 | Сервис | Вход | Выход | Состояние |
 |---|---|---|---|
-| gateway | HTTP | Kafka `news.run.started` | PostgreSQL, Redis |
-| collector | `news.run.started` | `news.items.collected` | PostgreSQL, Redis |
-| normalizer | `news.items.collected` | `news.items.normalized` | PostgreSQL |
-| analyst | `news.items.normalized` | `news.digest.draft` | PostgreSQL, Redis (кэш LLM) |
-| critic | `news.digest.draft` | `news.digest.verified` | PostgreSQL |
-| reporter | `news.digest.verified` | `news.artifacts.ready` | PostgreSQL, файлы |
+| gateway | HTTP | gRPC-вызовы стадий | PostgreSQL, Redis |
+| collector | gRPC `ProcessRun` (RunStartedEvent) | gRPC-ответ (ItemsCollectedEvent) | PostgreSQL, Redis |
+| normalizer | gRPC `ProcessRun` (ItemsCollectedEvent) | gRPC-ответ (ItemsNormalizedEvent) | PostgreSQL |
+| analyst | gRPC `ProcessRun` (ItemsNormalizedEvent) | gRPC-ответ (DigestDraftEvent) | PostgreSQL, Redis (кэш LLM) |
+| critic | gRPC `ProcessRun` (DigestDraftEvent) | gRPC-ответ (DigestVerifiedEvent) | PostgreSQL |
+| reporter | gRPC `ProcessRun` (DigestVerifiedEvent) | gRPC-ответ (ArtifactsReadyEvent) | PostgreSQL, файлы |
 
-## Kafka
+## gRPC
 
-Топики:
+Основной транспорт между сервисами:
+
+- контракт: `crates/proto/proto/pipeline.proto`;
+- сервис `news.pipeline.v1.Pipeline`;
+- методы `Health` и `ProcessRun`;
+- каждый воркер слушает `GRPC_ADDR` (по умолчанию `0.0.0.0:50051`);
+- gateway вызывает стадии последовательно: collector → normalizer → analyst → critic → reporter,
+  передавая JSON-событие стадии в `payload_json` и получая JSON следующего события;
+- адреса: `COLLECTOR_GRPC_URL`, `NORMALIZER_GRPC_URL`, `ANALYST_GRPC_URL`,
+  `CRITIC_GRPC_URL`, `REPORTER_GRPC_URL`;
+- таймаут одного вызова: `GRPC_TIMEOUT_SECS`;
+- в gRPC-режиме Kafka-консьюмеры не запускаются.
+
+## Kafka (опционально)
+
+Если задать `PIPELINE_TRANSPORT=kafka`, gateway публикует события в Kafka, а воркеры
+используют консьюмеры. Топики:
 
 - `news.run.started`
 - `news.items.collected`
@@ -76,16 +93,17 @@
 ## Пайплайн
 
 1. Gateway создаёт `run`, сохраняет файлы в `DATA_DIR/runs/<id>/input`,
-   публикует `RunStartedEvent`.
-2. Collector читает файлы или собирает RSS/HTML, сохраняет `items`.
-3. Normalizer чистит текст, парсит даты в МСК, проверяет период, помечает
-   дубликаты и недостаточные тексты, пишет журнал.
-4. Analyst вызывает vLLM по каждой публикации, группирует события, считает
-   score, выбирает до пяти, сохраняет `events`.
-5. Critic проверяет числа и ссылки по исходникам, удаляет неподтверждённые
-   источники, чистит стиль, пишет `verification`.
-6. Reporter рендерит артефакты, проверяет лимиты, сохраняет файлы и
-   `check_results`, завершает run.
+   запускает gRPC-оркестрацию (в фоне) и возвращает `queued`.
+2. Gateway вызывает `collector.ProcessRun` с `RunStartedEvent`; collector читает
+   файлы или собирает RSS/HTML, сохраняет `items`, возвращает `ItemsCollectedEvent`.
+3. Gateway вызывает `normalizer.ProcessRun`; normalizer чистит текст, парсит даты
+   в МСК, проверяет период, помечает дубликаты и недостаточные тексты, пишет журнал.
+4. Gateway вызывает `analyst.ProcessRun`; analyst вызывает vLLM, группирует события,
+   считает score, выбирает до пяти, сохраняет `events`.
+5. Gateway вызывает `critic.ProcessRun`; critic проверяет числа и ссылки, удаляет
+   неподтверждённые источники, чистит стиль, пишет `verification`.
+6. Gateway вызывает `reporter.ProcessRun`; reporter рендерит артефакты, проверяет
+   лимиты, сохраняет файлы и `check_results`, завершает run.
 
 ## Безопасность
 
@@ -97,6 +115,7 @@
   DNS-резолва, запрет private/loopback/link-local, проверка каждого редиректа.
 - Prompt injection: статья передаётся как недоверенные данные в делимитерах,
   системный guard, JSON-only, получатели почты задаются отдельно.
+- gRPC внутри Docker-сети использует h2c (без TLS); для production включите TLS/mTLS.
 - Секреты только через `.env`/секреты CI; в коде и логах их нет.
 - Каждый сервис пишет heartbeat в `data/registry/<name>.json`; gateway
   показывает живость процессов в `/api/admin/debug/services`.

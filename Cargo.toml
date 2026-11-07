@@ -8,6 +8,7 @@ members = [
     "crates/analyst",
     "crates/critic",
     "crates/reporter",
+    "crates/proto",
 ]
 
 [workspace.package]
@@ -60,6 +61,12 @@ url = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 zip = "9"
 mime_guess = "2"
+tonic = { version = "0.14", features = ["transport", "codegen"] }
+prost = "0.14"
+tonic-build = "0.14"
+tonic-prost = "0.14"
+tonic-prost-build = "0.14"
+protoc-bin-vendored = "3"
 argon2 = "0.5"
 rand_core = { version = "0.6", features = ["getrandom"] }
 
