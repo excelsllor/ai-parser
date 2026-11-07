@@ -104,8 +104,9 @@ export default function AuthPage() {
             parentId: 'yandex-auth-button',
             buttonView: 'main',
             buttonTheme: 'light',
-            buttonSize: 'l',
-            buttonBorderRadius: 8,
+            buttonSize: 'm',
+            buttonBorderRadius: '8',
+            buttonIcon: 'ya',
           },
         );
 

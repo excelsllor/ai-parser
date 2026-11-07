@@ -12,7 +12,7 @@ interface YaAuthSuggestButtonParams {
   buttonView?: 'main' | 'additional' | 'icon' | 'iconBG';
   buttonTheme?: 'light' | 'dark';
   buttonSize?: 'xs' | 's' | 'm' | 'l' | 'xl' | 'xxl';
-  buttonBorderRadius?: number;
+  buttonBorderRadius?: number | string;
   buttonIcon?: 'ya' | 'yaEng';
 }
 
