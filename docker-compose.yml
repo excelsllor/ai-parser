@@ -1,7 +1,7 @@
-name: ai-parser
+name: service-parser
 
 x-common: &common
-  image: ${IMAGE:-news-backend:latest}
+  image: ${IMAGE:-service-backend:latest}
   env_file:
     - .env
   read_only: true
@@ -22,6 +22,7 @@ x-common: &common
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: service-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-news}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -41,6 +42,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: service-redis
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
     volumes:
       - redisdata:/data
@@ -59,6 +61,7 @@ services:
 
   kafka:
     image: apache/kafka:3.9.0
+    container_name: service-kafka
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -87,6 +90,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.33
+    container_name: service-mailpit
     ports:
       - "127.0.0.1:8025:8025"
     security_opt:
@@ -97,6 +101,7 @@ services:
 
   gateway:
     <<: *common
+    container_name: service-gateway
     build:
       context: .
       dockerfile: Dockerfile
@@ -158,6 +163,7 @@ services:
 
   collector:
     <<: *common
+    container_name: service-collector
     command: ["/usr/local/bin/collector"]
     environment: &worker_env
       APP_ENV: ${APP_ENV:-prod}
@@ -195,6 +201,7 @@ services:
 
   normalizer:
     <<: *common
+    container_name: service-normalizer
     command: ["/usr/local/bin/normalizer"]
     environment: *worker_env
     depends_on:
@@ -205,6 +212,7 @@ services:
 
   analyst:
     <<: *common
+    container_name: service-analyst
     command: ["/usr/local/bin/analyst"]
     environment: *worker_env
     depends_on:
@@ -217,6 +225,7 @@ services:
 
   critic:
     <<: *common
+    container_name: service-critic
     command: ["/usr/local/bin/critic"]
     environment: *worker_env
     depends_on:
@@ -227,6 +236,7 @@ services:
 
   reporter:
     <<: *common
+    container_name: service-reporter
     command: ["/usr/local/bin/reporter"]
     environment: *worker_env
     depends_on:
