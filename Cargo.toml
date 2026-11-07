@@ -35,7 +35,7 @@ hex = "0.4"
 http = "1"
 ipnet = "2"
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1-rustls", "ring", "webpki-roots"] }
-jsonwebtoken = "9"
+jsonwebtoken = "11"
 mime = "0.3"
 once_cell = "1"
 prometheus = "0.14"
