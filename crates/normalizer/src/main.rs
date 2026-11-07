@@ -104,26 +104,6 @@ async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult
             item.title = guess_title(&clean);
         }
 
-        if clean.chars().count() < 120 {
-            item.status = "excluded".to_string();
-            item.reason = Some(
-                "недостаточно данных для пересказа (только заголовок или обрывок текста)"
-                    .to_string(),
-            );
-            db::insert_item(&state.pool, &item).await?;
-            db::upsert_journal(
-                &state.pool,
-                event.run_id,
-                item.id,
-                "исключён",
-                None,
-                item.reason.as_deref().unwrap_or(""),
-                None,
-            )
-            .await?;
-            continue;
-        }
-
         let parsed = match item.published_at {
             Some(value) => news_shared::text::ParsedDate {
                 value: Some(value),
@@ -182,6 +162,26 @@ async fn handle(state: NormalizerState, payload: serde_json::Value) -> AppResult
                 "исключён",
                 None,
                 "не удалось разобрать дату публикации",
+                None,
+            )
+            .await?;
+            continue;
+        }
+
+        if clean.chars().count() < 120 {
+            item.status = "excluded".to_string();
+            item.reason = Some(
+                "недостаточно данных для пересказа (только заголовок или обрывок текста)"
+                    .to_string(),
+            );
+            db::insert_item(&state.pool, &item).await?;
+            db::upsert_journal(
+                &state.pool,
+                event.run_id,
+                item.id,
+                "исключён",
+                None,
+                item.reason.as_deref().unwrap_or(""),
                 None,
             )
             .await?;

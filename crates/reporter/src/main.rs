@@ -662,7 +662,13 @@ async fn run_checks(
     let insufficient = items
         .iter()
         .filter(|item| {
-            item.clean_text.chars().count() < 120 && item.analysis.get("source_error").is_none()
+            let outside_period = item
+                .published_at
+                .map(|d| d <= run.period_start || d > run.period_end)
+                .unwrap_or(false);
+            item.clean_text.chars().count() < 120
+                && item.analysis.get("source_error").is_none()
+                && !outside_period
         })
         .collect::<Vec<_>>();
     let insufficient_marked = insufficient.iter().all(|item| {
@@ -738,9 +744,10 @@ async fn run_checks(
         note: "ссылки соответствуют материалам набора".to_string(),
     });
 
-    let post_consistent = events
-        .iter()
-        .all(|event| post.contains(&truncate_chars(&event.title, 20)));
+    let post_consistent = events.iter().all(|event| {
+        let prefix: String = event.title.chars().take(20).collect();
+        post.contains(&prefix)
+    });
     checks.push(CheckRow {
         scenario: "post_consistency".to_string(),
         passed: post_consistent,

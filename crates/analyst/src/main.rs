@@ -261,6 +261,20 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
 
         for member in &group {
             let is_primary = member.item.id == primary.item.id;
+            let injected = member
+                .item
+                .analysis
+                .get("injection_detected")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let reason = match (is_primary, injected) {
+                (true, true) => "событие включено в дайджест; обнаружена посторонняя инструкция",
+                (true, false) => "событие включено в дайджест",
+                (false, true) => {
+                    "сообщение об одном событии объединено; обнаружена посторонняя инструкция"
+                }
+                (false, false) => "сообщение об одном событии объединено",
+            };
             db::upsert_journal(
                 &state.pool,
                 event.run_id,
@@ -271,11 +285,7 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
                     "объединён"
                 },
                 Some(&event_key),
-                if is_primary {
-                    "событие включено в дайджест"
-                } else {
-                    "сообщение об одном событии объединено"
-                },
+                reason,
                 None,
             )
             .await?;
@@ -499,10 +509,13 @@ fn fallback_analysis(item: &Item) -> LlmItemAnalysis {
         .get("keyword_hit")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    let summary = truncate_chars(
+    let mut summary = truncate_chars(
         &news_shared::text::normalize_whitespace(&item.clean_text),
         400,
     );
+    if let Some(snippet) = news_shared::text::detect_injection(&summary) {
+        summary = summary.replace(&snippet, "[фрагмент с посторонней инструкцией удалён]");
+    }
     LlmItemAnalysis {
         relevant: keyword_hit,
         topic_confidence: if keyword_hit { 0.55 } else { 0.2 },
