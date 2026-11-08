@@ -3,8 +3,9 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ApiError } from '@api/http';
-import { createRun, deleteRun, listRuns, listSources } from '@api/runs';
+import { createRun, deleteRun, listSources } from '@api/runs';
 import type { RunSummary, Source } from '@api/runs';
+import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
   BoltIcon,
@@ -50,8 +51,15 @@ export default function WorkspacePage() {
 
   const [sources, setSources] = useState<Source[]>([]);
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
-  const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const {
+    runs,
+    loading: loadingRuns,
+    loadingMore,
+    hasMore,
+    loadMore,
+    removeRun,
+  } = useRunsFeed();
+  const [loadingSources, setLoadingSources] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
 
   const [intervalHours, setIntervalHours] = useState(24);
@@ -70,28 +78,24 @@ export default function WorkspacePage() {
 
     void (async () => {
       try {
-        const [sourceList, runList] = await Promise.all([
-          listSources(),
-          listRuns(200),
-        ]);
+        const sourceList = await listSources();
 
         if (!active) {
           return;
         }
 
         setSources(sourceList);
-        setRuns(runList);
       } catch (error) {
         if (active) {
           setDataError(
             error instanceof ApiError
               ? error.message
-              : 'Не удалось загрузить источники и последние сессии.',
+              : 'Не удалось загрузить источники.',
           );
         }
       } finally {
         if (active) {
-          setLoadingData(false);
+          setLoadingSources(false);
         }
       }
     })();
@@ -99,14 +103,6 @@ export default function WorkspacePage() {
     return () => {
       active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      void listRuns(200).then(setRuns).catch(() => undefined);
-    }, 5000);
-
-    return () => window.clearInterval(timer);
   }, []);
 
   function toggleSource(id: string) {
@@ -146,7 +142,7 @@ export default function WorkspacePage() {
     setSessionNotice(null);
     try {
       await deleteRun(run.id);
-      setRuns((previous) => previous.filter((item) => item.id !== run.id));
+      removeRun(run.id);
       setSessionNotice(`Сессия ${run.id.slice(0, 8)} удалена.`);
     } catch (error) {
       setDataError(
@@ -194,7 +190,10 @@ export default function WorkspacePage() {
   return (
     <WorkspaceLayout
       runs={runs}
-      loadingRuns={loadingData}
+      loadingRuns={loadingSources || loadingRuns}
+      loadingMoreRuns={loadingMore}
+      hasMoreRuns={hasMore}
+      onLoadMoreRuns={loadMore}
       onSelectRun={openRun}
       onDeleteRun={handleDeleteRun}
       onNewQuery={resetForm}
@@ -298,8 +297,8 @@ export default function WorkspacePage() {
             </div>
 
             <div className="ws-sources">
-              {loadingData && <span className="ws-sidebar-note">Загружаем источники…</span>}
-              {!loadingData && sources.length === 0 && (
+              {loadingSources && <span className="ws-sidebar-note">Загружаем источники…</span>}
+              {!loadingSources && sources.length === 0 && (
                 <span className="ws-sidebar-note">Источники не найдены.</span>
               )}
               {sources.map((source) => {

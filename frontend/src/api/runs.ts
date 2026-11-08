@@ -70,8 +70,8 @@ export function listSources(): Promise<Source[]> {
   return request<Source[]>('/sources', { headers: authHeaders() });
 }
 
-export function listRuns(limit = 6): Promise<RunSummary[]> {
-  return request<RunSummary[]>(`/runs?limit=${limit}`, {
+export function listRuns(limit = 6, offset = 0): Promise<RunSummary[]> {
+  return request<RunSummary[]>(`/runs?limit=${limit}&offset=${offset}`, {
     headers: authHeaders(),
   });
 }

@@ -10,7 +10,6 @@ import {
   fetchArtifact,
   getChecks,
   getRunDetail,
-  listRuns,
   listSources,
   rerunRun,
   runVersionChain,
@@ -19,6 +18,7 @@ import {
 import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
 import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
 import SnakeLoader from '@components/ui/SnakeLoader';
+import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
   CheckIcon,
@@ -310,7 +310,14 @@ export default function RunPage() {
 
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [checks, setChecks] = useState<CheckResult[]>([]);
-  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const {
+    runs,
+    loading: loadingRuns,
+    loadingMore,
+    hasMore,
+    loadMore,
+    removeRun,
+  } = useRunsFeed();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -331,27 +338,6 @@ export default function RunPage() {
   const [regenError, setRegenError] = useState<string | null>(null);
   const [regenLoadingSources, setRegenLoadingSources] = useState(false);
   const [regenSubmitting, setRegenSubmitting] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const loadRuns = () => {
-      void listRuns(200)
-        .then((next) => {
-          if (active) {
-            setRuns(next);
-          }
-        })
-        .catch(() => undefined);
-    };
-
-    loadRuns();
-    const timer = window.setInterval(loadRuns, 5000);
-
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [id]);
 
   useEffect(() => {
     if (!regenOpen) {
@@ -692,7 +678,7 @@ export default function RunPage() {
     setActionError(null);
     try {
       await deleteRun(run.id);
-      setRuns((previous) => previous.filter((item) => item.id !== run.id));
+      removeRun(run.id);
       if (run.id === id) {
         navigate('/');
       }
@@ -725,6 +711,10 @@ export default function RunPage() {
     return (
       <WorkspaceLayout
         runs={runs}
+        loadingRuns={loadingRuns}
+        loadingMoreRuns={loadingMore}
+        hasMoreRuns={hasMore}
+        onLoadMoreRuns={loadMore}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -738,6 +728,10 @@ export default function RunPage() {
     return (
       <WorkspaceLayout
         runs={runs}
+        loadingRuns={loadingRuns}
+        loadingMoreRuns={loadingMore}
+        hasMoreRuns={hasMore}
+        onLoadMoreRuns={loadMore}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -758,6 +752,10 @@ export default function RunPage() {
   return (
     <WorkspaceLayout
       runs={runs}
+      loadingRuns={loadingRuns}
+      loadingMoreRuns={loadingMore}
+      hasMoreRuns={hasMore}
+      onLoadMoreRuns={loadMore}
       activeRunId={run.id}
       onSelectRun={(next) => navigate(`/runs/${next.id}`)}
       onDeleteRun={handleDeleteRun}

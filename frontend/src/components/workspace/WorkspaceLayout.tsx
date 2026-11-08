@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, UIEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { clearSession, getCurrentUser } from '@api/auth';
@@ -22,6 +22,9 @@ interface WorkspaceLayoutProps {
   runs: RunSummary[];
   activeRunId?: string | null;
   loadingRuns?: boolean;
+  loadingMoreRuns?: boolean;
+  hasMoreRuns?: boolean;
+  onLoadMoreRuns?: () => void;
   onSelectRun: (run: RunSummary) => void;
   onDeleteRun?: (run: RunSummary) => void;
   onNewQuery: () => void;
@@ -71,6 +74,9 @@ export default function WorkspaceLayout({
   runs,
   activeRunId,
   loadingRuns = false,
+  loadingMoreRuns = false,
+  hasMoreRuns = false,
+  onLoadMoreRuns,
   onSelectRun,
   onDeleteRun,
   onNewQuery,
@@ -108,6 +114,16 @@ export default function WorkspaceLayout({
   function handleLogout() {
     clearSession();
     navigate('/login', { replace: true });
+  }
+
+  function handleSessionsScroll(event: UIEvent<HTMLElement>) {
+    if (!onLoadMoreRuns || loadingMoreRuns || !hasMoreRuns) {
+      return;
+    }
+    const element = event.currentTarget;
+    if (element.scrollTop + element.clientHeight >= element.scrollHeight - 64) {
+      onLoadMoreRuns();
+    }
   }
 
   function handleNewQuery() {
@@ -211,10 +227,17 @@ export default function WorkspaceLayout({
 
             <div className="ws-sidebar-label">
               <span>Недавние сессии</span>
-              <span>{recordsLabel(runs.length)}</span>
+              <span>
+                {recordsLabel(runs.length)}
+                {hasMoreRuns ? '+' : ''}
+              </span>
             </div>
 
-            <nav className="ws-sessions" aria-label="Недавние сессии">
+            <nav
+              className="ws-sessions"
+              aria-label="Недавние сессии"
+              onScroll={handleSessionsScroll}
+            >
               {loadingRuns && <span className="ws-sidebar-note">Загрузка…</span>}
               {!loadingRuns && runs.length === 0 && (
                 <span className="ws-sidebar-note">Пока нет запусков</span>
@@ -254,6 +277,18 @@ export default function WorkspaceLayout({
                   )}
                 </div>
               ))}
+              {loadingMoreRuns && (
+                <span className="ws-sidebar-note">Загрузка…</span>
+              )}
+              {hasMoreRuns && !loadingMoreRuns && onLoadMoreRuns && (
+                <button
+                  className="ws-sessions-more"
+                  type="button"
+                  onClick={onLoadMoreRuns}
+                >
+                  Показать ещё
+                </button>
+              )}
             </nav>
           </div>
         </aside>

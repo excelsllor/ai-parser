@@ -387,6 +387,23 @@
   font-size: 12px;
 }
 
+.ws-sessions-more {
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px dashed var(--ws-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ws-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ws-sessions-more:hover {
+  border-color: var(--ws-primary);
+  color: var(--ws-text-strong);
+}
+
 .ws-session {
   display: flex;
   align-items: center;
