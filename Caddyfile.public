@@ -1,6 +1,17 @@
-# Let's Encrypt TLS. DOMAIN must resolve to this server and ports 80/443
-# must be reachable, e.g. 1-2-3-4.sslip.io.
+# Let's Encrypt TLS for a hostname or a bare IP.
+# The shortlived profile is required for IP identifiers and is also fine
+# for names: certificates live ~6 days and Caddy renews them automatically.
+# DOMAIN must point at this server; ports 80/443 must be reachable.
+{
+	default_sni {$DOMAIN}
+}
+
 {$DOMAIN} {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
 	encode gzip
 	reverse_proxy gateway:8080
 }
