@@ -490,6 +490,38 @@
   line-height: 1.4;
 }
 
+.pf-field--invalid input {
+  border-color: #dc2626;
+}
+
+.pf-field--invalid input:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.pf-field--invalid .pf-input-icon {
+  color: #dc2626;
+}
+
+.pf-field-error {
+  color: #dc2626;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.pf-field > .pf-field-error {
+  display: block;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pf-card-body > .pf-fields + .pf-form {
+  margin-top: 16px;
+}
+
 .pf-input-wrap {
   position: relative;
   display: flex;
@@ -877,6 +909,23 @@
 [data-theme='dark'] .pf-field input:focus {
   border-color: #60a5fa;
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.14);
+}
+
+[data-theme='dark'] .pf-field--invalid input,
+[data-theme='dark'] .pf-field--invalid input:focus {
+  border-color: #ef4444;
+}
+
+[data-theme='dark'] .pf-field--invalid input:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
+}
+
+[data-theme='dark'] .pf-field-error {
+  color: #f87171;
+}
+
+[data-theme='dark'] .pf-field > .pf-field-error {
+  color: #f87171;
 }
 
 [data-theme='dark'] .pf-button--ghost {
