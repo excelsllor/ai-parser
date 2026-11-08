@@ -844,3 +844,58 @@
     display: none;
   }
 }
+
+/* CSP-safe utilities and data-driven chart classes */
+.admin-bar-h-5 { height: 5%; }
+.admin-bar-h-10 { height: 10%; }
+.admin-bar-h-15 { height: 15%; }
+.admin-bar-h-20 { height: 20%; }
+.admin-bar-h-25 { height: 25%; }
+.admin-bar-h-30 { height: 30%; }
+.admin-bar-h-35 { height: 35%; }
+.admin-bar-h-40 { height: 40%; }
+.admin-bar-h-45 { height: 45%; }
+.admin-bar-h-50 { height: 50%; }
+.admin-bar-h-55 { height: 55%; }
+.admin-bar-h-60 { height: 60%; }
+.admin-bar-h-65 { height: 65%; }
+.admin-bar-h-70 { height: 70%; }
+.admin-bar-h-75 { height: 75%; }
+.admin-bar-h-80 { height: 80%; }
+.admin-bar-h-85 { height: 85%; }
+.admin-bar-h-90 { height: 90%; }
+.admin-bar-h-95 { height: 95%; }
+.admin-bar-h-100 { height: 100%; }
+.admin-dist-w-0 { width: 0%; }
+.admin-dist-w-5 { width: 5%; }
+.admin-dist-w-10 { width: 10%; }
+.admin-dist-w-15 { width: 15%; }
+.admin-dist-w-20 { width: 20%; }
+.admin-dist-w-25 { width: 25%; }
+.admin-dist-w-30 { width: 30%; }
+.admin-dist-w-35 { width: 35%; }
+.admin-dist-w-40 { width: 40%; }
+.admin-dist-w-45 { width: 45%; }
+.admin-dist-w-50 { width: 50%; }
+.admin-dist-w-55 { width: 55%; }
+.admin-dist-w-60 { width: 60%; }
+.admin-dist-w-65 { width: 65%; }
+.admin-dist-w-70 { width: 70%; }
+.admin-dist-w-75 { width: 75%; }
+.admin-dist-w-80 { width: 80%; }
+.admin-dist-w-85 { width: 85%; }
+.admin-dist-w-90 { width: 90%; }
+.admin-dist-w-95 { width: 95%; }
+.admin-dist-w-100 { width: 100%; }
+.admin-dist-fill--completed { background: #10b981; }
+.admin-dist-fill--running { background: #f59e0b; }
+.admin-dist-fill--queued { background: #3b82f6; }
+.admin-dist-fill--failed { background: #ef4444; }
+.admin-dist-fill--cancelled { background: #94a3b8; }
+.admin-mt-8 { margin-top: 8px; }
+.admin-mt-10 { margin-top: 10px; }
+.admin-mt-12 { margin-top: 12px; }
+.admin-mt-14 { margin-top: 14px; }
+.admin-mb-12 { margin-bottom: 12px; }
+.admin-stat-value--sm { font-size: 16px; }
+.admin-note--error { color: #b91c1c; }

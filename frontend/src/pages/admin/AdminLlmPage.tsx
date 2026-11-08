@@ -204,7 +204,7 @@ export default function AdminLlmPage() {
             Рабочая модель
             <BotIcon />
           </span>
-          <strong className="admin-stat-value" style={{ fontSize: 16 }}>
+          <strong className="admin-stat-value admin-stat-value--sm">
             {settings?.effective.model ?? '—'}
           </strong>
           <span className="admin-stat-hint">Base URL: {settings?.effective.base_url ?? '—'}</span>
@@ -306,11 +306,11 @@ export default function AdminLlmPage() {
           </form>
 
           {modelsError && (
-            <p className="admin-note" style={{ marginTop: 10, color: '#b91c1c' }}>
+            <p className="admin-note admin-note--error admin-mt-10">
               Список моделей не получен: {modelsError}
             </p>
           )}
-          <p className="admin-note" style={{ marginTop: 10 }}>
+          <p className="admin-note admin-mt-10">
             Окружение: {settings?.effective.env ?? '—'}. Значения сохраняются в
             настройках платформы и переопределяют переменные окружения.
           </p>
@@ -354,7 +354,7 @@ export default function AdminLlmPage() {
               </button>
             </div>
           </form>
-          <p className="admin-note" style={{ marginTop: 12 }}>
+          <p className="admin-note admin-mt-12">
             Температура и лимит токенов задаются конфигурацией backend и не
             редактируются из интерфейса.
           </p>
@@ -423,7 +423,7 @@ export default function AdminLlmPage() {
           {loading && <p className="admin-empty">Загружаем журнал вызовов…</p>}
         </div>
 
-        <p className="admin-note" style={{ marginTop: 10 }}>
+        <p className="admin-note admin-mt-10">
           Показаны последние {Math.min(calls.length, 40)} из {calls.length} вызовов · обновлено{' '}
           {formatDateTime(updatedAt)}
         </p>

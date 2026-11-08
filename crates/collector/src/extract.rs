@@ -481,6 +481,7 @@ pub async fn collect_live(
     }
 
     let client = reqwest::Client::builder()
+        .no_proxy()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(20))
         .connect_timeout(Duration::from_secs(10))

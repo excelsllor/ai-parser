@@ -345,7 +345,7 @@ export default function AdminUsersPage() {
           )}
           {loading && <p className="admin-empty">Загружаем пользователей…</p>}
         </div>
-        <p className="admin-note" style={{ marginTop: 10 }}>
+        <p className="admin-note admin-mt-10">
           Роли: администратор — полный доступ, аналитик — запуски и дайджесты,
           наблюдатель — только чтение.
         </p>

@@ -351,7 +351,7 @@ export default function AdminSourcesPage() {
           </select>
         </div>
 
-        <div className="admin-table-wrap" style={{ marginTop: 14 }}>
+        <div className="admin-table-wrap admin-mt-14">
           <table className="admin-table">
             <thead>
               <tr>
@@ -443,7 +443,7 @@ export default function AdminSourcesPage() {
           )}
           {loading && <p className="admin-empty">Загружаем источники…</p>}
         </div>
-        <p className="admin-note" style={{ marginTop: 10 }}>
+        <p className="admin-note admin-mt-10">
           Показано {filtered.length} из {sources.length}. Последнее обновление:{' '}
           {formatDateTime(updatedAt)}
         </p>
@@ -462,7 +462,7 @@ export default function AdminSourcesPage() {
           </span>
         </div>
 
-        <form className="admin-form" onSubmit={handleAddKeyword} style={{ marginBottom: 12 }}>
+        <form className="admin-form admin-mb-12" onSubmit={handleAddKeyword}>
           <label className="admin-field">
             <span>Новое стоп-слово</span>
             <input
