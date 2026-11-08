@@ -15,7 +15,6 @@ import {
 } from '@api/auth';
 import type { CurrentUser, ProfileSession } from '@api/auth';
 import AppHeader from '@components/layout/AppHeader';
-import AppNav from '@components/layout/AppNav';
 import {
   AlternateEmailIcon,
   BadgeIcon,
@@ -376,19 +375,7 @@ export default function ProfilePage() {
   }
 
   return (    <div className="ws-page pf-page">
-      <AppHeader
-        onBrandClick={() => navigate('/')}
-        sub="Security Ops"
-        nav={<AppNav />}
-      >
-        <div className="pf-user-chip">
-          <span className="pf-avatar pf-avatar--small">{initials}</span>
-          <span className="pf-user-chip-text">
-            <span>{me?.username ?? 'Пользователь'}</span>
-            <span>{roleLabel(me?.role)}</span>
-          </span>
-        </div>
-      </AppHeader>
+      <AppHeader sub="Security Ops" />
 
       <main className="pf-main">
         <div className="pf-breadcrumbs">

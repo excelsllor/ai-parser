@@ -1,20 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode, UIEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 
-import { clearSession, getCurrentUser } from '@api/auth';
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
-import AppNav from '@components/layout/AppNav';
-import {
-  AddIcon,
-  ChevronDownIcon,
-  DashboardIcon,
-  DeleteIcon,
-  LogoutIcon,
-  MenuIcon,
-  UserIcon,
-} from '@components/ui/icons';
+import { AddIcon, DeleteIcon, MenuIcon } from '@components/ui/icons';
 
 import './workspace.css';
 
@@ -82,27 +71,8 @@ export default function WorkspaceLayout({
   onDeleteRun,
   onNewQuery,
 }: WorkspaceLayoutProps) {
-  const navigate = useNavigate();
-  const user = getCurrentUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!userMenuOpen) {
-      return;
-    }
-
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (!target?.closest('.ws-user-wrap')) {
-        setUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [userMenuOpen]);
 
   function toggleSidebar() {
     if (window.matchMedia('(max-width: 1100px)').matches) {
@@ -110,11 +80,6 @@ export default function WorkspaceLayout({
       return;
     }
     setSidebarCollapsed((value) => !value);
-  }
-
-  function handleLogout() {
-    clearSession();
-    navigate('/login', { replace: true });
   }
 
   function handleSessionsScroll(event: UIEvent<HTMLElement>) {
@@ -137,9 +102,6 @@ export default function WorkspaceLayout({
     onSelectRun(run);
   }
 
-  const initials = (user?.username ?? '?').slice(0, 2).toUpperCase();
-  const roleLabel = user?.role === 'admin' ? 'Администратор' : 'Аналитик';
-
   return (
     <div className={`ws-page${sidebarCollapsed ? ' ws-page--sidebar-hidden' : ''}`}>
       <AppHeader
@@ -154,61 +116,7 @@ export default function WorkspaceLayout({
           </button>
         }
         badge="AI"
-        nav={<AppNav />}
-      >
-        <span className="ws-header-divider" />
-        <div className="ws-user-wrap">
-          <button
-            className="ws-user"
-            type="button"
-            onClick={() => setUserMenuOpen((value) => !value)}
-          >
-            <span className="ws-avatar">{initials}</span>
-            <span className="ws-user-text">
-              <span className="ws-user-name">{user?.username ?? 'Пользователь'}</span>
-              <span className="ws-user-role">{roleLabel}</span>
-            </span>
-            <ChevronDownIcon className="ws-user-chevron" />
-          </button>
-
-          {userMenuOpen && (
-            <div className="ws-user-menu">
-              <div className="ws-user-menu-head">
-                <span>{user?.username ?? 'Пользователь'}</span>
-                <span>{roleLabel}</span>
-              </div>
-              <button
-                className="ws-user-menu-item ws-user-menu-item--profile"
-                type="button"
-                onClick={() => {
-                  setUserMenuOpen(false);
-                  navigate('/profile');
-                }}
-              >
-                <UserIcon />
-                Профиль
-              </button>
-              {user?.role === 'admin' && (
-                <button
-                  className="ws-user-menu-item"
-                  type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    navigate('/admin');
-                  }}
-                >
-                  <DashboardIcon />
-                  Администрирование
-                </button>
-              )}
-              <button className="ws-user-menu-item" type="button" onClick={handleLogout}>
-                <LogoutIcon />
-                Выйти
-              </button>
-            </div>
-          )}
-        </div>
-      </AppHeader>
+      />
 
       <div className="ws-body">
         {sidebarOpen && (

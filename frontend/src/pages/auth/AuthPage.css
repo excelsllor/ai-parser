@@ -421,6 +421,13 @@
   gap: 12px;
 }
 
+.auth-sso-unavailable {
+  margin: 0;
+  color: var(--auth-muted, #64748b);
+  font-size: 12px;
+  text-align: center;
+}
+
 .auth-yandex,
 .auth-vk {
   display: flex;

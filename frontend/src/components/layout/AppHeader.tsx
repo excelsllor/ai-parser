@@ -1,8 +1,12 @@
 import { useRef, type ReactNode } from 'react';
 import { animate } from 'animejs';
+import { useNavigate } from 'react-router-dom';
 
-import { useTheme } from '@hooks/useTheme';
+import { getAccessToken } from '@api/auth';
+import AppNav from '@components/layout/AppNav';
+import UserMenu from '@components/layout/UserMenu';
 import { MoonIcon, SunIcon } from '@components/ui/icons';
+import { useTheme } from '@hooks/useTheme';
 
 import './AppHeader.css';
 
@@ -23,7 +27,9 @@ export default function AppHeader({
   sub,
   onBrandClick,
 }: AppHeaderProps) {
+  const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const authenticated = Boolean(getAccessToken());
   const themeIconRef = useRef<HTMLSpanElement>(null);
 
   function handleThemeToggle() {
@@ -58,20 +64,21 @@ export default function AppHeader({
     </>
   );
 
+  const handleBrandClick =
+    onBrandClick ?? (() => navigate(authenticated ? '/' : '/login'));
+
   return (
     <header className="app-header">
       <div className="app-header-left">
         {left}
-        {onBrandClick ? (
-          <button className="app-brand" type="button" onClick={onBrandClick}>
-            {brand}
-          </button>
-        ) : (
-          <div className="app-brand">{brand}</div>
-        )}
+        <button className="app-brand" type="button" onClick={handleBrandClick}>
+          {brand}
+        </button>
       </div>
 
-      <div className="app-header-center">{nav}</div>
+      <div className="app-header-center">
+        {nav ?? (authenticated ? <AppNav /> : undefined)}
+      </div>
 
       <div className="app-header-right">
         <button
@@ -85,7 +92,7 @@ export default function AppHeader({
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </span>
         </button>
-        {children}
+        {children ?? (authenticated ? <UserMenu /> : undefined)}
       </div>
     </header>
   );

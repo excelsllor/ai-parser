@@ -49,6 +49,18 @@ impl RedisCache {
         Ok(())
     }
 
+    pub async fn take_json<T: DeserializeOwned>(&self, key: &str) -> AppResult<Option<T>> {
+        let mut conn = self.manager.clone();
+        let value: Option<String> = redis::cmd("GETDEL")
+            .arg(key)
+            .query_async::<Option<String>>(&mut conn)
+            .await?;
+        match value {
+            Some(raw) => Ok(serde_json::from_str(&raw).ok()),
+            None => Ok(None),
+        }
+    }
+
     pub async fn get_string(&self, key: &str) -> AppResult<Option<String>> {
         let mut conn = self.manager.clone();
         let value: Option<String> = conn.get(key).await?;

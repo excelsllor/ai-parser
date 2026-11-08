@@ -84,7 +84,17 @@ pub async fn login(
         return Err(AppError::Unauthorized("invalid credentials".into()));
     }
 
-    let access = create_access_token(&state.config, &user)?;
+    let session = issue_session(&state, &user, ip, "auth.login.success").await?;
+    Ok(Json(session))
+}
+
+pub async fn issue_session(
+    state: &AppState,
+    user: &User,
+    ip: String,
+    action: &str,
+) -> AppResult<LoginResponse> {
+    let access = create_access_token(&state.config, user)?;
     let (refresh, refresh_hash) = new_refresh_token();
     let expires = refresh_expiry(&state.config);
 
@@ -101,7 +111,7 @@ pub async fn login(
         &AuditRecord::new(
             Some(user.id),
             user.username.clone(),
-            "auth.login.success",
+            action,
             "auth",
             json!({"role": user.role}),
             ip,
@@ -109,13 +119,13 @@ pub async fn login(
     )
     .await;
 
-    Ok(Json(LoginResponse {
+    Ok(LoginResponse {
         access_token: access,
         refresh_token: refresh,
         token_type: "Bearer".to_string(),
-        role: user.role,
-        username: user.username,
-    }))
+        role: user.role.clone(),
+        username: user.username.clone(),
+    })
 }
 
 pub async fn refresh(

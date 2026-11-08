@@ -837,6 +837,95 @@ pub async fn create_user(
     Ok(user)
 }
 
+pub async fn find_oauth_user(
+    pool: &PgPool,
+    provider: &str,
+    provider_user_id: &str,
+) -> AppResult<Option<User>> {
+    sqlx::query_as::<_, User>(
+        "SELECT u.* FROM users u
+         JOIN oauth_identities i ON i.user_id = u.id
+         WHERE i.provider = $1 AND i.provider_user_id = $2",
+    )
+    .bind(provider)
+    .bind(provider_user_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(AppError::from)
+}
+
+pub async fn create_oauth_user(
+    pool: &PgPool,
+    provider: &str,
+    provider_user_id: &str,
+    username: &str,
+    password_hash: &str,
+    display_name: &str,
+    email: Option<&str>,
+) -> AppResult<User> {
+    let email = match email {
+        Some(value) => {
+            let taken: bool = sqlx::query_scalar(
+                "SELECT EXISTS(SELECT 1 FROM users WHERE lower(email) = lower($1))",
+            )
+            .bind(value)
+            .fetch_one(pool)
+            .await?;
+            if taken {
+                None
+            } else {
+                Some(value)
+            }
+        }
+        None => None,
+    };
+
+    for attempt in 0..5 {
+        let candidate = if attempt == 0 {
+            username.to_string()
+        } else {
+            format!("{username}_{}", Uuid::new_v4().simple())
+        };
+        let candidate = &candidate[..candidate.len().min(40)];
+
+        let mut tx = pool.begin().await?;
+        let user = sqlx::query_as::<_, User>(
+            "INSERT INTO users (username, password_hash, role, display_name, email)
+             VALUES ($1,$2,'viewer',$3,$4)
+             ON CONFLICT (username) DO NOTHING
+             RETURNING *",
+        )
+        .bind(candidate)
+        .bind(password_hash)
+        .bind(display_name)
+        .bind(email)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(user) = user else {
+            tx.rollback().await?;
+            continue;
+        };
+
+        sqlx::query(
+            "INSERT INTO oauth_identities (provider, provider_user_id, user_id)
+             VALUES ($1,$2,$3)",
+        )
+        .bind(provider)
+        .bind(provider_user_id)
+        .bind(user.id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+
+        return Ok(user);
+    }
+
+    Err(AppError::Conflict(
+        "could not allocate a unique username for oauth login".into(),
+    ))
+}
+
 pub async fn set_user_active(pool: &PgPool, user_id: Uuid, active: bool) -> AppResult<()> {
     sqlx::query("UPDATE users SET is_active = $1, updated_at = now() WHERE id = $2")
         .bind(active)

@@ -25,6 +25,35 @@ export interface LoginResponse {
   username: string;
 }
 
+export interface AuthProviders {
+  yandex: boolean;
+  vk: boolean;
+}
+
+export type OAuthProvider = 'yandex' | 'vk';
+
+export function fetchAuthProviders(): Promise<AuthProviders> {
+  return request<AuthProviders>('/auth/providers');
+}
+
+export async function startOAuth(provider: OAuthProvider): Promise<string> {
+  const response = await request<{ url: string }>(`/auth/oauth/${provider}/start`, {
+    method: 'POST',
+  });
+  return response.url;
+}
+
+export function completeOAuth(
+  provider: OAuthProvider,
+  code: string,
+  state: string,
+): Promise<LoginResponse> {
+  return request<LoginResponse>(`/auth/oauth/${provider}/callback`, {
+    method: 'POST',
+    body: JSON.stringify({ code, state }),
+  });
+}
+
 const ACCESS_TOKEN_KEY = 'cd_access_token';
 const REFRESH_TOKEN_KEY = 'cd_refresh_token';
 const USER_KEY = 'cd_user';
