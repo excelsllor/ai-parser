@@ -280,10 +280,13 @@ export default function AdminUsersPage() {
                         <span className="admin-avatar">{initials(user.username)}</span>
                         <span>
                           <span className="admin-cell-strong">
-                            {user.username}
+                            {user.display_name || user.username}
                             {isSelf && <span className="admin-note"> · это вы</span>}
                           </span>
-                          <span className="admin-cell-sub">{user.id}</span>
+                          <span className="admin-cell-sub">
+                            @{user.username}
+                            {user.department ? ` · ${user.department}` : ''}
+                          </span>
                         </span>
                       </div>
                     </td>

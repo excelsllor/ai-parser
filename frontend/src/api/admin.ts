@@ -6,6 +6,9 @@ export interface AdminUser {
   username: string;
   role: string;
   is_active: boolean;
+  display_name: string;
+  department: string;
+  email: string | null;
   created_at: string;
 }
 
