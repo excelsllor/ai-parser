@@ -112,11 +112,20 @@ export function updateProfile(input: {
   display_name?: string;
   department?: string;
   email?: string;
+  current_email?: string;
 }): Promise<CurrentUser> {
   return request<CurrentUser>('/auth/me', {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
     body: JSON.stringify(input),
+  });
+}
+
+export function verifyCurrentEmail(email: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/email/verify', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify({ email }),
   });
 }
 

@@ -210,6 +210,7 @@ pub struct UpdateProfileRequest {
     pub display_name: Option<String>,
     pub department: Option<String>,
     pub email: Option<String>,
+    pub current_email: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -228,6 +229,25 @@ pub struct SessionResponse {
     pub id: Uuid,
     pub created_at: chrono::DateTime<Utc>,
     pub expires_at: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VerifyEmailRequest {
+    pub email: String,
+}
+
+pub async fn verify_email(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(payload): Json<VerifyEmailRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    if let Some(stored) = current.email {
+        if !stored.eq_ignore_ascii_case(payload.email.trim()) {
+            return Err(AppError::Validation("current email is incorrect".into()));
+        }
+    }
+    Ok(Json(json!({"ok": true})))
 }
 
 pub async fn update_profile(
@@ -265,6 +285,20 @@ pub async fn update_profile(
                     || value.ends_with('@')
                 {
                     return Err(AppError::Validation("invalid email".into()));
+                }
+                let stored = current.email.as_deref().map(str::to_lowercase);
+                if stored.as_deref() != Some(value.as_str()) {
+                    let provided = payload
+                        .current_email
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim()
+                        .to_lowercase();
+                    if stored.as_deref() != Some(provided.as_str()) {
+                        return Err(AppError::Validation(
+                            "current email is incorrect".into(),
+                        ));
+                    }
                 }
                 let taken: Option<Uuid> = sqlx::query_scalar(
                     "SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 LIMIT 1",

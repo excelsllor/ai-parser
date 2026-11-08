@@ -89,6 +89,10 @@ fn build_router(state: AppState) -> Router {
             "/api/auth/password",
             post(handlers::auth::change_password),
         )
+        .route(
+            "/api/auth/email/verify",
+            post(handlers::auth::verify_email),
+        )
         .route("/api/auth/sessions", get(handlers::auth::list_sessions))
         .route(
             "/api/auth/sessions/revoke-others",
