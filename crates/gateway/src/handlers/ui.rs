@@ -17,3 +17,10 @@ pub async fn dompurify_js() -> ([(&'static str, &'static str); 1], &'static str)
         include_str!("../../../../web/dompurify.min.js"),
     )
 }
+
+pub async fn styles_css() -> ([(&'static str, &'static str); 1], &'static str) {
+    (
+        [("content-type", "text/css; charset=utf-8")],
+        include_str!("../../../../web/styles.css"),
+    )
+}

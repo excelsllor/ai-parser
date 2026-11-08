@@ -173,6 +173,7 @@ fn build_router(state: AppState) -> Router {
         .route("/", get(handlers::ui::index))
         .route("/app.js", get(handlers::ui::app_js))
         .route("/dompurify.min.js", get(handlers::ui::dompurify_js))
+        .route("/styles.css", get(handlers::ui::styles_css))
         .merge(api)
         .fallback_service(static_files)
         .layer(axum_mw::from_fn(news_shared::security::security_headers))
