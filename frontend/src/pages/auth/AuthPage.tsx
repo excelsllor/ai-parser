@@ -543,13 +543,7 @@ export default function AuthPage() {
 
             <div className="auth-sso">
               <div className="auth-yandex">
-                <div
-                  className="auth-yandex-sdk"
-                  id="yandex-auth-button"
-                  style={{
-                    display: yandexReady ? undefined : 'none',
-                  }}
-                />
+                <div className="auth-yandex-sdk" id="yandex-auth-button" />
                 {!yandexReady && (
                   <button
                     className="auth-yandex-official"

@@ -32,13 +32,20 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Отменено',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  completed: '#10b981',
-  running: '#f59e0b',
-  queued: '#3b82f6',
-  failed: '#ef4444',
-  cancelled: '#94a3b8',
-};
+function barHeightClass(count: number, max: number): string {
+  const percent = Math.round((count / max) * 20) * 5;
+  return `admin-bar-h-${Math.min(100, Math.max(5, percent))}`;
+}
+
+function distWidthClass(percent: number): string {
+  return `admin-dist-w-${Math.min(100, Math.max(0, Math.round(percent / 5) * 5))}`;
+}
+
+function statusClass(status: string): string {
+  return ['completed', 'running', 'queued', 'failed', 'cancelled'].includes(status)
+    ? status
+    : 'queued';
+}
 
 export default function AdminOverviewPage() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -256,8 +263,7 @@ export default function AdminOverviewPage() {
                 {chart.map((item) => (
                   <div className="admin-chart-col" key={item.label}>
                     <div
-                      className="admin-chart-bar"
-                      style={{ height: `${Math.max(2, (item.count / maxChart) * 100)}%` }}
+                      className={`admin-chart-bar ${barHeightClass(item.count, maxChart)}`}
                       title={`${item.label} — ${item.count}`}
                     />
                     <span className="admin-chart-label">{item.label}</span>
@@ -278,11 +284,7 @@ export default function AdminOverviewPage() {
                   <span className="admin-dist-name">{STATUS_LABELS[item.status]}</span>
                   <span className="admin-dist-bar">
                     <span
-                      className="admin-dist-fill"
-                      style={{
-                        width: `${item.percent}%`,
-                        background: STATUS_COLORS[item.status],
-                      }}
+                      className={`admin-dist-fill admin-dist-fill--${statusClass(item.status)} ${distWidthClass(item.percent)}`}
                     />
                   </span>
                   <span className="admin-dist-value">{item.count}</span>
@@ -358,7 +360,7 @@ export default function AdminOverviewPage() {
                   <strong>{services?.llm.ok ? 'OK' : 'Недоступен'}</strong>
                 </div>
               </div>
-              <p className="admin-note" style={{ marginTop: 12 }}>
+              <p className="admin-note admin-mt-12">
                 Окружение {services?.env ?? '—'} · версия {services?.version ?? '—'} ·{' '}
                 {formatDateTime(updatedAt)}
               </p>
