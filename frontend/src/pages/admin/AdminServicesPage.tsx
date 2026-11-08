@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getDebugServices } from '@api/admin';
-import type { DebugServices } from '@api/admin';
+import { getDebugServices, getHealthHistory } from '@api/admin';
+import type { DebugServices, HealthSnapshot } from '@api/admin';
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -17,6 +17,7 @@ const REFRESH_MS = 30_000;
 
 export default function AdminServicesPage() {
   const [services, setServices] = useState<DebugServices | null>(null);
+  const [history, setHistory] = useState<HealthSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -24,8 +25,12 @@ export default function AdminServicesPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const response = await getDebugServices();
+      const [response, snapshots] = await Promise.all([
+        getDebugServices(),
+        getHealthHistory(20),
+      ]);
       setServices(response);
+      setHistory(snapshots);
       setUpdatedAt(new Date().toISOString());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось получить состояние сервисов.');
@@ -244,6 +249,80 @@ export default function AdminServicesPage() {
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <div className="admin-card-head">
+          <div>
+            <h2 className="admin-card-title">История проверок</h2>
+            <p className="admin-card-sub">Снимки каждые 60 секунд, хранятся 7 дней</p>
+          </div>
+          <span className="admin-badge">{history.length} записей</span>
+        </div>
+
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Проверка</th>
+                <th>PostgreSQL</th>
+                <th>Redis</th>
+                <th>Kafka</th>
+                <th>LLM</th>
+                <th>Сервисы</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((snapshot) => (
+                <tr key={snapshot.id}>
+                  <td className="admin-mono">{formatDateTime(snapshot.checked_at)}</td>
+                  <td>
+                    <span
+                      className={`admin-badge ${
+                        snapshot.database_ok ? 'admin-badge--green' : 'admin-badge--red'
+                      }`}
+                    >
+                      {snapshot.database_ok ? 'OK' : 'Ошибка'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`admin-badge ${
+                        snapshot.redis_ok ? 'admin-badge--green' : 'admin-badge--red'
+                      }`}
+                    >
+                      {snapshot.redis_ok ? `${snapshot.redis_latency_ms ?? 0} мс` : 'Ошибка'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`admin-badge ${
+                        snapshot.kafka_ok ? 'admin-badge--green' : 'admin-badge--red'
+                      }`}
+                    >
+                      {snapshot.kafka_ok ? 'OK' : 'Ошибка'}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`admin-badge ${
+                        snapshot.llm_ok ? 'admin-badge--green' : 'admin-badge--amber'
+                      }`}
+                    >
+                      {snapshot.llm_ok ? 'OK' : 'Недоступен'}
+                    </span>
+                  </td>
+                  <td>
+                    {snapshot.registry_alive}/{snapshot.registry_total}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {history.length === 0 && (
+            <p className="admin-empty">История появится после первого снимка.</p>
+          )}
         </div>
       </section>
     </>

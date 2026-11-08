@@ -51,6 +51,7 @@ async fn main() -> AppResult<()> {
     let state = AppState::new(config.clone(), pool, redis, bus, llm);
 
     spawn_token_cleanup(state.clone());
+    spawn_health_sampler(state.clone());
 
     let app = build_router(state);
 
@@ -158,6 +159,10 @@ fn build_router(state: AppState) -> Router {
         .route("/api/admin/audit", get(handlers::admin::audit))
         .route("/api/admin/metrics", get(handlers::admin::metrics))
         .route(
+            "/api/admin/health/history",
+            get(handlers::admin::health_history),
+        )
+        .route(
             "/api/admin/debug/services",
             get(handlers::admin::debug_services),
         )
@@ -248,6 +253,46 @@ fn spawn_token_cleanup(state: AppState) {
             {
                 tracing::warn!(error = %e, "refresh token cleanup failed");
             }
+        }
+    });
+}
+
+fn spawn_health_sampler(state: AppState) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            let database_ok = news_shared::db::db_ping(&state.pool).await;
+            let redis_latency = state.redis.health_latency().await;
+            let kafka_ok = state.bus.health().await;
+            let llm_ok = state.llm.health().await;
+            let registry = news_shared::registry::read_services(&state.config.data_dir);
+            let registry_alive = registry.iter().filter(|service| service.alive).count();
+
+            if let Err(error) = sqlx::query(
+                "INSERT INTO health_snapshots
+                    (database_ok, redis_ok, redis_latency_ms, kafka_ok, llm_ok,
+                     registry_alive, registry_total)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            )
+            .bind(database_ok)
+            .bind(redis_latency.is_some())
+            .bind(redis_latency.map(|value| value.as_millis() as i64))
+            .bind(kafka_ok)
+            .bind(llm_ok)
+            .bind(registry_alive as i32)
+            .bind(registry.len() as i32)
+            .execute(&state.pool)
+            .await
+            {
+                tracing::warn!(error = %error, "health snapshot insert failed");
+            }
+
+            let _ = sqlx::query(
+                "DELETE FROM health_snapshots WHERE checked_at < now() - interval '7 days'",
+            )
+            .execute(&state.pool)
+            .await;
         }
     });
 }

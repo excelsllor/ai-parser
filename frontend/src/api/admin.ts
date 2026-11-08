@@ -77,6 +77,18 @@ export interface ServiceInfo {
   alive: boolean;
 }
 
+export interface HealthSnapshot {
+  id: string;
+  checked_at: string;
+  database_ok: boolean;
+  redis_ok: boolean;
+  redis_latency_ms: number | null;
+  kafka_ok: boolean;
+  llm_ok: boolean;
+  registry_alive: number;
+  registry_total: number;
+}
+
 export interface DebugServices {
   registry: ServiceInfo[];
   database: { ok: boolean };
@@ -197,6 +209,12 @@ export function getAudit(limit = 100, offset = 0): Promise<AuditEntry[]> {
 
 export function getLlmCalls(): Promise<LlmCall[]> {
   return request<LlmCall[]>('/admin/debug/llm-calls', { headers: authHeaders() });
+}
+
+export function getHealthHistory(limit = 20): Promise<HealthSnapshot[]> {
+  return request<HealthSnapshot[]>(`/admin/health/history?limit=${limit}`, {
+    headers: authHeaders(),
+  });
 }
 
 export function getDebugServices(): Promise<DebugServices> {

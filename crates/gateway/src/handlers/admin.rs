@@ -512,6 +512,48 @@ pub async fn debug_services(
     })))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct HistoryQuery {
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
+pub async fn health_history(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<HistoryQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let limit = query.limit.unwrap_or(30).clamp(1, 200);
+    let rows = sqlx::query_as::<_, (Uuid, chrono::DateTime<Utc>, bool, bool, Option<i64>, bool, bool, i32, i32)>(
+        "SELECT id, checked_at, database_ok, redis_ok, redis_latency_ms, kafka_ok, llm_ok,
+                registry_alive, registry_total
+         FROM health_snapshots ORDER BY checked_at DESC LIMIT $1",
+    )
+    .bind(limit)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            json!({
+                "id": row.0,
+                "checked_at": row.1,
+                "database_ok": row.2,
+                "redis_ok": row.3,
+                "redis_latency_ms": row.4,
+                "kafka_ok": row.5,
+                "llm_ok": row.6,
+                "registry_alive": row.7,
+                "registry_total": row.8,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    Ok(Json(json!(items)))
+}
+
 pub async fn debug_kafka(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     user.require_admin()?;
     Ok(Json(json!({
