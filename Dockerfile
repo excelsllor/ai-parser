@@ -22,7 +22,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl libssl3 \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates=20250419~deb12u2 \
+        curl=7.88.1-10+deb12u15 \
+        libssl3=3.0.22-1~deb12u2 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 10001 app \
     && useradd -u 10001 -g app -r -s /usr/sbin/nologin app \

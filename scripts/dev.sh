@@ -5,7 +5,7 @@ if ! docker info >/dev/null 2>&1; then
   echo "Нет доступа к Docker. Добавьте пользователя в группу docker и перезайдите." >&2
   exit 1
 fi
-if [ ! -f .env ]; then
+if [[ ! -f .env ]]; then
   echo "Создайте .env из .env.example и заполните секреты." >&2
   exit 1
 fi

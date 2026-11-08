@@ -11,7 +11,7 @@ USERNAME="${INPUT_USER:-$DEFAULT_USER}"
 read -r -s -p "Personal Access Token: " TOKEN
 echo
 
-if [ -z "$TOKEN" ]; then
+if [[ -z "$TOKEN" ]]; then
   echo "PAT не задан." >&2
   exit 1
 fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [ -f .env ]; then
+if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env
@@ -11,7 +11,7 @@ fi
 BASE="${BASE:-http://127.0.0.1:8080}"
 USERNAME="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
 PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-}"
-if [ -z "$PASSWORD" ] && [ -f data/bootstrap_password.txt ]; then
+if [[ -z "$PASSWORD" ]] && [[ -f data/bootstrap_password.txt ]]; then
   PASSWORD="$(cat data/bootstrap_password.txt)"
 fi
 
@@ -21,7 +21,7 @@ curl -fsS "$BASE/api/health" | jq .
 echo "2. login"
 TOKEN="$(curl -fsS -X POST "$BASE/api/auth/login" -H 'Content-Type: application/json' \
   -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}" | jq -r .access_token)"
-test -n "$TOKEN" && test "$TOKEN" != "null"
+[[ -n "$TOKEN" && "$TOKEN" != "null" ]]
 echo "token ok"
 
 echo "3. sources"

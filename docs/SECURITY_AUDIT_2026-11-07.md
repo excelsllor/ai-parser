@@ -26,7 +26,7 @@
 |---|---|
 | fmt | OK |
 | clippy (`-D warnings`) | OK |
-| tests | 24 теста пройдено |
+| tests | 25 тестов пройдено |
 | cargo audit | без уязвимостей; `rsa` в lock только как optional-зависимость `sqlx-mysql`, не компилируется; `fxhash` — unmaintained-предупреждение |
 | Trivy fs (HIGH/CRITICAL, ignore-unfixed) | 0 уязвимостей, 0 секретов, 0 misconfig |
 | Trivy image `news-backend:latest` | 0 HIGH/CRITICAL |

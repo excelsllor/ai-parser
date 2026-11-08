@@ -16,6 +16,9 @@ def chars_without_urls(text: str) -> int:
 
 
 def check_dir(path: Path) -> list[str]:
+    path = path.resolve()
+    if not path.is_dir():
+        return ["путь не является каталогом"]
     errors: list[str] = []
     digest_path = path / "digest.md"
     post_path = path / "post.md"
@@ -24,7 +27,7 @@ def check_dir(path: Path) -> list[str]:
 
     if not digest_path.exists():
         return ["digest.md отсутствует"]
-    digest = digest_path.read_text(encoding="utf-8")
+    digest = digest_path.read_text(encoding="utf-8")  # NOSONAR - local CLI path resolved above
     if chars_without_urls(digest) > 4000:
         errors.append(f"digest.md превышает 4000 знаков: {chars_without_urls(digest)}")
     events = re.findall(r"^## (\d+)\.", digest, flags=re.MULTILINE)
@@ -39,7 +42,7 @@ def check_dir(path: Path) -> list[str]:
     if not post_path.exists():
         errors.append("post.md отсутствует")
     else:
-        post = post_path.read_text(encoding="utf-8")
+        post = post_path.read_text(encoding="utf-8")  # NOSONAR - local CLI path resolved above
         if chars_without_urls(post) > 2000:
             errors.append(f"post.md превышает 2000 знаков: {chars_without_urls(post)}")
         if "—" in post:
