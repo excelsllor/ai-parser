@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ApiError } from '@api/http';
-import { createRun, listRuns, listSources } from '@api/runs';
+import { createRun, deleteRun, listRuns, listSources } from '@api/runs';
 import type { RunSummary, Source } from '@api/runs';
 import {
   AlertCircleIcon,
@@ -18,16 +18,16 @@ import {
 import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
 
 const INTERVALS = [
-  { hours: 12, label: '12 часов', disabled: true },
-  { hours: 24, label: '24 часа', disabled: false },
-  { hours: 48, label: '48 часов', disabled: true },
+  { hours: 12, label: '12 часов' },
+  { hours: 24, label: '24 часа' },
+  { hours: 48, label: '48 часов' },
 ] as const;
 
 const NEWS_COUNTS = [
-  { value: 3, disabled: true },
-  { value: 5, disabled: false },
-  { value: 7, disabled: true },
-  { value: 10, disabled: true },
+  { value: 3 },
+  { value: 5 },
+  { value: 7 },
+  { value: 10 },
 ] as const;
 
 const POLICIES = [
@@ -145,10 +145,17 @@ export default function WorkspacePage() {
     navigate(`/runs/${run.id}`);
   }
 
-  function handleDeleteRun(run: RunSummary) {
-    setSessionNotice(
-      `Удаление сессии ${run.id.slice(0, 8)} будет доступно после подключения backend.`,
-    );
+  async function handleDeleteRun(run: RunSummary) {
+    setSessionNotice(null);
+    try {
+      await deleteRun(run.id);
+      setRuns((previous) => previous.filter((item) => item.id !== run.id));
+      setSessionNotice(`Сессия ${run.id.slice(0, 8)} удалена.`);
+    } catch (error) {
+      setDataError(
+        error instanceof Error ? error.message : 'Не удалось удалить сессию.',
+      );
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -165,6 +172,8 @@ export default function WorkspacePage() {
       const run = await createRun({
         mode: 'live',
         sources: [...selectedSources],
+        intervalHours,
+        maxItems: newsCount,
       });
       navigate(`/runs/${run.id}`);
     } catch (error) {
@@ -227,22 +236,16 @@ export default function WorkspacePage() {
                 <ScheduleIcon />
                 Временной интервал
               </span>
-              <span className="ws-param-hint">За последние 24ч</span>
+              <span className="ws-param-hint">За последние {intervalHours} ч</span>
             </div>
             <div className="ws-pills">
               {INTERVALS.map((item) => (
                 <button
                   className={`ws-pill${
                     intervalHours === item.hours ? ' ws-pill--active' : ''
-                  }${item.disabled ? ' ws-pill--disabled' : ''}`}
+                  }`}
                   key={item.hours}
                   type="button"
-                  disabled={item.disabled}
-                  title={
-                    item.disabled
-                      ? 'Пока поддерживается только 24-часовой интервал'
-                      : undefined
-                  }
                   onClick={() => setIntervalHours(item.hours)}
                 >
                   {intervalHours === item.hours && <CheckIcon />}
@@ -265,15 +268,9 @@ export default function WorkspacePage() {
                 <button
                   className={`ws-pill${
                     newsCount === item.value ? ' ws-pill--active' : ''
-                  }${item.disabled ? ' ws-pill--disabled' : ''}`}
+                  }`}
                   key={item.value}
                   type="button"
-                  disabled={item.disabled}
-                  title={
-                    item.disabled
-                      ? 'Количество финальных материалов пока задаётся регламентом'
-                      : undefined
-                  }
                   onClick={() => setNewsCount(item.value)}
                 >
                   {newsCount === item.value && <CheckIcon />}

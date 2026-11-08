@@ -6,10 +6,10 @@ import {
   createRun,
   downloadArtifact,
   cancelRun,
+  deleteRun,
   fetchArtifact,
   getChecks,
   getRunDetail,
-  linkRunVersion,
   listRuns,
   listSources,
   rerunRun,
@@ -335,7 +335,7 @@ export default function RunPage() {
   useEffect(() => {
     let active = true;
     const loadRuns = () => {
-      void listRuns(6)
+      void listRuns(60)
         .then((next) => {
           if (active) {
             setRuns(next);
@@ -497,7 +497,10 @@ export default function RunPage() {
   const parsedPost = useMemo(() => parsePost(postText), [postText]);
   const run = detail?.run;
   const isGenerating = !run || ['queued', 'running'].includes(run.status);
-  const versions = useMemo(() => (id ? runVersionChain(id) : []), [id]);
+  const versions = useMemo(
+    () => (id ? runVersionChain(id, runs) : []),
+    [id, runs],
+  );
   const versionIndex = id ? versions.indexOf(id) : -1;
   const digestPending =
     isGenerating || (loadingArtifacts['digest.md'] === true && !digestText);
@@ -606,8 +609,8 @@ export default function RunPage() {
     setRegenError(null);
     setRegenOpen(true);
     setRegenControlTime(toDateTimeLocal(detail?.run?.control_time));
-    setRegenInterval(24);
-    setRegenLimit(5);
+    setRegenInterval(detail?.run.interval_hours ?? 24);
+    setRegenLimit(detail?.run.max_items ?? 5);
     setRegenLoadingSources(true);
 
     try {
@@ -664,9 +667,11 @@ export default function RunPage() {
               mode: 'live',
               sources: [...regenSelected],
               controlTime: controlTime.toISOString(),
+              intervalHours: regenInterval,
+              maxItems: regenLimit,
+              parentRunId: run.id,
             });
 
-      linkRunVersion(next.id, run.id);
       setRegenOpen(false);
       navigate(`/runs/${next.id}`);
     } catch (caught) {
@@ -680,11 +685,22 @@ export default function RunPage() {
     }
   }
 
-  function handleDeleteRun(run: RunSummary) {
+  async function handleDeleteRun(run: RunSummary) {
+    if (!window.confirm(`Удалить сессию ${run.id.slice(0, 8)}?`)) {
+      return;
+    }
     setActionError(null);
-    setNotice(
-      `Удаление сессии ${run.id.slice(0, 8)} будет доступно после подключения backend.`,
-    );
+    try {
+      await deleteRun(run.id);
+      setRuns((previous) => previous.filter((item) => item.id !== run.id));
+      if (run.id === id) {
+        navigate('/');
+      }
+    } catch (caught) {
+      setActionError(
+        caught instanceof Error ? caught.message : 'Не удалось удалить сессию.',
+      );
+    }
   }
 
   async function handleSendEmail() {
@@ -708,7 +724,7 @@ export default function RunPage() {
   if (loading) {
     return (
       <WorkspaceLayout
-        runs={runs}
+        runs={runs.slice(0, 6)}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -721,7 +737,7 @@ export default function RunPage() {
   if (error || !run) {
     return (
       <WorkspaceLayout
-        runs={runs}
+        runs={runs.slice(0, 6)}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -741,7 +757,7 @@ export default function RunPage() {
 
   return (
     <WorkspaceLayout
-      runs={runs}
+      runs={runs.slice(0, 6)}
       activeRunId={run.id}
       onSelectRun={(next) => navigate(`/runs/${next.id}`)}
       onDeleteRun={handleDeleteRun}
@@ -793,8 +809,8 @@ export default function RunPage() {
 
         <div className="rp-chips">
           <span className="rp-chip rp-chip--mono">{formatDate(run.control_time)}</span>
-          <span className="rp-chip">24 часа</span>
-          <span className="rp-chip">Лимит: {readNumber(stats, 'events') ?? detail?.events.length ?? 0} новостей</span>
+          <span className="rp-chip">{run.interval_hours} часов</span>
+          <span className="rp-chip">Лимит: {run.max_items} событий</span>
           <span className="rp-chip">{sourceCount} источников</span>
           <span className="rp-chip rp-chip--green">Анти-инъекции: Вкл</span>
           <span className="rp-chip rp-chip--blue">Дедупликация: Вкл</span>
@@ -805,7 +821,7 @@ export default function RunPage() {
           <div className="rp-stat">
             <span className="rp-stat-label">Период выборки</span>
             <strong>{formatShortDate(run.period_start)} — {formatShortDate(run.period_end)}</strong>
-            <span className="rp-stat-hint">Окно 24 часа</span>
+            <span className="rp-stat-hint">Окно {run.interval_hours} часов</span>
           </div>
           <div className="rp-stat">
             <span className="rp-stat-label">Материалы</span>
@@ -1338,11 +1354,9 @@ export default function RunPage() {
                     <button
                       className={`ws-pill${
                         regenInterval === hours ? ' ws-pill--active' : ''
-                      }${hours !== 24 ? ' ws-pill--disabled' : ''}`}
+                      }`}
                       key={hours}
                       type="button"
-                      disabled={hours !== 24}
-                      title={hours !== 24 ? 'Пока backend поддерживает только 24 часа' : undefined}
                       onClick={() => setRegenInterval(hours)}
                     >
                       {regenInterval === hours && <CheckIcon />}
@@ -1350,7 +1364,6 @@ export default function RunPage() {
                     </button>
                   ))}
                 </div>
-                <small className="rp-modal-note">Сейчас backend поддерживает только 24 часа.</small>
               </div>
 
               <div className="rp-modal-field">
@@ -1362,10 +1375,9 @@ export default function RunPage() {
                     <button
                       className={`ws-pill${
                         regenLimit === value ? ' ws-pill--active' : ''
-                      }${value !== 5 ? ' ws-pill--disabled' : ''}`}
+                      }`}
                       key={value}
                       type="button"
-                      disabled={value !== 5}
                       onClick={() => setRegenLimit(value)}
                     >
                       {regenLimit === value && <CheckIcon />}
@@ -1373,7 +1385,6 @@ export default function RunPage() {
                     </button>
                   ))}
                 </div>
-                <small className="rp-modal-note">Максимум 5 событий для дежурной смены.</small>
               </div>
 
               <div className="rp-modal-field">

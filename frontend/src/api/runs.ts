@@ -23,6 +23,7 @@ export interface RunSummary {
   model: string;
   prompt_version: string;
   error: string | null;
+  parent_run_id: string | null;
 }
 
 export interface RunInfo extends RunSummary {
@@ -30,6 +31,8 @@ export interface RunInfo extends RunSummary {
   period_end: string;
   started_at: string | null;
   stats: Record<string, unknown>;
+  interval_hours: number;
+  max_items: number;
 }
 
 export interface RunStage {
@@ -52,6 +55,9 @@ export interface CreateRunInput {
   mode: 'live' | 'file';
   sources: string[];
   controlTime?: string;
+  intervalHours?: number;
+  maxItems?: number;
+  parentRunId?: string;
   files?: File[];
 }
 
@@ -70,46 +76,42 @@ export function listRuns(limit = 6): Promise<RunSummary[]> {
   });
 }
 
-const VERSION_LINK_KEY = 'cd_run_versions';
+export function runVersionChain(runId: string, runs: RunSummary[]): string[] {
+  const byId = new Map(runs.map((run) => [run.id, run]));
+  let rootId = runId;
+  const seen = new Set([runId]);
 
-function readVersionLinks(): Record<string, string> {
-  try {
-    const raw = window.localStorage.getItem(VERSION_LINK_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function linkRunVersion(newId: string, previousId: string): void {
-  const links = readVersionLinks();
-  links[newId] = previousId;
-  window.localStorage.setItem(VERSION_LINK_KEY, JSON.stringify(links));
-}
-
-export function runVersionChain(runId: string): string[] {
-  const links = readVersionLinks();
-  const chain = [runId];
-  let current = runId;
-
-  while (links[current] && !chain.includes(links[current])) {
-    current = links[current];
-    chain.unshift(current);
-  }
-
-  current = chain[0];
-  for (;;) {
-    const child = Object.keys(links)
-      .reverse()
-      .find((key) => links[key] === current && !chain.includes(key));
-    if (!child) {
+  while (true) {
+    const parentId = byId.get(rootId)?.parent_run_id;
+    if (!parentId || seen.has(parentId) || !byId.has(parentId)) {
       break;
     }
-    chain.push(child);
-    current = child;
+    seen.add(parentId);
+    rootId = parentId;
   }
 
-  return chain;
+  const chain: RunSummary[] = [];
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    const run = byId.get(current);
+    if (!run || chain.some((item) => item.id === current)) {
+      continue;
+    }
+    chain.push(run);
+    for (const candidate of runs) {
+      if (candidate.parent_run_id === current) {
+        queue.push(candidate.id);
+      }
+    }
+  }
+
+  return chain
+    .sort(
+      (left, right) =>
+        new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
+    )
+    .map((run) => run.id);
 }
 
 export function getRunStatus(id: string): Promise<RunStatusResponse> {
@@ -122,6 +124,12 @@ export function createRun(input: CreateRunInput): Promise<RunInfo> {
   const form = new FormData();
   form.set('mode', input.mode);
   form.set('control_time', input.controlTime || new Date().toISOString());
+  form.set('interval_hours', String(input.intervalHours ?? 24));
+  form.set('max_items', String(input.maxItems ?? 5));
+
+  if (input.parentRunId) {
+    form.set('parent_run_id', input.parentRunId);
+  }
 
   if (input.sources.length > 0) {
     form.set('sources', input.sources.join(','));
@@ -195,6 +203,13 @@ export interface CheckResult {
 
 export function getRunDetail(id: string): Promise<RunDetail> {
   return request<RunDetail>(`/runs/${id}`, { headers: authHeaders() });
+}
+
+export function deleteRun(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/runs/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
 }
 
 export function cancelRun(id: string): Promise<{ ok: boolean }> {
