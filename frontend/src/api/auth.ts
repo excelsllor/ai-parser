@@ -1,5 +1,13 @@
 import { request } from '@api/http';
 
+export interface CurrentUser {
+  id: string;
+  username: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
@@ -42,6 +50,39 @@ export function getAccessToken(): string | null {
   );
 }
 
+function getRefreshToken(): string | null {
+  return (
+    window.localStorage.getItem(REFRESH_TOKEN_KEY) ||
+    window.sessionStorage.getItem(REFRESH_TOKEN_KEY)
+  );
+}
+
+export function updateSessionTokens(session: LoginResponse): void {
+  const storage = window.localStorage.getItem(REFRESH_TOKEN_KEY)
+    ? window.localStorage
+    : window.sessionStorage;
+
+  storage.setItem(ACCESS_TOKEN_KEY, session.access_token);
+  storage.setItem(REFRESH_TOKEN_KEY, session.refresh_token);
+  storage.setItem(
+    USER_KEY,
+    JSON.stringify({ username: session.username, role: session.role }),
+  );
+}
+
+export function refreshSession(): Promise<LoginResponse> {
+  const refreshToken = getRefreshToken();
+
+  if (!refreshToken) {
+    return Promise.reject(new Error('Нет refresh-токена.'));
+  }
+
+  return request<LoginResponse>('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+}
+
 export function getCurrentUser(): { username: string; role: string } | null {
   const raw =
     window.localStorage.getItem(USER_KEY) ||
@@ -56,6 +97,16 @@ export function getCurrentUser(): { username: string; role: string } | null {
   } catch {
     return null;
   }
+}
+
+export function getMe(): Promise<CurrentUser> {
+  const token =
+    window.localStorage.getItem(ACCESS_TOKEN_KEY) ||
+    window.sessionStorage.getItem(ACCESS_TOKEN_KEY);
+
+  return request<CurrentUser>('/auth/me', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
 }
 
 export function clearSession(): void {
