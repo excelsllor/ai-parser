@@ -37,9 +37,15 @@ export interface AdminSettings {
   effective: {
     model: string;
     prompt_version: string;
+    base_url: string;
     weights: Record<string, number>;
     env: string;
   };
+}
+
+export interface LlmModels {
+  base_url: string;
+  models: string[];
 }
 
 export interface LlmCall {
@@ -94,7 +100,7 @@ export interface DebugServices {
   database: { ok: boolean };
   redis: { ok: boolean; latency_ms: number | null };
   kafka: { ok: boolean; brokers: string };
-  llm: { ok: boolean; model: string };
+  llm: { ok: boolean; model: string; base_url: string };
   env: string;
   version: string;
 }
@@ -191,6 +197,15 @@ export function deleteAdminKeyword(id: string): Promise<{ ok: boolean }> {
 
 export function getAdminSettings(): Promise<AdminSettings> {
   return request<AdminSettings>('/admin/settings', { headers: authHeaders() });
+}
+
+export function getLlmModels(baseUrl?: string): Promise<LlmModels> {
+  const query = baseUrl?.trim()
+    ? `?base_url=${encodeURIComponent(baseUrl.trim())}`
+    : '';
+  return request<LlmModels>(`/admin/llm/models${query}`, {
+    headers: authHeaders(),
+  });
 }
 
 export function putAdminSetting(key: string, value: unknown): Promise<{ ok: boolean }> {

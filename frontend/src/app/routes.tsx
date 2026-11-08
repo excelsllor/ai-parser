@@ -10,7 +10,6 @@ import { getAccessToken, getCurrentUser } from '@api/auth';
 import AdminLayout from '@components/admin/AdminLayout';
 import AdminLlmPage from '@pages/admin/AdminLlmPage';
 import AdminOverviewPage from '@pages/admin/AdminOverviewPage';
-import AdminServicesPage from '@pages/admin/AdminServicesPage';
 import AdminSourcesPage from '@pages/admin/AdminSourcesPage';
 import AdminUsersPage from '@pages/admin/AdminUsersPage';
 import AuthPage from '@pages/auth/AuthPage';
@@ -82,7 +81,7 @@ export default function AppRoutes() {
           <Route path="sources" element={<AdminSourcesPage />} />
           <Route path="llm" element={<AdminLlmPage />} />
           <Route path="users" element={<AdminUsersPage />} />
-          <Route path="services" element={<AdminServicesPage />} />
+          <Route path="services" element={<Navigate to="/admin" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

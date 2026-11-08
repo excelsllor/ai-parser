@@ -360,7 +360,6 @@ export default function AdminSourcesPage() {
                 <th>Доверие</th>
                 <th>Язык</th>
                 <th>Синхронизация</th>
-                <th>Статус</th>
                 <th>Действия</th>
               </tr>
             </thead>
@@ -405,25 +404,25 @@ export default function AdminSourcesPage() {
                     )}
                   </td>
                   <td>
-                    <span
-                      className={`admin-badge ${
-                        source.enabled ? 'admin-badge--green' : 'admin-badge--amber'
-                      }`}
-                    >
-                      {source.enabled ? 'Активен' : 'Приостановлен'}
-                    </span>
-                  </td>
-                  <td>
                     <div className="admin-row-actions">
-                      <label className="admin-switch">
-                        <input
-                          checked={source.enabled}
-                          disabled={busyId === source.id}
-                          type="checkbox"
-                          onChange={() => void handleToggle(source)}
-                        />
-                        Вкл
-                      </label>
+                      <button
+                        aria-checked={source.enabled}
+                        aria-label={
+                          source.enabled
+                            ? `Отключить ${source.name}`
+                            : `Включить ${source.name}`
+                        }
+                        className={`admin-toggle${
+                          source.enabled ? ' admin-toggle--on' : ''
+                        }`}
+                        disabled={busyId === source.id}
+                        role="switch"
+                        title={source.enabled ? 'Активен' : 'Приостановлен'}
+                        type="button"
+                        onClick={() => void handleToggle(source)}
+                      >
+                        <span className="admin-toggle-thumb" />
+                      </button>
                       <button
                         aria-label={`Удалить ${source.name}`}
                         className="admin-button admin-button--danger admin-button--small"

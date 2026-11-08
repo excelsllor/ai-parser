@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { getAdminSettings, getLlmCalls, putAdminSetting } from '@api/admin';
+import { getAdminSettings, getLlmCalls, getLlmModels, putAdminSetting } from '@api/admin';
 import type { AdminSettings, LlmCall } from '@api/admin';
 import {
   AlertCircleIcon,
@@ -28,13 +28,36 @@ const WEIGHT_LABELS: Record<string, string> = {
 export default function AdminLlmPage() {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [calls, setCalls] = useState<LlmCall[]>([]);
+  const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
-  const [promptVersion, setPromptVersion] = useState('');
+  const [models, setModels] = useState<string[]>([]);
+  const [weights, setWeights] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingWeights, setSavingWeights] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+
+  async function loadModels(url: string) {
+    setModelsLoading(true);
+    setModelsError(null);
+    try {
+      const response = await getLlmModels(url);
+      setModels(response.models);
+    } catch (caught) {
+      setModels([]);
+      setModelsError(
+        caught instanceof Error
+          ? caught.message
+          : 'Не удалось получить список моделей.',
+      );
+    } finally {
+      setModelsLoading(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -46,9 +69,11 @@ export default function AdminLlmPage() {
       ]);
       setSettings(settingsResponse);
       setCalls(callList);
+      setBaseUrl(settingsResponse.effective.base_url);
       setModel(settingsResponse.effective.model);
-      setPromptVersion(settingsResponse.effective.prompt_version);
+      setWeights({ ...settingsResponse.effective.weights });
       setUpdatedAt(new Date().toISOString());
+      void loadModels(settingsResponse.effective.base_url);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось загрузить LLM-данные.');
     } finally {
@@ -89,14 +114,29 @@ export default function AdminLlmPage() {
     setError(null);
     setNotice(null);
     try {
+      await putAdminSetting('llm_base_url', baseUrl.trim());
       await putAdminSetting('model', model.trim());
-      await putAdminSetting('prompt_version', promptVersion.trim());
-      setNotice('Конфигурация сохранена.');
+      setNotice('Конфигурация LLM сохранена.');
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось сохранить настройки.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveWeights(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingWeights(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await putAdminSetting('weights', weights);
+      setNotice('Веса ранжирования сохранены.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось сохранить веса.');
+    } finally {
+      setSavingWeights(false);
     }
   }
 
@@ -119,7 +159,10 @@ export default function AdminLlmPage() {
     downloadFile('llm-calls.csv', header + rows, 'text/csv');
   }
 
-  const weights = settings?.effective.weights ?? {};
+  const weightKeys = Object.keys(WEIGHT_LABELS);
+  const modelOptions = Array.from(
+    new Set([model, ...models].filter((value) => value.trim() !== '')),
+  );
 
   return (
     <>
@@ -129,10 +172,9 @@ export default function AdminLlmPage() {
             <BotIcon />
             LLM runtime configuration
           </span>
-          <h1 className="admin-title">Параметры моделей LLM и учёт токенов</h1>
+          <h1 className="admin-title">LLM</h1>
           <p className="admin-sub">
-            Управление рабочей моделью, версией промпта и аналитика расходов на
-            генерацию.
+            Base URL провайдера, выбор модели, веса ранжирования и расход токенов.
           </p>
         </div>
         <div className="admin-actions">
@@ -165,7 +207,7 @@ export default function AdminLlmPage() {
           <strong className="admin-stat-value" style={{ fontSize: 16 }}>
             {settings?.effective.model ?? '—'}
           </strong>
-          <span className="admin-stat-hint">Провайдер из конфигурации</span>
+          <span className="admin-stat-hint">Base URL: {settings?.effective.base_url ?? '—'}</span>
         </article>
         <article className="admin-stat">
           <span className="admin-stat-label">
@@ -207,43 +249,67 @@ export default function AdminLlmPage() {
         <section className="admin-card">
           <div className="admin-card-head">
             <div>
-              <h2 className="admin-card-title">Конфигурация модели и промптов</h2>
-              <p className="admin-card-sub">Применяется к новым запускам пайплайна</p>
+              <h2 className="admin-card-title">Base URL и модель</h2>
+              <p className="admin-card-sub">Применяется к следующим запускам пайплайна</p>
             </div>
             <span className="admin-badge admin-badge--blue">Strict mode</span>
           </div>
 
           <form className="admin-form" onSubmit={handleSave}>
             <label className="admin-field">
-              <span>Модель</span>
+              <span>Base URL</span>
               <input
                 className="admin-input"
                 required
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
+                placeholder="https://provider.example/v1"
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
               />
             </label>
             <label className="admin-field">
-              <span>Версия промпта</span>
-              <input
-                className="admin-input"
+              <span>Модель</span>
+              <select
+                className="admin-select"
                 required
-                value={promptVersion}
-                onChange={(event) => setPromptVersion(event.target.value)}
-              />
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+              >
+                {modelOptions.length === 0 && (
+                  <option value="">Нет доступных моделей</option>
+                )}
+                {modelOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
             </label>
             <div className="admin-form-actions">
               <button
+                className="admin-button"
+                type="button"
+                disabled={modelsLoading || !baseUrl.trim()}
+                onClick={() => void loadModels(baseUrl)}
+              >
+                <RefreshIcon />
+                {modelsLoading ? 'Загружаем…' : 'Загрузить модели'}
+              </button>
+              <button
                 className="admin-button admin-button--primary"
                 type="submit"
-                disabled={saving || loading}
+                disabled={saving || loading || !baseUrl.trim() || !model.trim()}
               >
                 <SaveIcon />
-                {saving ? 'Сохраняем…' : 'Сохранить конфигурацию'}
+                {saving ? 'Сохраняем…' : 'Сохранить'}
               </button>
             </div>
           </form>
 
+          {modelsError && (
+            <p className="admin-note" style={{ marginTop: 10, color: '#b91c1c' }}>
+              Список моделей не получен: {modelsError}
+            </p>
+          )}
           <p className="admin-note" style={{ marginTop: 10 }}>
             Окружение: {settings?.effective.env ?? '—'}. Значения сохраняются в
             настройках платформы и переопределяют переменные окружения.
@@ -254,17 +320,40 @@ export default function AdminLlmPage() {
           <div className="admin-card-head">
             <div>
               <h2 className="admin-card-title">Веса ранжирования</h2>
-              <p className="admin-card-sub">Эффективные значения скоринга событий</p>
+              <p className="admin-card-sub">Влияют на порядок событий в дайджесте</p>
             </div>
           </div>
-          <div className="admin-kv">
-            {Object.entries(weights).map(([key, value]) => (
-              <div className="admin-kv-item" key={key}>
-                <span>{WEIGHT_LABELS[key] ?? key}</span>
-                <strong>{value}</strong>
-              </div>
+          <form className="admin-form" onSubmit={handleSaveWeights}>
+            {weightKeys.map((key) => (
+              <label className="admin-field" key={key}>
+                <span>{WEIGHT_LABELS[key]}</span>
+                <input
+                  className="admin-input"
+                  max={1}
+                  min={0}
+                  step={0.01}
+                  type="number"
+                  value={weights[key] ?? 0}
+                  onChange={(event) =>
+                    setWeights((previous) => ({
+                      ...previous,
+                      [key]: Number(event.target.value),
+                    }))
+                  }
+                />
+              </label>
             ))}
-          </div>
+            <div className="admin-form-actions">
+              <button
+                className="admin-button admin-button--primary"
+                type="submit"
+                disabled={savingWeights}
+              >
+                <SaveIcon />
+                {savingWeights ? 'Сохраняем…' : 'Сохранить веса'}
+              </button>
+            </div>
+          </form>
           <p className="admin-note" style={{ marginTop: 12 }}>
             Температура и лимит токенов задаются конфигурацией backend и не
             редактируются из интерфейса.

@@ -160,6 +160,10 @@ fn build_router(state: AppState) -> Router {
             "/api/admin/settings",
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
         )
+        .route(
+            "/api/admin/llm/models",
+            get(handlers::admin::llm_models),
+        )
         .route("/api/admin/audit", get(handlers::admin::audit))
         .route("/api/admin/metrics", get(handlers::admin::metrics))
         .route(
@@ -267,7 +271,14 @@ fn spawn_health_sampler(state: AppState) {
             let database_ok = news_shared::db::db_ping(&state.pool).await;
             let redis_latency = state.redis.health_latency().await;
             let kafka_ok = state.bus.health().await;
-            let llm_ok = state.llm.health().await;
+            let llm_base_url = news_shared::db::get_setting(&state.pool, "llm_base_url")
+                .await
+                .ok()
+                .flatten()
+                .and_then(|value| value.as_str().map(ToOwned::to_owned))
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| state.config.llm.base_url.clone());
+            let llm_ok = state.llm.health_at(&llm_base_url).await;
             let registry = news_shared::registry::read_services(&state.config.data_dir);
             let registry_alive = registry.iter().filter(|service| service.alive).count();
 

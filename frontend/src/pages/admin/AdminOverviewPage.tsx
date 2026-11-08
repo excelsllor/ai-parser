@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   getAudit,
   getDebugServices,
+  getHealthHistory,
   getLlmCalls,
 } from '@api/admin';
-import type { AuditEntry, DebugServices, LlmCall } from '@api/admin';
+import type { AuditEntry, DebugServices, HealthSnapshot, LlmCall } from '@api/admin';
 import { listRuns } from '@api/runs';
 import type { RunSummary } from '@api/runs';
 import {
@@ -19,7 +20,7 @@ import {
   ScheduleIcon,
 } from '@components/ui/icons';
 
-import { downloadFile, formatDateTime, formatTime } from './utils';
+import { downloadFile, formatDateTime, formatTime, formatUptime } from './utils';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -44,6 +45,7 @@ export default function AdminOverviewPage() {
   const [calls, setCalls] = useState<LlmCall[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [services, setServices] = useState<DebugServices | null>(null);
+  const [history, setHistory] = useState<HealthSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -52,16 +54,18 @@ export default function AdminOverviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const [runList, callList, auditList, serviceInfo] = await Promise.all([
+      const [runList, callList, auditList, serviceInfo, healthHistory] = await Promise.all([
         listRuns(50),
         getLlmCalls(),
         getAudit(10),
         getDebugServices(),
+        getHealthHistory(20),
       ]);
       setRuns(runList);
       setCalls(callList);
       setAudit(auditList);
       setServices(serviceInfo);
+      setHistory(healthHistory);
       setUpdatedAt(new Date().toISOString());
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось загрузить метрики.');
@@ -358,6 +362,166 @@ export default function AdminOverviewPage() {
                 Окружение {services?.env ?? '—'} · версия {services?.version ?? '—'} ·{' '}
                 {formatDateTime(updatedAt)}
               </p>
+            </section>
+          </div>
+
+          <section className="admin-card">
+            <div className="admin-card-head">
+              <div>
+                <h2 className="admin-card-title">Реестр компонентов кластера</h2>
+                <p className="admin-card-sub">Heartbeat из общего registry-файла</p>
+              </div>
+              <span className="admin-badge admin-badge--green">
+                <CheckCircleIcon />
+                {registryAlive}/{registryTotal} healthy
+              </span>
+            </div>
+            <div className="admin-service-grid">
+              {(services?.registry ?? []).map((service) => (
+                <article className="admin-service" key={service.name}>
+                  <div className="admin-service-head">
+                    <span className="admin-service-name">{service.name}</span>
+                    <span
+                      className={`admin-badge ${
+                        service.alive ? 'admin-badge--green' : 'admin-badge--red'
+                      }`}
+                    >
+                      {service.alive ? 'Healthy' : 'Down'}
+                    </span>
+                  </div>
+                  <span className="admin-service-meta">
+                    PID {service.pid} · uptime {formatUptime(service.started)}
+                  </span>
+                  <span className="admin-service-meta admin-mono">
+                    last_seen {formatDateTime(new Date(service.last_seen * 1000).toISOString())}
+                  </span>
+                </article>
+              ))}
+              {registryTotal === 0 && (
+                <p className="admin-empty">Реестр сервисов пуст.</p>
+              )}
+            </div>
+          </section>
+
+          <div className="admin-grid">
+            <section className="admin-card">
+              <div className="admin-card-head">
+                <div>
+                  <h2 className="admin-card-title">Инфраструктурные зависимости</h2>
+                  <p className="admin-card-sub">Проверка подключений на момент запроса</p>
+                </div>
+              </div>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Компонент</th>
+                      <th>Детали</th>
+                      <th>Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="admin-cell-strong">PostgreSQL</td>
+                      <td>Основное хранилище</td>
+                      <td>
+                        <span
+                          className={`admin-badge ${
+                            services?.database.ok ? 'admin-badge--green' : 'admin-badge--red'
+                          }`}
+                        >
+                          {services?.database.ok ? 'OK' : 'Ошибка'}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="admin-cell-strong">Redis</td>
+                      <td>Кэш и блокировки</td>
+                      <td>
+                        <span
+                          className={`admin-badge ${
+                            services?.redis.ok ? 'admin-badge--green' : 'admin-badge--red'
+                          }`}
+                        >
+                          {services?.redis.ok
+                            ? `${services.redis.latency_ms ?? 0} мс`
+                            : 'Ошибка'}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="admin-cell-strong">Kafka</td>
+                      <td className="admin-mono">{services?.kafka.brokers ?? '—'}</td>
+                      <td>
+                        <span
+                          className={`admin-badge ${
+                            services?.kafka.ok ? 'admin-badge--green' : 'admin-badge--red'
+                          }`}
+                        >
+                          {services?.kafka.ok ? 'OK' : 'Ошибка'}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="admin-cell-strong">LLM</td>
+                      <td className="admin-mono">{services?.llm.base_url ?? '—'}</td>
+                      <td>
+                        <span
+                          className={`admin-badge ${
+                            services?.llm.ok ? 'admin-badge--green' : 'admin-badge--amber'
+                          }`}
+                        >
+                          {services?.llm.ok ? 'OK' : 'Недоступен'}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="admin-card">
+              <div className="admin-card-head">
+                <div>
+                  <h2 className="admin-card-title">История проверок</h2>
+                  <p className="admin-card-sub">Снимки каждые 60 секунд, 7 дней</p>
+                </div>
+                <span className="admin-badge">
+                  <ScheduleIcon />
+                  {history.length}
+                </span>
+              </div>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Проверка</th>
+                      <th>PG</th>
+                      <th>Redis</th>
+                      <th>Kafka</th>
+                      <th>LLM</th>
+                      <th>Сервисы</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.slice(0, 10).map((snapshot) => (
+                      <tr key={snapshot.id}>
+                        <td className="admin-mono">{formatDateTime(snapshot.checked_at)}</td>
+                        <td>{snapshot.database_ok ? 'OK' : 'Ошибка'}</td>
+                        <td>{snapshot.redis_ok ? 'OK' : 'Ошибка'}</td>
+                        <td>{snapshot.kafka_ok ? 'OK' : 'Ошибка'}</td>
+                        <td>{snapshot.llm_ok ? 'OK' : 'Недоступен'}</td>
+                        <td>
+                          {snapshot.registry_alive}/{snapshot.registry_total}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {history.length === 0 && (
+                  <p className="admin-empty">История появится после первого снимка.</p>
+                )}
+              </div>
             </section>
           </div>
 

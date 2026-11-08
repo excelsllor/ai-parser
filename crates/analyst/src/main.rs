@@ -101,6 +101,11 @@ pub(crate) async fn process_items_normalized(
     }
 
     let stage_id = db::add_stage(&state.pool, event.run_id, "analyze", "running", None).await?;
+    let llm_base_url = db::get_setting(&state.pool, "llm_base_url")
+        .await?
+        .and_then(|value| value.as_str().map(ToOwned::to_owned))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
     let all_items = db::get_items(&state.pool, event.run_id).await?;
     let mut duplicates: HashMap<Uuid, Vec<Item>> = HashMap::new();
     for item in all_items.iter().filter(|i| i.status == "duplicate") {
@@ -136,7 +141,10 @@ pub(crate) async fn process_items_normalized(
             let run_id = event.run_id;
             let prompt_version = run.prompt_version.clone();
             let model = run.model.clone();
-            async move { analyze_item(state, run_id, model, prompt_version, item).await }
+            let llm_base_url = llm_base_url.clone();
+            async move {
+                analyze_item(state, run_id, llm_base_url, model, prompt_version, item).await
+            }
         })
         .buffer_unordered(concurrency)
         .collect::<Vec<AppResult<AnalyzedItem>>>()
@@ -413,6 +421,7 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
 async fn analyze_item(
     state: AnalystState,
     run_id: Uuid,
+    llm_base_url: String,
     model: String,
     prompt_version: String,
     item: Item,
@@ -440,6 +449,7 @@ async fn analyze_item(
     let result = state
         .llm
         .chat_json_with_model::<LlmItemAnalysis>(
+            &llm_base_url,
             &model,
             "item_analysis",
             &prompt_version,

@@ -391,29 +391,75 @@ pub async fn delete_keyword(
 
 pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let keys = ["weights", "model", "prompt_version", "selection"];
+    let keys = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
     let mut out = serde_json::Map::new();
     for key in keys {
         if let Some(value) = db::get_setting(&state.pool, key).await? {
             out.insert(key.to_string(), value);
         }
     }
+    let model = out
+        .get("model")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.llm.model.clone());
+    let prompt_version = out
+        .get("prompt_version")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.prompt_version.clone());
+    let base_url = out
+        .get("llm_base_url")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let weights = out
+        .get("weights")
+        .and_then(|value| {
+            serde_json::from_value::<news_shared::config::ScoringWeights>(value.clone()).ok()
+        })
+        .unwrap_or_else(|| state.config.weights.clone());
     Ok(Json(json!({
         "settings": out,
         "effective": {
-            "model": state.config.llm.model,
-            "prompt_version": state.config.prompt_version,
+            "model": model,
+            "prompt_version": prompt_version,
+            "base_url": base_url,
             "weights": {
-                "impact": state.config.weights.impact,
-                "scale": state.config.weights.scale,
-                "urgency": state.config.weights.urgency,
-                "relevance": state.config.weights.relevance,
-                "confidence": state.config.weights.confidence,
-                "uncertainty_penalty": state.config.weights.uncertainty_penalty,
+                "impact": weights.impact,
+                "scale": weights.scale,
+                "urgency": weights.urgency,
+                "relevance": weights.relevance,
+                "confidence": weights.confidence,
+                "uncertainty_penalty": weights.uncertainty_penalty,
             },
             "env": state.config.env_name,
         }
     })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LlmModelsQuery {
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
+pub async fn llm_models(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<LlmModelsQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let base_url = match query.base_url.map(|value| value.trim().to_owned()) {
+        Some(value) if !value.is_empty() => value,
+        _ => db::get_setting(&state.pool, "llm_base_url")
+            .await?
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| state.config.llm.base_url.clone()),
+    };
+    let models = state.llm.list_models_at(&base_url).await?;
+    Ok(Json(json!({"base_url": base_url, "models": models})))
 }
 
 pub async fn put_setting(
@@ -423,7 +469,7 @@ pub async fn put_setting(
     Json(payload): Json<SettingRequest>,
 ) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let allowed = ["weights", "model", "prompt_version", "selection"];
+    let allowed = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));
     }
@@ -499,14 +545,19 @@ pub async fn debug_services(
     let db_ok = db::db_ping(&state.pool).await;
     let redis_latency = state.redis.health_latency().await;
     let kafka_ok = state.bus.health().await;
-    let llm_ok = state.llm.health().await;
+    let llm_base_url = db::get_setting(&state.pool, "llm_base_url")
+        .await?
+        .and_then(|value| value.as_str().map(ToOwned::to_owned))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let llm_ok = state.llm.health_at(&llm_base_url).await;
 
     Ok(Json(json!({
         "registry": news_shared::registry::read_services(&state.config.data_dir),
         "database": {"ok": db_ok},
         "redis": {"ok": redis_latency.is_some(), "latency_ms": redis_latency.map(|d| d.as_millis())},
         "kafka": {"ok": kafka_ok, "brokers": state.bus.brokers()},
-        "llm": {"ok": llm_ok, "model": state.config.llm.model},
+        "llm": {"ok": llm_ok, "model": state.config.llm.model, "base_url": llm_base_url},
         "env": state.config.env_name,
         "version": env!("CARGO_PKG_VERSION"),
     })))

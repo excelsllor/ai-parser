@@ -6,7 +6,6 @@ import {
   BotIcon,
   DashboardIcon,
   GroupIcon,
-  MonitorHeartIcon,
   RssIcon,
 } from '@components/ui/icons';
 import '@components/workspace/workspace.css';
@@ -16,9 +15,8 @@ import './Admin.css';
 const TABS = [
   { to: '/admin', label: 'Обзор и метрики', icon: DashboardIcon, end: true },
   { to: '/admin/sources', label: 'Управление источниками', icon: RssIcon },
-  { to: '/admin/llm', label: 'LLM и расход токенов', icon: BotIcon },
+  { to: '/admin/llm', label: 'LLM', icon: BotIcon },
   { to: '/admin/users', label: 'Пользователи и роли', icon: GroupIcon },
-  { to: '/admin/services', label: 'Состояние сервисов', icon: MonitorHeartIcon },
 ];
 
 export default function AdminLayout() {
