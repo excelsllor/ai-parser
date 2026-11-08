@@ -382,7 +382,11 @@ async fn fetch_nvd(
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()));
     }
-    let data: Value = response.json().await.map_err(|error| error.to_string())?;
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if bytes.len() > 2_000_000 {
+        return Err("response too large".to_owned());
+    }
+    let data: Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
     let cve = data
         .get("vulnerabilities")
         .and_then(Value::as_array)
@@ -526,7 +530,11 @@ async fn fetch_bdu(client: &Client, base: &str, bdu_id: &str) -> Result<Enriched
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()));
     }
-    let page = response.text().await.map_err(|error| error.to_string())?;
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if bytes.len() > 2_000_000 {
+        return Err("response too large".to_owned());
+    }
+    let page = String::from_utf8_lossy(&bytes);
     let model = extract_vmodel(&page).ok_or_else(|| "v_model not found".to_owned())?;
     let critu = model.get("vul_critu").and_then(Value::as_str).unwrap_or("");
     let title = model
@@ -613,7 +621,8 @@ async fn fetch_cmdb(
         }
         "basic" => {
             if let Some(token) = &config.cmdb_token {
-                request = request.basic_auth(token, Some(""));
+                let (user, password) = token.split_once(':').unwrap_or((token.as_str(), ""));
+                request = request.basic_auth(user, Some(password));
             }
         }
         _ => {}
@@ -622,7 +631,11 @@ async fn fetch_cmdb(
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()));
     }
-    let data: Value = response.json().await.map_err(|error| error.to_string())?;
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if bytes.len() > 2_000_000 {
+        return Err("response too large".to_owned());
+    }
+    let data: Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
     let items = data
         .get("items")
         .and_then(Value::as_array)
