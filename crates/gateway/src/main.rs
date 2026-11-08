@@ -203,6 +203,7 @@ fn build_router(state: AppState) -> Router {
     let static_files = ServeDir::new(&frontend_dir).fallback(ServeFile::new(index_file));
 
     Router::new()
+
         .merge(api)
         .fallback_service(static_files)
         .layer(axum_mw::from_fn(news_shared::security::security_headers))

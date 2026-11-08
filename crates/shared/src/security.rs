@@ -18,7 +18,7 @@ pub async fn security_headers(request: Request<axum::body::Body>, next: Next) ->
     headers
         .entry("content-security-policy")
         .or_insert(HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+            "default-src 'self'; script-src 'self'; style-src 'self'; \
              img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; \
              base-uri 'self'; form-action 'self'; object-src 'none'",
         ));
@@ -198,9 +198,9 @@ pub fn validate_username(username: &str) -> AppResult<()> {
 }
 
 pub fn validate_password(password: &str) -> AppResult<()> {
-    if password.len() < 8 {
+    if password.len() < 10 {
         return Err(AppError::Validation(
-            "password must be at least 8 characters".into(),
+            "password must be at least 10 characters".into(),
         ));
     }
     if password.len() > 256 {
@@ -271,7 +271,6 @@ mod tests {
     #[test]
     fn validates_passwords() {
         assert!(validate_password("long-enough-1").is_ok());
-        assert!(validate_password("short-12").is_ok());
         assert!(validate_password("short1").is_err());
         assert!(validate_password("nodigitshere").is_err());
     }
