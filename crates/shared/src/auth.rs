@@ -77,9 +77,9 @@ where
 }
 
 pub fn hash_password(password: &str) -> AppResult<String> {
-    if password.len() < 10 {
+    if password.len() < 8 {
         return Err(AppError::Validation(
-            "password must be at least 10 characters".into(),
+            "password must be at least 8 characters".into(),
         ));
     }
     if password.len() > 256 {

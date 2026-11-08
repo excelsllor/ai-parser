@@ -224,10 +224,10 @@ export default function AdminUsersPage() {
             />
           </label>
           <label className="admin-field">
-            <span>Пароль (мин. 10 символов)</span>
+            <span>Пароль (мин. 8 символов)</span>
             <input
               className="admin-input"
-              minLength={10}
+              minLength={8}
               required
               type="password"
               value={password}
