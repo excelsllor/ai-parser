@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import './index.css';
 import './motion.css';
+import './material-you.css';
 import App from '@app/App';
 
 try {
