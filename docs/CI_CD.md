@@ -23,7 +23,8 @@
 
 | Секрет | Назначение |
 |---|---|
-| `DEPLOY_HOST` | хост деплоя |
+| `DEPLOY_HOST` | хост деплоя (без порта) |
+| `DEPLOY_PORT` | SSH-порт, по умолчанию 22 |
 | `DEPLOY_USER` | SSH-пользователь |
 | `DEPLOY_SSH_KEY` | приватный SSH-ключ |
 | `DEPLOY_PATH` | каталог с `docker-compose.yml` |
