@@ -72,7 +72,7 @@ export default function WorkspacePage() {
       try {
         const [sourceList, runList] = await Promise.all([
           listSources(),
-          listRuns(6),
+          listRuns(200),
         ]);
 
         if (!active) {
@@ -80,9 +80,6 @@ export default function WorkspacePage() {
         }
 
         setSources(sourceList);
-        setSelectedSources(
-          new Set(sourceList.filter((source) => source.enabled).map((source) => source.id)),
-        );
         setRuns(runList);
       } catch (error) {
         if (active) {
@@ -106,7 +103,7 @@ export default function WorkspacePage() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      void listRuns(6).then(setRuns).catch(() => undefined);
+      void listRuns(200).then(setRuns).catch(() => undefined);
     }, 5000);
 
     return () => window.clearInterval(timer);
@@ -133,7 +130,7 @@ export default function WorkspacePage() {
   }
 
   function resetForm() {
-    selectAllSources();
+    setSelectedSources(new Set());
     setIntervalHours(24);
     setNewsCount(5);
     setSubmitError(null);

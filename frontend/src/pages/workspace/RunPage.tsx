@@ -335,7 +335,7 @@ export default function RunPage() {
   useEffect(() => {
     let active = true;
     const loadRuns = () => {
-      void listRuns(60)
+      void listRuns(200)
         .then((next) => {
           if (active) {
             setRuns(next);
@@ -724,7 +724,7 @@ export default function RunPage() {
   if (loading) {
     return (
       <WorkspaceLayout
-        runs={runs.slice(0, 6)}
+        runs={runs}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -737,7 +737,7 @@ export default function RunPage() {
   if (error || !run) {
     return (
       <WorkspaceLayout
-        runs={runs.slice(0, 6)}
+        runs={runs}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
@@ -757,7 +757,7 @@ export default function RunPage() {
 
   return (
     <WorkspaceLayout
-      runs={runs.slice(0, 6)}
+      runs={runs}
       activeRunId={run.id}
       onSelectRun={(next) => navigate(`/runs/${next.id}`)}
       onDeleteRun={handleDeleteRun}
