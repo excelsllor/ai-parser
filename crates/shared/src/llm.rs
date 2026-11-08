@@ -175,6 +175,7 @@ impl LlmClient {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn chat_raw(
         &self,
         base_url: &str,
