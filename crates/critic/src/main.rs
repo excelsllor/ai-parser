@@ -263,7 +263,7 @@ pub(crate) async fn process_digest_draft(
         verified_events.push(event);
     }
 
-    verified_events.truncate(5);
+    verified_events.truncate((run.max_items.max(1) as usize).min(20));
     let events_count = verified_events.len();
     let no_em_dash = verified_events.iter().all(|e| {
         !e.title.contains('—')

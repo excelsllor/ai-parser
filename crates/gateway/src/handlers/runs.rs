@@ -44,6 +44,9 @@ pub async fn create(
     let mut sources: Vec<Uuid> = Vec::new();
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     let mut total_bytes: usize = 0;
+    let mut interval_hours: Option<i32> = None;
+    let mut max_items: Option<i32> = None;
+    let mut parent_run_id: Option<Uuid> = None;
 
     while let Some(field) = multipart
         .next_field()
@@ -83,6 +86,38 @@ pub async fn create(
                         .await
                         .map_err(|e| AppError::BadRequest(e.to_string()))?,
                 );
+            }
+            "interval_hours" => {
+                let raw = field
+                    .text()
+                    .await
+                    .map_err(|e| AppError::BadRequest(e.to_string()))?;
+                interval_hours = Some(
+                    raw.parse::<i32>()
+                        .map_err(|_| AppError::BadRequest("invalid interval_hours".into()))?,
+                );
+            }
+            "max_items" => {
+                let raw = field
+                    .text()
+                    .await
+                    .map_err(|e| AppError::BadRequest(e.to_string()))?;
+                max_items = Some(
+                    raw.parse::<i32>()
+                        .map_err(|_| AppError::BadRequest("invalid max_items".into()))?,
+                );
+            }
+            "parent_run_id" => {
+                let raw = field
+                    .text()
+                    .await
+                    .map_err(|e| AppError::BadRequest(e.to_string()))?;
+                if !raw.trim().is_empty() {
+                    parent_run_id = Some(
+                        Uuid::parse_str(raw.trim())
+                            .map_err(|_| AppError::BadRequest("invalid parent_run_id".into()))?,
+                    );
+                }
             }
             "sources" => {
                 let raw = field
@@ -156,7 +191,19 @@ pub async fn create(
         Some(raw) => parse_control_time(&raw, state.config.control_timezone)?,
         None => Utc::now(),
     };
-    let period_start = control_time - Duration::hours(24);
+    let interval_hours = interval_hours.unwrap_or(24);
+    if !(1..=168).contains(&interval_hours) {
+        return Err(AppError::BadRequest(
+            "interval_hours must be between 1 and 168".into(),
+        ));
+    }
+    let max_items = max_items.unwrap_or(5);
+    if !(1..=20).contains(&max_items) {
+        return Err(AppError::BadRequest(
+            "max_items must be between 1 and 20".into(),
+        ));
+    }
+    let period_start = control_time - Duration::hours(i64::from(interval_hours));
     let model = match model {
         Some(value) if !value.trim().is_empty() => value,
         _ => db::get_setting(&state.pool, "model")
@@ -183,6 +230,9 @@ pub async fn create(
         &model,
         &prompt_version,
         Some(user.id),
+        interval_hours,
+        max_items,
+        parent_run_id,
     )
     .await?;
 
@@ -266,6 +316,9 @@ pub async fn create(
                 "control_time": control_time,
                 "files": saved_files,
                 "model": model,
+                "interval_hours": interval_hours,
+                "max_items": max_items,
+                "parent_run_id": parent_run_id,
             }),
             ip,
         ),
@@ -346,6 +399,45 @@ pub async fn cancel(
     Ok(Json(json!({"ok": true})))
 }
 
+pub async fn delete(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(run_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    user.require_write()?;
+    let run = db::get_run(&state.pool, run_id).await?;
+    if run.status == "queued" || run.status == "running" {
+        db::set_run_status(&state.pool, run_id, "cancelled", Some("deleted by user")).await?;
+    }
+    db::delete_run(&state.pool, run_id).await?;
+    let run_dir = state.config.run_dir(run_id);
+    if let Err(error) = fs::remove_dir_all(&run_dir).await {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            tracing::warn!(run_id = %run_id, error = %error, "run directory cleanup failed");
+        }
+    }
+    let upload_dir = state.config.upload_dir(run_id);
+    if let Err(error) = fs::remove_dir_all(&upload_dir).await {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            tracing::warn!(run_id = %run_id, error = %error, "upload directory cleanup failed");
+        }
+    }
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "run.delete",
+            format!("run:{run_id}"),
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true})))
+}
+
 pub async fn rerun(
     State(state): State<AppState>,
     user: AuthUser,
@@ -364,6 +456,9 @@ pub async fn rerun(
         &old.model,
         &old.prompt_version,
         Some(user.id),
+        old.interval_hours,
+        old.max_items,
+        Some(old.id),
     )
     .await?;
 

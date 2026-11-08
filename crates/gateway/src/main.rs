@@ -11,7 +11,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::header::{AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method, StatusCode};
 use axum::middleware as axum_mw;
-use axum::routing::{any, get, post, put};
+use axum::routing::{any, delete, get, post, put};
 use axum::Router;
 use news_shared::bus::KafkaBus;
 use news_shared::config::Config;
@@ -80,12 +80,31 @@ fn build_router(state: AppState) -> Router {
         .route("/api/ready", get(handlers::health::ready));
 
     let protected = Router::new()
-        .route("/api/auth/me", get(handlers::auth::me))
+        .route(
+            "/api/auth/me",
+            get(handlers::auth::me).patch(handlers::auth::update_profile),
+        )
+        .route(
+            "/api/auth/password",
+            post(handlers::auth::change_password),
+        )
+        .route("/api/auth/sessions", get(handlers::auth::list_sessions))
+        .route(
+            "/api/auth/sessions/revoke-others",
+            post(handlers::auth::revoke_other_sessions),
+        )
+        .route(
+            "/api/auth/sessions/{id}",
+            delete(handlers::auth::revoke_session),
+        )
         .route(
             "/api/runs",
             get(handlers::runs::list).post(handlers::runs::create),
         )
-        .route("/api/runs/{id}", get(handlers::runs::detail))
+        .route(
+            "/api/runs/{id}",
+            get(handlers::runs::detail).delete(handlers::runs::delete),
+        )
         .route("/api/runs/{id}/status", get(handlers::runs::status))
         .route("/api/runs/{id}/cancel", post(handlers::runs::cancel))
         .route("/api/runs/{id}/rerun", post(handlers::runs::rerun))
@@ -137,6 +156,7 @@ fn build_router(state: AppState) -> Router {
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
         )
         .route("/api/admin/audit", get(handlers::admin::audit))
+        .route("/api/admin/metrics", get(handlers::admin::metrics))
         .route(
             "/api/admin/debug/services",
             get(handlers::admin::debug_services),

@@ -88,6 +88,9 @@ pub struct User {
     pub password_hash: String,
     pub role: String,
     pub is_active: bool,
+    pub display_name: String,
+    pub department: String,
+    pub email: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -149,6 +152,9 @@ pub struct Run {
     pub finished_at: Option<DateTime<Utc>>,
     pub error: Option<String>,
     pub stats: serde_json::Value,
+    pub interval_hours: i32,
+    pub max_items: i32,
+    pub parent_run_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -501,6 +507,9 @@ pub struct UserResponse {
     pub username: String,
     pub role: String,
     pub is_active: bool,
+    pub display_name: String,
+    pub department: String,
+    pub email: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -511,6 +520,9 @@ impl From<User> for UserResponse {
             username: value.username,
             role: value.role,
             is_active: value.is_active,
+            display_name: value.display_name,
+            department: value.department,
+            email: value.email,
             created_at: value.created_at,
         }
     }
@@ -527,6 +539,7 @@ pub struct RunSummary {
     pub model: String,
     pub prompt_version: String,
     pub error: Option<String>,
+    pub parent_run_id: Option<Uuid>,
 }
 
 impl From<Run> for RunSummary {
@@ -541,6 +554,7 @@ impl From<Run> for RunSummary {
             model: value.model,
             prompt_version: value.prompt_version,
             error: value.error,
+            parent_run_id: value.parent_run_id,
         }
     }
 }

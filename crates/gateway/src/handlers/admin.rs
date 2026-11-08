@@ -1,4 +1,5 @@
 use axum::extract::{Extension, Path, Query, State};
+use chrono::Utc;
 use axum::http::StatusCode;
 use axum::Json;
 use news_shared::audit::{write_audit, AuditRecord};
@@ -54,6 +55,77 @@ pub struct CreateKeywordRequest {
 pub struct SettingRequest {
     pub key: String,
     pub value: Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MetricsQuery {
+    #[serde(default)]
+    pub hours: Option<i64>,
+}
+
+pub async fn metrics(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<MetricsQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let hours = query.hours.unwrap_or(24).clamp(1, 720);
+    let since = Utc::now() - chrono::Duration::hours(hours);
+
+    let (total, completed, failed, cancelled, running, queued, avg_duration): (
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        Option<f64>,
+    ) = sqlx::query_as(
+        "SELECT
+            count(*)::bigint,
+            count(*) FILTER (WHERE status = 'completed')::bigint,
+            count(*) FILTER (WHERE status = 'failed')::bigint,
+            count(*) FILTER (WHERE status = 'cancelled')::bigint,
+            count(*) FILTER (WHERE status = 'running')::bigint,
+            count(*) FILTER (WHERE status = 'queued')::bigint,
+            (avg(extract(epoch FROM (finished_at - created_at)))
+                FILTER (WHERE status = 'completed' AND finished_at IS NOT NULL))::double precision
+         FROM runs WHERE created_at >= $1",
+    )
+    .bind(since)
+    .fetch_one(&state.pool)
+    .await?;
+
+    let (calls, input_tokens, output_tokens, cost): (i64, i64, i64, f64) = sqlx::query_as(
+        "SELECT
+            count(*)::bigint,
+            coalesce(sum(input_tokens), 0)::bigint,
+            coalesce(sum(output_tokens), 0)::bigint,
+            coalesce(sum(cost), 0)::double precision
+         FROM llm_calls WHERE created_at >= $1",
+    )
+    .bind(since)
+    .fetch_one(&state.pool)
+    .await?;
+
+    Ok(Json(json!({
+        "window_hours": hours,
+        "runs": {
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+            "cancelled": cancelled,
+            "running": running,
+            "queued": queued,
+            "avg_duration_secs": avg_duration.map(|value| value.round() as i64),
+        },
+        "llm": {
+            "calls": calls,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost": cost,
+        }
+    })))
 }
 
 pub async fn list_users(
