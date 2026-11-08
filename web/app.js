@@ -134,9 +134,9 @@ function shell(content) {
           ${isAdmin ? '<a href="#/debug">Отладка</a>' : ""}
           ${isAdmin ? '<a href="#/audit">Аудит</a>' : ""}
         </div>
-        <div style="margin-top:24px" class="pill">
+        <div class="pill mt-24">
           ${esc(store.username)} · ${esc(store.role)}<br>
-          <button class="secondary small" id="logout" style="margin-top:10px">Выйти</button>
+          <button class="secondary small mt-10" id="logout">Выйти</button>
         </div>
       </aside>
       <main class="main">${content}</main>
@@ -146,16 +146,16 @@ function shell(content) {
 
 function renderLogin() {
   $("#app").innerHTML = DOMPurify.sanitize(`
-    <div style="max-width:420px;margin:10vh auto;padding:24px">
+    <div class="login-box">
       <div class="card">
-        <h1 style="margin-top:0">Дайджест по кибербезопасности</h1>
+        <h1 class="mt-0">Дайджест по кибербезопасности</h1>
         <p class="muted">Вход в систему</p>
         <form id="loginForm">
           <label>Логин<input name="username" autocomplete="username" required></label>
-          <div style="height:10px"></div>
+          <div class="spacer-10"></div>
           <label>Пароль<input name="password" type="password" autocomplete="current-password" required></label>
           <div id="loginError" class="error"></div>
-          <div style="height:12px"></div>
+          <div class="spacer-12"></div>
           <button type="submit">Войти</button>
         </form>
       </div>
@@ -229,17 +229,17 @@ async function renderNewRun() {
           <label>Модель<input name="model" placeholder="из конфигурации"></label>
           <label>Версия промптов<input name="prompt_version" placeholder="v1"></label>
         </div>
-        <div id="liveBox" style="margin-top:14px">
+        <div id="liveBox" class="mt-14">
           <div class="pill">Источники для живого сбора</div>
-          <div class="grid" style="margin-top:8px">
-            ${sources.map((s, index) => `<label class="badge"><input type="checkbox" name="sources" value="${esc(s.id)}" style="width:auto;margin-right:6px" ${index < 5 ? "checked" : ""}> ${esc(s.name)} (${esc(s.kind)})</label>`).join("") || '<span class="muted">Нет включённых источников</span>'}
+          <div class="grid mt-8">
+            ${sources.map((s, index) => `<label class="badge"><input type="checkbox" name="sources" value="${esc(s.id)}" class="checkbox-inline" ${index < 5 ? "checked" : ""}> ${esc(s.name)} (${esc(s.kind)})</label>`).join("") || '<span class="muted">Нет включённых источников</span>'}
           </div>
         </div>
-        <div id="fileBox" class="hidden" style="margin-top:14px">
+        <div id="fileBox" class="hidden mt-14">
           <label>Файлы датасета (JSON, CSV, HTML, TXT, ZIP)<input type="file" name="files" multiple></label>
         </div>
         <div id="runError" class="error"></div>
-        <div style="height:12px"></div>
+        <div class="spacer-12"></div>
         <button type="submit">Запустить</button>
       </form>
     </div>`);
@@ -303,21 +303,21 @@ async function renderRun(runId) {
 function renderRunMeta(detail) {
   const run = detail.run;
   $("#runMeta").innerHTML = DOMPurify.sanitize(`
-    <div class="row" style="justify-content:space-between">
+    <div class="row row-between">
       <div>
-        <h3 style="margin:0">${esc(run.mode === "live" ? "Живой сбор" : "Файловый датасет")}</h3>
+        <h3 class="m-0">${esc(run.mode === "live" ? "Живой сбор" : "Файловый датасет")}</h3>
         <div class="pill">ID: ${esc(run.id)}</div>
       </div>
       <span class="badge ${run.status === "completed" ? "ok" : run.status === "failed" ? "bad" : "warn"}">${esc(run.status)}</span>
     </div>
-    <div class="grid" style="margin-top:12px">
+    <div class="grid mt-12">
       <div><span class="muted">Период</span><br>${esc(fmt(run.period_start))} — ${esc(fmt(run.period_end))}</div>
       <div><span class="muted">Контрольное время</span><br>${esc(fmt(run.control_time))}</div>
       <div><span class="muted">Модель</span><br>${esc(run.model)}</div>
       <div><span class="muted">Промпты</span><br>${esc(run.prompt_version)}</div>
     </div>
     ${run.error ? `<div class="error">${esc(run.error)}</div>` : ""}
-    <div class="row" style="margin-top:12px">
+    <div class="row mt-12">
       ${["digest.md", "post.md", "journal.csv", "email.html", "ai.md", "run_stats.json", "check_results.json"]
         .map((name) => `<button class="secondary small" data-download="${name}">Скачать ${name}</button>`).join("")}
       ${store.role === "viewer" ? "" : '<button class="small" id="sendEmail">Отправить тестовое письмо</button>'}
@@ -398,7 +398,7 @@ async function renderRunTab(detail) {
     } else if (tab === "events") {
       const events = detail.events || [];
       box.innerHTML = DOMPurify.sanitize(events.length ? events.map((event) => `
-        <div class="card" style="background:var(--panel-2)">
+        <div class="card panel-2">
           <h3>${esc(event.rank)}. ${esc(event.title)}</h3>
           <p><strong>Суть:</strong> ${esc(event.summary)}</p>
           <p><strong>Последствия:</strong> ${esc(event.consequences)}</p>
@@ -414,10 +414,10 @@ async function renderRunTab(detail) {
             <label>URL<input name="url" placeholder="https://..."></label>
             <label>Дата публикации<input name="published_at" type="datetime-local"></label>
           </div>
-          <div style="height:10px"></div>
+          <div class="spacer-10"></div>
           <label>Текст<textarea name="text" required></textarea></label>
           <div id="addError" class="error"></div>
-          <div style="height:10px"></div>
+          <div class="spacer-10"></div>
           <button type="submit">Добавить и обработать</button>
         </form>`);
       $("#addItemForm").addEventListener("submit", async (event) => {
@@ -483,7 +483,7 @@ async function renderAdmin() {
           <label>Логин<input name="username" required></label>
           <label>Пароль<input name="password" type="password" required></label>
           <label>Роль<select name="role"><option value="viewer">viewer</option><option value="analyst">analyst</option><option value="admin">admin</option></select></label>
-        </div><div style="height:10px"></div><button>Создать</button></form>`);
+        </div><div class="spacer-10"></div><button>Создать</button></form>`);
       $$("[data-disable]").forEach((button) => button.addEventListener("click", async () => {
         if (!confirm("Отключить пользователя?")) return;
         await api(`/api/admin/users/${button.dataset.disable}`, { method: "DELETE" });
@@ -522,7 +522,7 @@ async function renderAdmin() {
           <label>Тип<select name="kind"><option value="rss">rss</option><option value="html">html</option></select></label>
           <label>URL<input name="url" required></label>
           <label>Доверие<select name="trust"><option value="unknown">unknown</option><option value="primary">primary</option><option value="reprint">reprint</option></select></label>
-        </div><div style="height:10px"></div><button>Добавить</button></form>`);
+        </div><div class="spacer-10"></div><button>Добавить</button></form>`);
       $$("[data-toggle]").forEach((button) => button.addEventListener("click", async () => {
         await api(`/api/admin/sources/${button.dataset.toggle}`, { method: "PUT", body: { enabled: button.dataset.enabled !== "true" } });
         void renderAdmin();
@@ -546,11 +546,11 @@ async function renderAdmin() {
       const keywords = await api("/api/admin/keywords");
       box.innerHTML = DOMPurify.sanitize(`
         <h3>Ключевые слова</h3>
-        <div class="row" style="flex-wrap:wrap">
+        <div class="row wrap">
           ${keywords.map((k) => `<span class="badge">${esc(k.word)} <button class="danger small" data-delete-keyword="${k.id}">×</button></span>`).join("")}
         </div>
         <h4>Добавить слово</h4>
-        <form id="createKeyword" class="row"><input name="word" required style="max-width:320px"><button>Добавить</button></form>`);
+        <form id="createKeyword" class="row"><input name="word" required class="narrow"><button>Добавить</button></form>`);
       $$("[data-delete-keyword]").forEach((button) => button.addEventListener("click", async () => {
         await api(`/api/admin/keywords/${button.dataset.deleteKeyword}`, { method: "DELETE" });
         void renderAdmin();
@@ -568,9 +568,9 @@ async function renderAdmin() {
         <div class="grid">
           <label>Ключ<select id="settingKey"><option value="weights">weights</option><option value="model">model</option><option value="prompt_version">prompt_version</option><option value="selection">selection</option></select></label>
         </div>
-        <div style="height:10px"></div>
+        <div class="spacer-10"></div>
         <label>JSON-значение<textarea id="settingValue">{"impact":0.35,"scale":0.25,"urgency":0.2,"relevance":0.15,"confidence":0.05,"uncertainty_penalty":0.15}</textarea></label>
-        <div style="height:10px"></div>
+        <div class="spacer-10"></div>
         <button id="saveSetting">Сохранить</button>`);
       $("#saveSetting").addEventListener("click", async () => {
         try {
