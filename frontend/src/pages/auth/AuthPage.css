@@ -6,7 +6,7 @@
   --auth-button-hover: #1e293b;
   --auth-button-active: #020617;
   --auth-button-text: #ffffff;
-  --auth-button-shadow: rgba(15, 23, 42, 0.18);
+  --auth-button-shadow: rgba(15, 23, 42, 0.10);
   --auth-bg: #f8fafc;
   --auth-text: #0f172a;
   --auth-muted: #475569;
@@ -81,8 +81,8 @@
   border-radius: 16px;
   padding: 32px;
   box-shadow:
-    0 4px 24px -4px rgba(15, 23, 42, 0.06),
-    0 1px 3px rgba(15, 23, 42, 0.04);
+    0 2px 12px -4px rgba(15, 23, 42, 0.035),
+    0 1px 2px rgba(15, 23, 42, 0.025);
 }
 
 .auth-card-head {
@@ -219,7 +219,7 @@
   font-family: inherit;
   font-size: 14px;
   line-height: 20px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -357,7 +357,7 @@
 
 .auth-submit:hover:not(:disabled) {
   background: var(--auth-button-hover);
-  box-shadow: 0 4px 12px var(--auth-button-shadow);
+  box-shadow: 0 2px 5px var(--auth-button-shadow);
 }
 
 .auth-submit:active:not(:disabled) {
@@ -595,13 +595,13 @@
   --auth-button-hover: #e5e5e5;
   --auth-button-active: #d4d4d4;
   --auth-button-text: #000000;
-  --auth-button-shadow: rgba(255, 255, 255, 0.12);
+  --auth-button-shadow: rgba(255, 255, 255, 0.07);
 }
 
 [data-theme='dark'] .auth-card {
   border-color: #262626;
   background: #0a0a0a;
-  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 2px 12px -4px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme='dark'] .auth-badge {

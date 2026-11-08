@@ -1,9 +1,9 @@
 /* Shared motion layer. Kept external because CSP is style-src 'self'. */
 :root {
-  --motion-fast: 140ms;
-  --motion-base: 220ms;
-  --motion-slow: 320ms;
-  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-slow: 360ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -13,17 +13,17 @@
 }
 
 @keyframes motion-fade-up {
-  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes motion-fade-down {
-  from { opacity: 0; transform: translate3d(0, -8px, 0); }
+  from { opacity: 0; transform: translate3d(0, -6px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes motion-scale-in {
-  from { opacity: 0; transform: scale(0.975); }
+  from { opacity: 0; transform: scale(0.985); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -139,6 +139,16 @@ html[data-theme-transition]::view-transition-new(root) {
 .admin-table tbody tr:nth-child(n + 6),
 .rp-journal-table tbody tr:nth-child(n + 6) { animation-delay: 200ms; }
 
+.ws-session,
+.ws-source,
+.admin-table tbody tr,
+.rp-journal-table tbody tr {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
 /* Tabs, navigation and sidebar */
 .app-nav a,
 .auth-tab,
@@ -196,7 +206,7 @@ html[data-theme-transition]::view-transition-new(root) {
 .admin-service:hover,
 .rp-check:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.09);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045);
 }
 [data-theme='dark'] .ws-card:hover,
 [data-theme='dark'] .pf-card:hover,
@@ -204,7 +214,7 @@ html[data-theme-transition]::view-transition-new(root) {
 [data-theme='dark'] .admin-stat:hover,
 [data-theme='dark'] .admin-service:hover,
 [data-theme='dark'] .rp-check:hover {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 button:not(:disabled),

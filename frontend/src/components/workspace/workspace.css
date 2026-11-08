@@ -4,7 +4,7 @@
   --ws-button-bg: #0f172a;
   --ws-button-hover: #1e293b;
   --ws-button-text: #ffffff;
-  --ws-button-shadow: rgba(15, 23, 42, 0.18);
+  --ws-button-shadow: rgba(15, 23, 42, 0.10);
   --ws-text: #1e293b;
   --ws-text-strong: #0f172a;
   --ws-muted: #64748b;
@@ -36,7 +36,7 @@
   padding: 0 24px;
   border-bottom: 1px solid var(--ws-border);
   background: var(--ws-paper);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
 }
 
 .ws-header-left,
@@ -195,7 +195,7 @@
   color: #fff;
   font-size: 12px;
   font-weight: 500;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .ws-user-text {
@@ -231,7 +231,7 @@
   border: 1px solid var(--ws-border);
   border-radius: 10px;
   background: #fff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 }
 
 .ws-user-menu-head {
@@ -592,9 +592,8 @@
   border-radius: 16px;
   background: var(--ws-paper);
   box-shadow:
-    0 2px 1px -1px rgba(0, 0, 0, 0.06),
-    0 1px 1px 0 rgba(0, 0, 0, 0.04),
-    0 1px 3px 0 rgba(0, 0, 0, 0.08);
+    0 1px 1px -1px rgba(0, 0, 0, 0.035),
+    0 1px 2px 0 rgba(0, 0, 0, 0.025);
 }
 
 .ws-card-head {
@@ -618,7 +617,7 @@
   background: #eff6ff;
   color: var(--ws-primary);
   font-size: 22px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
 }
 
 .ws-card-title {
@@ -749,7 +748,7 @@
   border-color: transparent;
   background: var(--ws-button-bg);
   color: var(--ws-button-text);
-  box-shadow: 0 1px 3px var(--ws-button-shadow);
+  box-shadow: 0 1px 2px var(--ws-button-shadow);
 }
 
 .ws-pill--active:hover:not(:disabled) {
@@ -985,7 +984,7 @@
 
 .ws-submit:hover:not(:disabled) {
   background: var(--ws-button-hover);
-  box-shadow: 0 4px 12px var(--ws-button-shadow);
+  box-shadow: 0 2px 5px var(--ws-button-shadow);
 }
 
 .ws-submit:active:not(:disabled) {
@@ -1259,7 +1258,7 @@
     width: 300px;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    box-shadow: 12px 0 32px rgba(15, 23, 42, 0.12);
+    box-shadow: 4px 0 18px rgba(15, 23, 42, 0.06);
   }
 
   .ws-sidebar--open {
@@ -1325,11 +1324,11 @@
   --ws-button-bg: #fafafa;
   --ws-button-hover: #e5e5e5;
   --ws-button-text: #000000;
-  --ws-button-shadow: rgba(0, 0, 0, 0.3);
+  --ws-button-shadow: rgba(0, 0, 0, 0.16);
 }
 
 [data-theme='dark'] .ws-header {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
 [data-theme='dark'] .ws-brand-badge {
@@ -1351,7 +1350,7 @@
 [data-theme='dark'] .ws-user-menu {
   border-color: #262626;
   background: #0a0a0a;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
 
 [data-theme='dark'] .ws-user-menu-head {
@@ -1407,7 +1406,7 @@
 }
 
 [data-theme='dark'] .ws-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 [data-theme='dark'] .ws-card-head,
