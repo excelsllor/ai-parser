@@ -85,6 +85,7 @@ pub(crate) async fn process_items_collected(
     }
 
     let stage_id = db::add_stage(&state.pool, event.run_id, "normalize", "running", None).await?;
+    let policies = run.policy_flags();
     let keywords = db::list_keywords(&state.pool)
         .await?
         .into_iter()
@@ -224,7 +225,7 @@ pub(crate) async fn process_items_collected(
         };
         item.canonical_url = canonical.clone();
 
-        if !canonical.is_empty() {
+        if policies.dedup && !canonical.is_empty() {
             if let Some(existing) = canonical_seen.get(&canonical).copied() {
                 item.status = "duplicate".to_string();
                 item.duplicate_of = Some(existing);
@@ -247,29 +248,31 @@ pub(crate) async fn process_items_collected(
             canonical_seen.insert(canonical.clone(), item.id);
         }
 
-        if let Some((_, existing)) = title_seen
-            .iter()
-            .find(|(title, _)| similarity(title, &item.title) > 0.93)
-        {
-            item.status = "duplicate".to_string();
-            item.duplicate_of = Some(*existing);
-            item.group_key = Some(format!("title:{}", item.title.to_lowercase()));
-            let reason = with_injection("дубликат заголовка в наборе", &injection);
-            item.reason = Some(reason.clone());
-            db::insert_item(&state.pool, &item).await?;
-            db::upsert_journal(
-                &state.pool,
-                event.run_id,
-                item.id,
-                "объединён",
-                item.group_key.as_deref(),
-                &reason,
-                None,
-            )
-            .await?;
-            continue;
+        if policies.dedup {
+            if let Some((_, existing)) = title_seen
+                .iter()
+                .find(|(title, _)| similarity(title, &item.title) > 0.93)
+            {
+                item.status = "duplicate".to_string();
+                item.duplicate_of = Some(*existing);
+                item.group_key = Some(format!("title:{}", item.title.to_lowercase()));
+                let reason = with_injection("дубликат заголовка в наборе", &injection);
+                item.reason = Some(reason.clone());
+                db::insert_item(&state.pool, &item).await?;
+                db::upsert_journal(
+                    &state.pool,
+                    event.run_id,
+                    item.id,
+                    "объединён",
+                    item.group_key.as_deref(),
+                    &reason,
+                    None,
+                )
+                .await?;
+                continue;
+            }
+            title_seen.push((item.title.clone(), item.id));
         }
-        title_seen.push((item.title.clone(), item.id));
 
         let keyword_hit = contains_keyword(&format!("{} {}", item.title, clean), &keywords);
         let injection_detected = injection.is_some();

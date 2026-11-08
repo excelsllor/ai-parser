@@ -11,7 +11,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::header::{AUTHORIZATION, CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderValue, Method, StatusCode};
 use axum::middleware as axum_mw;
-use axum::routing::{any, get, post, put};
+use axum::routing::{any, delete, get, post, put};
 use axum::Router;
 use news_shared::bus::KafkaBus;
 use news_shared::config::Config;
@@ -51,6 +51,7 @@ async fn main() -> AppResult<()> {
     let state = AppState::new(config.clone(), pool, redis, bus, llm);
 
     spawn_token_cleanup(state.clone());
+    spawn_health_sampler(state.clone());
 
     let app = build_router(state);
 
@@ -80,12 +81,35 @@ fn build_router(state: AppState) -> Router {
         .route("/api/ready", get(handlers::health::ready));
 
     let protected = Router::new()
-        .route("/api/auth/me", get(handlers::auth::me))
+        .route(
+            "/api/auth/me",
+            get(handlers::auth::me).patch(handlers::auth::update_profile),
+        )
+        .route(
+            "/api/auth/password",
+            post(handlers::auth::change_password),
+        )
+        .route(
+            "/api/auth/email/verify",
+            post(handlers::auth::verify_email),
+        )
+        .route("/api/auth/sessions", get(handlers::auth::list_sessions))
+        .route(
+            "/api/auth/sessions/revoke-others",
+            post(handlers::auth::revoke_other_sessions),
+        )
+        .route(
+            "/api/auth/sessions/{id}",
+            delete(handlers::auth::revoke_session),
+        )
         .route(
             "/api/runs",
             get(handlers::runs::list).post(handlers::runs::create),
         )
-        .route("/api/runs/{id}", get(handlers::runs::detail))
+        .route(
+            "/api/runs/{id}",
+            get(handlers::runs::detail).delete(handlers::runs::delete),
+        )
         .route("/api/runs/{id}/status", get(handlers::runs::status))
         .route("/api/runs/{id}/cancel", post(handlers::runs::cancel))
         .route("/api/runs/{id}/rerun", post(handlers::runs::rerun))
@@ -136,7 +160,16 @@ fn build_router(state: AppState) -> Router {
             "/api/admin/settings",
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
         )
+        .route(
+            "/api/admin/llm/models",
+            get(handlers::admin::llm_models),
+        )
         .route("/api/admin/audit", get(handlers::admin::audit))
+        .route("/api/admin/metrics", get(handlers::admin::metrics))
+        .route(
+            "/api/admin/health/history",
+            get(handlers::admin::health_history),
+        )
         .route(
             "/api/admin/debug/services",
             get(handlers::admin::debug_services),
@@ -170,10 +203,6 @@ fn build_router(state: AppState) -> Router {
     let static_files = ServeDir::new(&frontend_dir).fallback(ServeFile::new(index_file));
 
     Router::new()
-        .route("/", get(handlers::ui::index))
-        .route("/app.js", get(handlers::ui::app_js))
-        .route("/dompurify.min.js", get(handlers::ui::dompurify_js))
-        .route("/styles.css", get(handlers::ui::styles_css))
         .merge(api)
         .fallback_service(static_files)
         .layer(axum_mw::from_fn(news_shared::security::security_headers))
@@ -230,6 +259,53 @@ fn spawn_token_cleanup(state: AppState) {
             {
                 tracing::warn!(error = %e, "refresh token cleanup failed");
             }
+        }
+    });
+}
+
+fn spawn_health_sampler(state: AppState) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            let database_ok = news_shared::db::db_ping(&state.pool).await;
+            let redis_latency = state.redis.health_latency().await;
+            let kafka_ok = state.bus.health().await;
+            let llm_base_url = news_shared::db::get_setting(&state.pool, "llm_base_url")
+                .await
+                .ok()
+                .flatten()
+                .and_then(|value| value.as_str().map(ToOwned::to_owned))
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| state.config.llm.base_url.clone());
+            let llm_ok = state.llm.health_at(&llm_base_url).await;
+            let registry = news_shared::registry::read_services(&state.config.data_dir);
+            let registry_alive = registry.iter().filter(|service| service.alive).count();
+
+            if let Err(error) = sqlx::query(
+                "INSERT INTO health_snapshots
+                    (database_ok, redis_ok, redis_latency_ms, kafka_ok, llm_ok,
+                     registry_alive, registry_total)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            )
+            .bind(database_ok)
+            .bind(redis_latency.is_some())
+            .bind(redis_latency.map(|value| value.as_millis() as i64))
+            .bind(kafka_ok)
+            .bind(llm_ok)
+            .bind(registry_alive as i32)
+            .bind(registry.len() as i32)
+            .execute(&state.pool)
+            .await
+            {
+                tracing::warn!(error = %error, "health snapshot insert failed");
+            }
+
+            let _ = sqlx::query(
+                "DELETE FROM health_snapshots WHERE checked_at < now() - interval '7 days'",
+            )
+            .execute(&state.pool)
+            .await;
         }
     });
 }

@@ -1,4 +1,5 @@
 use axum::extract::{Extension, Path, Query, State};
+use chrono::Utc;
 use axum::http::StatusCode;
 use axum::Json;
 use news_shared::audit::{write_audit, AuditRecord};
@@ -54,6 +55,77 @@ pub struct CreateKeywordRequest {
 pub struct SettingRequest {
     pub key: String,
     pub value: Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MetricsQuery {
+    #[serde(default)]
+    pub hours: Option<i64>,
+}
+
+pub async fn metrics(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<MetricsQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let hours = query.hours.unwrap_or(24).clamp(1, 720);
+    let since = Utc::now() - chrono::Duration::hours(hours);
+
+    let (total, completed, failed, cancelled, running, queued, avg_duration): (
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        Option<f64>,
+    ) = sqlx::query_as(
+        "SELECT
+            count(*)::bigint,
+            count(*) FILTER (WHERE status = 'completed')::bigint,
+            count(*) FILTER (WHERE status = 'failed')::bigint,
+            count(*) FILTER (WHERE status = 'cancelled')::bigint,
+            count(*) FILTER (WHERE status = 'running')::bigint,
+            count(*) FILTER (WHERE status = 'queued')::bigint,
+            (avg(extract(epoch FROM (finished_at - created_at)))
+                FILTER (WHERE status = 'completed' AND finished_at IS NOT NULL))::double precision
+         FROM runs WHERE created_at >= $1",
+    )
+    .bind(since)
+    .fetch_one(&state.pool)
+    .await?;
+
+    let (calls, input_tokens, output_tokens, cost): (i64, i64, i64, f64) = sqlx::query_as(
+        "SELECT
+            count(*)::bigint,
+            coalesce(sum(input_tokens), 0)::bigint,
+            coalesce(sum(output_tokens), 0)::bigint,
+            coalesce(sum(cost), 0)::double precision
+         FROM llm_calls WHERE created_at >= $1",
+    )
+    .bind(since)
+    .fetch_one(&state.pool)
+    .await?;
+
+    Ok(Json(json!({
+        "window_hours": hours,
+        "runs": {
+            "total": total,
+            "completed": completed,
+            "failed": failed,
+            "cancelled": cancelled,
+            "running": running,
+            "queued": queued,
+            "avg_duration_secs": avg_duration.map(|value| value.round() as i64),
+        },
+        "llm": {
+            "calls": calls,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost": cost,
+        }
+    })))
 }
 
 pub async fn list_users(
@@ -319,29 +391,75 @@ pub async fn delete_keyword(
 
 pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let keys = ["weights", "model", "prompt_version", "selection"];
+    let keys = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
     let mut out = serde_json::Map::new();
     for key in keys {
         if let Some(value) = db::get_setting(&state.pool, key).await? {
             out.insert(key.to_string(), value);
         }
     }
+    let model = out
+        .get("model")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.llm.model.clone());
+    let prompt_version = out
+        .get("prompt_version")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.prompt_version.clone());
+    let base_url = out
+        .get("llm_base_url")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let weights = out
+        .get("weights")
+        .and_then(|value| {
+            serde_json::from_value::<news_shared::config::ScoringWeights>(value.clone()).ok()
+        })
+        .unwrap_or_else(|| state.config.weights.clone());
     Ok(Json(json!({
         "settings": out,
         "effective": {
-            "model": state.config.llm.model,
-            "prompt_version": state.config.prompt_version,
+            "model": model,
+            "prompt_version": prompt_version,
+            "base_url": base_url,
             "weights": {
-                "impact": state.config.weights.impact,
-                "scale": state.config.weights.scale,
-                "urgency": state.config.weights.urgency,
-                "relevance": state.config.weights.relevance,
-                "confidence": state.config.weights.confidence,
-                "uncertainty_penalty": state.config.weights.uncertainty_penalty,
+                "impact": weights.impact,
+                "scale": weights.scale,
+                "urgency": weights.urgency,
+                "relevance": weights.relevance,
+                "confidence": weights.confidence,
+                "uncertainty_penalty": weights.uncertainty_penalty,
             },
             "env": state.config.env_name,
         }
     })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LlmModelsQuery {
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
+pub async fn llm_models(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<LlmModelsQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let base_url = match query.base_url.map(|value| value.trim().to_owned()) {
+        Some(value) if !value.is_empty() => value,
+        _ => db::get_setting(&state.pool, "llm_base_url")
+            .await?
+            .and_then(|value| value.as_str().map(ToOwned::to_owned))
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| state.config.llm.base_url.clone()),
+    };
+    let models = state.llm.list_models_at(&base_url).await?;
+    Ok(Json(json!({"base_url": base_url, "models": models})))
 }
 
 pub async fn put_setting(
@@ -351,7 +469,7 @@ pub async fn put_setting(
     Json(payload): Json<SettingRequest>,
 ) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let allowed = ["weights", "model", "prompt_version", "selection"];
+    let allowed = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));
     }
@@ -427,17 +545,64 @@ pub async fn debug_services(
     let db_ok = db::db_ping(&state.pool).await;
     let redis_latency = state.redis.health_latency().await;
     let kafka_ok = state.bus.health().await;
-    let llm_ok = state.llm.health().await;
+    let llm_base_url = db::get_setting(&state.pool, "llm_base_url")
+        .await?
+        .and_then(|value| value.as_str().map(ToOwned::to_owned))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let llm_ok = state.llm.health_at(&llm_base_url).await;
 
     Ok(Json(json!({
         "registry": news_shared::registry::read_services(&state.config.data_dir),
         "database": {"ok": db_ok},
         "redis": {"ok": redis_latency.is_some(), "latency_ms": redis_latency.map(|d| d.as_millis())},
         "kafka": {"ok": kafka_ok, "brokers": state.bus.brokers()},
-        "llm": {"ok": llm_ok, "model": state.config.llm.model},
+        "llm": {"ok": llm_ok, "model": state.config.llm.model, "base_url": llm_base_url},
         "env": state.config.env_name,
         "version": env!("CARGO_PKG_VERSION"),
     })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HistoryQuery {
+    #[serde(default)]
+    pub limit: Option<i64>,
+}
+
+pub async fn health_history(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Query(query): Query<HistoryQuery>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let limit = query.limit.unwrap_or(30).clamp(1, 200);
+    let rows = sqlx::query_as::<_, (Uuid, chrono::DateTime<Utc>, bool, bool, Option<i64>, bool, bool, i32, i32)>(
+        "SELECT id, checked_at, database_ok, redis_ok, redis_latency_ms, kafka_ok, llm_ok,
+                registry_alive, registry_total
+         FROM health_snapshots ORDER BY checked_at DESC LIMIT $1",
+    )
+    .bind(limit)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            json!({
+                "id": row.0,
+                "checked_at": row.1,
+                "database_ok": row.2,
+                "redis_ok": row.3,
+                "redis_latency_ms": row.4,
+                "kafka_ok": row.5,
+                "llm_ok": row.6,
+                "registry_alive": row.7,
+                "registry_total": row.8,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    Ok(Json(json!(items)))
 }
 
 pub async fn debug_kafka(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {

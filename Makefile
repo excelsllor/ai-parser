@@ -1,4 +1,4 @@
-.PHONY: fmt lint test audit build up down logs clean
+.PHONY: fmt lint test audit build up down logs clean frontend
 
 fmt:
 	cargo fmt --all
@@ -15,7 +15,10 @@ audit:
 build:
 	cargo build --release --bins
 
-up:
+frontend:
+	cd frontend && bun install --frozen-lockfile && bun run build
+
+up: frontend
 	docker compose up --build -d
 
 down:

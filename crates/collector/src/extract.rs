@@ -491,6 +491,7 @@ pub async fn collect_live(
     let mut out = Vec::new();
     let mut errors = Vec::new();
     for source in sources {
+        let before = out.len();
         let result = match source.kind.as_str() {
             "rss" => fetch_rss_source(state, &client, &source, &allowed_hosts, &mut out).await,
             "html" => fetch_html_source(state, &client, &source, &allowed_hosts, &mut out).await,
@@ -501,17 +502,29 @@ pub async fn collect_live(
                 )))
             }
         };
+        let mut sync_error = None;
         if let Err(error) = result {
             metrics()
                 .fetch_errors
                 .with_label_values(&[&source.name])
                 .inc();
             tracing::warn!(source = %source.name, error = %error, "source fetch failed");
+            sync_error = Some(error.to_string());
             errors.push(SourceFetchError {
                 source_name: source.name.clone(),
                 source_url: source.url.clone(),
                 error: error.to_string(),
             });
+        }
+        if let Err(error) = db::record_source_sync(
+            &state.pool,
+            source.id,
+            sync_error.as_deref(),
+            out.len().saturating_sub(before),
+        )
+        .await
+        {
+            tracing::warn!(source = %source.name, error = %error, "source sync stats update failed");
         }
         if out.len() >= state.config.max_articles_per_run {
             break;

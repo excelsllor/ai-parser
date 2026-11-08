@@ -88,6 +88,9 @@ pub struct User {
     pub password_hash: String,
     pub role: String,
     pub is_active: bool,
+    pub display_name: String,
+    pub department: String,
+    pub email: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -124,6 +127,9 @@ pub struct Source {
     pub trust: String,
     pub language: String,
     pub created_at: DateTime<Utc>,
+    pub last_synced_at: Option<DateTime<Utc>>,
+    pub last_error: Option<String>,
+    pub items_collected: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -131,6 +137,30 @@ pub struct Keyword {
     pub id: Uuid,
     pub word: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunPolicies {
+    #[serde(default = "enabled_by_default")]
+    pub dedup: bool,
+    #[serde(default = "enabled_by_default")]
+    pub injection_guard: bool,
+    #[serde(default = "enabled_by_default")]
+    pub neutral: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+impl Default for RunPolicies {
+    fn default() -> Self {
+        Self {
+            dedup: true,
+            injection_guard: true,
+            neutral: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -149,6 +179,17 @@ pub struct Run {
     pub finished_at: Option<DateTime<Utc>>,
     pub error: Option<String>,
     pub stats: serde_json::Value,
+    pub interval_hours: i32,
+    pub max_items: i32,
+    pub parent_run_id: Option<Uuid>,
+    pub source_ids: Vec<Uuid>,
+    pub policies: serde_json::Value,
+}
+
+impl Run {
+    pub fn policy_flags(&self) -> RunPolicies {
+        serde_json::from_value(self.policies.clone()).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -501,6 +542,9 @@ pub struct UserResponse {
     pub username: String,
     pub role: String,
     pub is_active: bool,
+    pub display_name: String,
+    pub department: String,
+    pub email: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -511,6 +555,9 @@ impl From<User> for UserResponse {
             username: value.username,
             role: value.role,
             is_active: value.is_active,
+            display_name: value.display_name,
+            department: value.department,
+            email: value.email,
             created_at: value.created_at,
         }
     }
@@ -527,6 +574,7 @@ pub struct RunSummary {
     pub model: String,
     pub prompt_version: String,
     pub error: Option<String>,
+    pub parent_run_id: Option<Uuid>,
 }
 
 impl From<Run> for RunSummary {
@@ -541,6 +589,7 @@ impl From<Run> for RunSummary {
             model: value.model,
             prompt_version: value.prompt_version,
             error: value.error,
+            parent_run_id: value.parent_run_id,
         }
     }
 }

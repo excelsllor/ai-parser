@@ -74,6 +74,22 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-targets
 
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        working-directory: frontend
+      - name: Lint
+        run: bun run lint
+        working-directory: frontend
+      - name: Build
+        run: bun run build
+        working-directory: frontend
+
   security:
     name: Security audit
     runs-on: ubuntu-latest
@@ -95,7 +111,7 @@ jobs:
 
   docker:
     name: Build and push image
-    needs: [fmt, clippy, test, security]
+    needs: [fmt, clippy, test, frontend, security]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -103,6 +119,10 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: Build frontend
+        run: bun install --frozen-lockfile && bun run build
+        working-directory: frontend
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:

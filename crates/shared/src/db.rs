@@ -347,10 +347,16 @@ pub async fn create_run(
     model: &str,
     prompt_version: &str,
     created_by: Option<Uuid>,
+    interval_hours: i32,
+    max_items: i32,
+    parent_run_id: Option<Uuid>,
+    source_ids: &[Uuid],
+    policies: &RunPolicies,
 ) -> AppResult<Run> {
     let run = sqlx::query_as::<_, Run>(
-        "INSERT INTO runs (mode, control_time, period_start, period_end, model, prompt_version, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO runs (mode, control_time, period_start, period_end, model, prompt_version,
+                           created_by, interval_hours, max_items, parent_run_id, source_ids, policies)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *",
     )
     .bind(mode)
@@ -360,9 +366,25 @@ pub async fn create_run(
     .bind(model)
     .bind(prompt_version)
     .bind(created_by)
+    .bind(interval_hours)
+    .bind(max_items)
+    .bind(parent_run_id)
+    .bind(source_ids.to_vec())
+    .bind(serde_json::to_value(policies)?)
     .fetch_one(pool)
     .await?;
     Ok(run)
+}
+
+pub async fn delete_run(pool: &PgPool, run_id: Uuid) -> AppResult<()> {
+    let result = sqlx::query("DELETE FROM runs WHERE id = $1")
+        .bind(run_id)
+        .execute(pool)
+        .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("run not found".into()));
+    }
+    Ok(())
 }
 
 pub async fn set_run_status(
@@ -830,6 +852,116 @@ pub async fn set_user_role(pool: &PgPool, user_id: Uuid, role: &str) -> AppResul
         .bind(user_id)
         .execute(pool)
         .await?;
+    Ok(())
+}
+
+pub async fn update_user_profile(
+    pool: &PgPool,
+    user_id: Uuid,
+    display_name: &str,
+    department: &str,
+    email: Option<&str>,
+) -> AppResult<User> {
+    sqlx::query_as::<_, User>(
+        "UPDATE users SET display_name = $1, department = $2, email = $3, updated_at = now()
+         WHERE id = $4 RETURNING *",
+    )
+    .bind(display_name)
+    .bind(department)
+    .bind(email)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(AppError::from)
+}
+
+pub async fn set_user_password(pool: &PgPool, user_id: Uuid, password_hash: &str) -> AppResult<()> {
+    sqlx::query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2")
+        .bind(password_hash)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn prune_user_sessions(pool: &PgPool, user_id: Uuid, keep: i64) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE refresh_tokens SET revoked = TRUE
+         WHERE user_id = $1 AND revoked = FALSE
+           AND id NOT IN (
+             SELECT id FROM refresh_tokens
+             WHERE user_id = $1 AND revoked = FALSE
+             ORDER BY created_at DESC LIMIT $2
+           )",
+    )
+    .bind(user_id)
+    .bind(keep.max(1))
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_user_sessions(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<RefreshToken>> {
+    sqlx::query_as::<_, RefreshToken>(
+        "SELECT * FROM refresh_tokens
+         WHERE user_id = $1 AND revoked = FALSE AND expires_at > now()
+         ORDER BY created_at DESC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(AppError::from)
+}
+
+pub async fn revoke_user_session(
+    pool: &PgPool,
+    user_id: Uuid,
+    session_id: Uuid,
+) -> AppResult<()> {
+    let result = sqlx::query(
+        "UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND user_id = $2",
+    )
+    .bind(session_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("session not found".into()));
+    }
+    Ok(())
+}
+
+pub async fn revoke_other_sessions(
+    pool: &PgPool,
+    user_id: Uuid,
+    current_hash: &str,
+) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE refresh_tokens SET revoked = TRUE
+         WHERE user_id = $1 AND token_hash <> $2 AND revoked = FALSE",
+    )
+    .bind(user_id)
+    .bind(current_hash)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn record_source_sync(
+    pool: &PgPool,
+    source_id: Uuid,
+    error: Option<&str>,
+    collected: usize,
+) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE sources SET last_synced_at = now(), last_error = $2,
+         items_collected = items_collected + $3 WHERE id = $1",
+    )
+    .bind(source_id)
+    .bind(error)
+    .bind(collected as i64)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 

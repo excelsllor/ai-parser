@@ -95,6 +95,11 @@ pub(crate) async fn process_digest_draft(
     }
 
     let stage_id = db::add_stage(&state.pool, draft.run_id, "critic", "running", None).await?;
+    let llm_base_url = db::get_setting(&state.pool, "llm_base_url")
+        .await?
+        .and_then(|value| value.as_str().map(ToOwned::to_owned))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| state.config.llm.base_url.clone());
     let items = db::get_items(&state.pool, draft.run_id).await?;
     let source_texts: HashMap<uuid::Uuid, String> = items
         .iter()
@@ -165,6 +170,7 @@ pub(crate) async fn process_digest_draft(
                 match state
                     .llm
                     .chat_json_with_model::<CriticVerdict>(
+                        &llm_base_url,
                         &run.model,
                         "critic_claim",
                         &run.prompt_version,
@@ -263,7 +269,7 @@ pub(crate) async fn process_digest_draft(
         verified_events.push(event);
     }
 
-    verified_events.truncate(5);
+    verified_events.truncate((run.max_items.max(1) as usize).min(20));
     let events_count = verified_events.len();
     let no_em_dash = verified_events.iter().all(|e| {
         !e.title.contains('—')

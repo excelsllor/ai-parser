@@ -198,9 +198,9 @@ pub fn validate_username(username: &str) -> AppResult<()> {
 }
 
 pub fn validate_password(password: &str) -> AppResult<()> {
-    if password.len() < 10 {
+    if password.len() < 8 {
         return Err(AppError::Validation(
-            "password must be at least 10 characters".into(),
+            "password must be at least 8 characters".into(),
         ));
     }
     if password.len() > 256 {
@@ -271,6 +271,7 @@ mod tests {
     #[test]
     fn validates_passwords() {
         assert!(validate_password("long-enough-1").is_ok());
+        assert!(validate_password("short-12").is_ok());
         assert!(validate_password("short1").is_err());
         assert!(validate_password("nodigitshere").is_err());
     }

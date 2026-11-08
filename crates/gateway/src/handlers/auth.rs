@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use axum::extract::{Extension, State};
+use axum::extract::{Extension, Path, State};
 use axum::http::HeaderMap;
 use axum::Json;
 use chrono::Utc;
@@ -12,6 +12,8 @@ use news_shared::auth::{
 use news_shared::db;
 use news_shared::error::{AppError, AppResult};
 use news_shared::models::{LoginRequest, LoginResponse, RefreshRequest, User, UserResponse};
+use news_shared::security::validate_password;
+use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -92,6 +94,7 @@ pub async fn login(
         .bind(expires)
         .execute(&state.pool)
         .await?;
+    let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
     let _ = write_audit(
         &state.pool,
@@ -153,6 +156,7 @@ pub async fn refresh(
         .bind(refresh_expiry(&state.config))
         .execute(&state.pool)
         .await?;
+    let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
     let access = create_access_token(&state.config, &user)?;
 
@@ -199,6 +203,233 @@ pub async fn logout(
 pub async fn me(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<UserResponse>> {
     let row = fetch_user(&state.pool, user.id).await?;
     Ok(Json(UserResponse::from(row)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateProfileRequest {
+    pub display_name: Option<String>,
+    pub department: Option<String>,
+    pub email: Option<String>,
+    pub current_email: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RevokeOthersRequest {
+    pub refresh_token: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct SessionResponse {
+    pub id: Uuid,
+    pub created_at: chrono::DateTime<Utc>,
+    pub expires_at: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VerifyEmailRequest {
+    pub email: String,
+}
+
+pub async fn verify_email(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Json(payload): Json<VerifyEmailRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    if let Some(stored) = current.email {
+        if !stored.eq_ignore_ascii_case(payload.email.trim()) {
+            return Err(AppError::Validation("current email is incorrect".into()));
+        }
+    }
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn update_profile(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> AppResult<Json<UserResponse>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    let display_name = payload
+        .display_name
+        .unwrap_or(current.display_name)
+        .trim()
+        .to_string();
+    let department = payload
+        .department
+        .unwrap_or(current.department)
+        .trim()
+        .to_string();
+    if display_name.chars().count() > 120 || department.chars().count() > 120 {
+        return Err(AppError::Validation(
+            "display_name and department must be at most 120 characters".into(),
+        ));
+    }
+
+    let email = match payload.email {
+        Some(raw) => {
+            let value = raw.trim().to_lowercase();
+            if value.is_empty() {
+                None
+            } else {
+                if value.len() > 254
+                    || !value.contains('@')
+                    || value.starts_with('@')
+                    || value.ends_with('@')
+                {
+                    return Err(AppError::Validation("invalid email".into()));
+                }
+                let stored = current.email.as_deref().map(str::to_lowercase);
+                if stored.as_deref() != Some(value.as_str()) {
+                    let provided = payload
+                        .current_email
+                        .as_deref()
+                        .unwrap_or("")
+                        .trim()
+                        .to_lowercase();
+                    if stored.as_deref() != Some(provided.as_str()) {
+                        return Err(AppError::Validation(
+                            "current email is incorrect".into(),
+                        ));
+                    }
+                }
+                let taken: Option<Uuid> = sqlx::query_scalar(
+                    "SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 LIMIT 1",
+                )
+                .bind(&value)
+                .bind(user.id)
+                .fetch_optional(&state.pool)
+                .await?;
+                if taken.is_some() {
+                    return Err(AppError::Validation("email is already in use".into()));
+                }
+                Some(value)
+            }
+        }
+        None => current.email,
+    };
+
+    let updated = db::update_user_profile(
+        &state.pool,
+        user.id,
+        &display_name,
+        &department,
+        email.as_deref(),
+    )
+    .await?;
+
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "auth.profile.update",
+            "auth",
+            json!({"email": updated.email, "display_name": updated.display_name, "department": updated.department}),
+            ip,
+        ),
+    )
+    .await;
+
+    Ok(Json(UserResponse::from(updated)))
+}
+
+pub async fn change_password(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    if !verify_password(&payload.current_password, &current.password_hash) {
+        return Err(AppError::Unauthorized("current password is incorrect".into()));
+    }
+    validate_password(&payload.new_password)?;
+    let hash = hash_password(&payload.new_password)?;
+    db::set_user_password(&state.pool, user.id, &hash).await?;
+
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "auth.password.change",
+            "auth",
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn list_sessions(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Vec<SessionResponse>>> {
+    let rows = db::list_user_sessions(&state.pool, user.id).await?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|row| SessionResponse {
+                id: row.id,
+                created_at: row.created_at,
+                expires_at: row.expires_at,
+            })
+            .collect(),
+    ))
+}
+
+pub async fn revoke_session(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(session_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    db::revoke_user_session(&state.pool, user.id, session_id).await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "auth.session.revoke",
+            format!("session:{session_id}"),
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn revoke_other_sessions(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<RevokeOthersRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let current_hash = hash_token(payload.refresh_token.trim());
+    db::revoke_other_sessions(&state.pool, user.id, &current_hash).await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "auth.session.revoke_others",
+            "auth",
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true})))
 }
 
 pub async fn fetch_user(pool: &PgPool, user_id: Uuid) -> AppResult<User> {

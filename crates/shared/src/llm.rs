@@ -110,12 +110,20 @@ impl LlmClient {
         system: &str,
         user: &str,
     ) -> AppResult<LlmOutcome<T>> {
-        self.chat_json_with_model(&self.config.model, purpose, prompt_version, system, user)
-            .await
+        self.chat_json_with_model(
+            &self.config.base_url,
+            &self.config.model,
+            purpose,
+            prompt_version,
+            system,
+            user,
+        )
+        .await
     }
 
     pub async fn chat_json_with_model<T: DeserializeOwned>(
         &self,
+        base_url: &str,
         model: &str,
         purpose: &str,
         prompt_version: &str,
@@ -123,7 +131,7 @@ impl LlmClient {
         user: &str,
     ) -> AppResult<LlmOutcome<T>> {
         let outcome = self
-            .chat_raw(model, purpose, prompt_version, system, user, true)
+            .chat_raw(base_url, model, purpose, prompt_version, system, user, true)
             .await?;
         let value = parse_json::<T>(&outcome.raw)?;
         Ok(LlmOutcome {
@@ -146,6 +154,7 @@ impl LlmClient {
     ) -> AppResult<LlmOutcome<String>> {
         let outcome = self
             .chat_raw(
+                &self.config.base_url,
                 &self.config.model,
                 purpose,
                 prompt_version,
@@ -166,8 +175,10 @@ impl LlmClient {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn chat_raw(
         &self,
+        base_url: &str,
         model: &str,
         purpose: &str,
         prompt_version: &str,
@@ -179,8 +190,8 @@ impl LlmClient {
             "llm:cache:{}",
             sha256_hex(
                 format!(
-                    "{}|{}|{}|{}|{}",
-                    model, prompt_version, purpose, system, user
+                    "{}|{}|{}|{}|{}|{}",
+                    base_url, model, prompt_version, purpose, system, user
                 )
                 .as_bytes()
             )
@@ -208,7 +219,7 @@ impl LlmClient {
 
         let url = format!(
             "{}/chat/completions",
-            self.config.base_url.trim_end_matches('/')
+            base_url.trim_end_matches('/')
         );
         let started = Instant::now();
         let mut last_error = None;
@@ -314,7 +325,11 @@ impl LlmClient {
     }
 
     pub async fn health(&self) -> bool {
-        let url = format!("{}/models", self.config.base_url.trim_end_matches('/'));
+        self.health_at(&self.config.base_url).await
+    }
+
+    pub async fn health_at(&self, base_url: &str) -> bool {
+        let url = format!("{}/models", base_url.trim_end_matches('/'));
         let mut request = self.client.get(url).timeout(Duration::from_secs(5));
         if let Some(key) = &self.config.api_key {
             request = request.bearer_auth(key);
@@ -324,6 +339,40 @@ impl LlmClient {
             .await
             .map(|r| r.status().is_success())
             .unwrap_or(false)
+    }
+
+    pub async fn list_models_at(&self, base_url: &str) -> AppResult<Vec<String>> {
+        let url = format!("{}/models", base_url.trim_end_matches('/'));
+        let mut request = self.client.get(url).timeout(Duration::from_secs(15));
+        if let Some(key) = &self.config.api_key {
+            request = request.bearer_auth(key);
+        }
+        let response = request.send().await.map_err(AppError::from)?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(AppError::llm(format!("LLM models HTTP {status}: {text}")));
+        }
+        let payload: Value = response.json().await.map_err(AppError::from)?;
+        let mut models = Vec::new();
+        for item in payload
+            .get("data")
+            .and_then(Value::as_array)
+            .or_else(|| payload.get("models").and_then(Value::as_array))
+            .into_iter()
+            .flatten()
+        {
+            if let Some(id) = item
+                .as_str()
+                .map(str::to_owned)
+                .or_else(|| item.get("id").and_then(Value::as_str).map(str::to_owned))
+            {
+                models.push(id);
+            }
+        }
+        models.sort();
+        models.dedup();
+        Ok(models)
     }
 }
 

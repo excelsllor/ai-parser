@@ -599,11 +599,11 @@ async fn run_checks(
         note: "лимит без учёта URL".to_string(),
     });
     checks.push(CheckRow {
-        scenario: "events_limit_5".to_string(),
-        passed: events.len() <= 5,
-        input: json!({"limit": 5}),
+        scenario: "events_limit".to_string(),
+        passed: events.len() <= run.max_items.max(0) as usize,
+        input: json!({"limit": run.max_items}),
         output: json!({"events": events.len()}),
-        note: "не больше пяти событий".to_string(),
+        note: format!("не больше {} событий", run.max_items),
     });
     checks.push(CheckRow {
         scenario: "no_em_dash".to_string(),
@@ -650,13 +650,13 @@ async fn run_checks(
         },
     });
 
-    let fewer_note = verified.notes.iter().any(|n| n.contains("меньше пяти"));
+    let fewer_note = verified.notes.iter().any(|n| n.contains("меньше"));
     checks.push(CheckRow {
-        scenario: "fewer_than_five".to_string(),
-        passed: events.len() >= 5 || fewer_note || events.is_empty(),
-        input: json!({"events": events.len()}),
+        scenario: "fewer_than_limit".to_string(),
+        passed: events.len() >= run.max_items.max(0) as usize || fewer_note || events.is_empty(),
+        input: json!({"events": events.len(), "limit": run.max_items}),
         output: json!({"note": fewer_note}),
-        note: "если событий меньше пяти, указана причина".to_string(),
+        note: "если событий меньше лимита, указана причина".to_string(),
     });
 
     let no_news_note = events.is_empty() && digest.contains("Подходящих событий за период нет");
@@ -933,6 +933,11 @@ mod tests {
             finished_at: None,
             error: None,
             stats: serde_json::json!({}),
+            interval_hours: 24,
+            max_items: 5,
+            parent_run_id: None,
+            source_ids: Vec::new(),
+            policies: serde_json::json!({}),
         }
     }
 

@@ -4,7 +4,6 @@ target
 .venv
 node_modules
 frontend/node_modules
-frontend/dist
 data
 *.log
 .env

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11" width="440" height="440" shape-rendering="crispEdges">
+  <!-- Черная подложка (единый контур, без швов между рядами) -->
+  <path fill="#232323" d="M2 0h3v1H2zM6 0h3v1H6zM2 1h7v1H2zM0 2h11v8H0zM3 10h5v1H3z" />
+
+  <!-- Фиолетовый инвейдер -->
+  <path fill="#B347FF" d="M3 1h1v1H3zM7 1h1v1H7zM4 2h1v1H4zM6 2h1v1H6zM1 3h1v1H1zM3 3h5v1H3zM9 3h1v1H9zM1 4h3v1H1zM5 4h1v1H5zM7 4h3v1H7zM3 5h1v1H3zM5 5h1v1H5zM7 5h1v1H7zM1 6h1v1H1zM3 6h5v1H3zM9 6h1v1H9zM1 7h2v1H1zM4 7h3v1H4zM8 7h2v1H8zM4 8h3v1H4zM4 9h1v1H4zM6 9h1v1H6z" />
+</svg>
