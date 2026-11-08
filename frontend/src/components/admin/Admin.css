@@ -899,3 +899,9 @@
 .admin-mb-12 { margin-bottom: 12px; }
 .admin-stat-value--sm { font-size: 16px; }
 .admin-note--error { color: #b91c1c; }
+
+.admin-card,
+.admin-stat,
+.admin-service {
+  box-shadow: var(--panel-shadow);
+}

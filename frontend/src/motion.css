@@ -191,6 +191,10 @@ html[data-theme-transition]::view-transition-new(root) {
 .admin-stat,
 .admin-service,
 .rp-check,
+.rp-tg-card,
+.ws-user-menu,
+.rp-modal,
+.auth-card,
 .auth-sso-button,
 .auth-submit {
   transition:
@@ -204,17 +208,19 @@ html[data-theme-transition]::view-transition-new(root) {
 .admin-card:hover,
 .admin-stat:hover,
 .admin-service:hover,
-.rp-check:hover {
+.rp-check:hover,
+.rp-tg-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045);
+  box-shadow: var(--panel-shadow-hover);
 }
 [data-theme='dark'] .ws-card:hover,
 [data-theme='dark'] .pf-card:hover,
 [data-theme='dark'] .admin-card:hover,
 [data-theme='dark'] .admin-stat:hover,
 [data-theme='dark'] .admin-service:hover,
-[data-theme='dark'] .rp-check:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+[data-theme='dark'] .rp-check:hover,
+[data-theme='dark'] .rp-tg-card:hover {
+  box-shadow: var(--panel-shadow-hover);
 }
 
 button:not(:disabled),

@@ -8,7 +8,7 @@
   z-index: 40;
   border-bottom: 1px solid var(--ws-border);
   background: var(--ws-paper);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+  box-shadow: var(--header-shadow);
 }
 
 .pf-header-inner {
@@ -273,9 +273,7 @@
   border: 1px solid var(--ws-border);
   border-radius: 12px;
   background: var(--ws-paper);
-  box-shadow:
-    0 1px 1px -1px rgba(0, 0, 0, 0.025),
-    0 1px 2px 0 rgba(0, 0, 0, 0.035);
+  box-shadow: var(--panel-shadow);
 }
 
 .pf-card summary {
@@ -829,7 +827,7 @@
 }
 
 [data-theme='dark'] .pf-header {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--header-shadow);
 }
 
 [data-theme='dark'] .pf-brand-sub,
