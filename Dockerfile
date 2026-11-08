@@ -4,7 +4,10 @@ FROM rust:1.99-bookworm AS builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        cmake libcurl4-openssl-dev libssl-dev pkg-config \
+        cmake=3.25.1-1 \
+        libcurl4-openssl-dev=7.88.1-10+deb12u15 \
+        libssl-dev=3.0.22-1~deb12u2 \
+        pkg-config=1.8.1-1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
