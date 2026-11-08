@@ -1,0 +1,6 @@
+# Let's Encrypt TLS. DOMAIN must resolve to this server and ports 80/443
+# must be reachable, e.g. 1-2-3-4.sslip.io.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy gateway:8080
+}

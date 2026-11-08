@@ -23,7 +23,8 @@
 
 | Секрет | Назначение |
 |---|---|
-| `DEPLOY_HOST` | хост деплоя |
+| `DEPLOY_HOST` | хост деплоя (без порта) |
+| `DEPLOY_PORT` | SSH-порт, по умолчанию 22 |
 | `DEPLOY_USER` | SSH-пользователь |
 | `DEPLOY_SSH_KEY` | приватный SSH-ключ |
 | `DEPLOY_PATH` | каталог с `docker-compose.yml` |
@@ -39,6 +40,33 @@
   доступный только деплой-пользователю.
 - Образы запускаются non-root, read-only, без capabilities.
 - Откат: `docker compose up -d <previous-sha>` или тег предыдущего образа.
+
+## HTTPS
+
+Сервис `caddy` включается профилем `tls` и терминирует TLS для gateway
+на портах 80/443 (`HTTP_PORT`/`HTTPS_PORT` можно переопределить).
+Файл конфигурации выбирается переменной `TLS_MODE`:
+
+| `TLS_MODE` | Сертификат | Когда использовать |
+|---|---|---|
+| `internal` (по умолчанию) | локальный CA Caddy | сервер без домена, доступ по IP |
+| `public` | Let's Encrypt | есть домен или `1-2-3-4.sslip.io` |
+
+В `.env`: `COMPOSE_PROFILES=tls`, `TLS_MODE=internal`, `DOMAIN=<IP сервера>`,
+`TRUST_PROXY_HEADERS=true`, `CORS_ORIGINS=https://<IP>`.
+
+Для `TLS_MODE=internal` браузер будет предупреждать о недоверенном
+сертификате. Чтобы убрать предупреждение, импортируй корневой CA Caddy:
+
+```bash
+docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
+```
+
+Для `TLS_MODE=public` домен должен резолвиться на сервер, а порты 80/443
+быть открыты. Caddy сам получит и обновит сертификат.
+
+На сервере рядом с `docker-compose.yml` и `.env` должны лежать
+`Caddyfile.internal` и `Caddyfile.public`.
 
 ## Локальная проверка
 
