@@ -1,7 +1,0 @@
-# HTTPS reverse proxy for the gateway.
-# Enabled by the "tls" compose profile: set COMPOSE_PROFILES=tls and DOMAIN in .env.
-# Any hostname that resolves to this server works, e.g. 1-2-3-4.sslip.io.
-{$DOMAIN:localhost} {
-	encode gzip
-	reverse_proxy gateway:8080
-}

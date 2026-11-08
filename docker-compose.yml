@@ -255,7 +255,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:-localhost}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.${TLS_MODE:-internal}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     read_only: true

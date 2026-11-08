@@ -1,0 +1,13 @@
+# Self-signed TLS for servers without a domain (IP-only).
+# Caddy uses its local CA, so browsers warn until the root CA is trusted.
+# For a real hostname or an sslip.io name switch TLS_MODE=public.
+{
+	# Browsers do not send SNI when connecting to an IP address.
+	default_sni {$DOMAIN:localhost}
+}
+
+{$DOMAIN:localhost} {
+	tls internal
+	encode gzip
+	reverse_proxy gateway:8080
+}
