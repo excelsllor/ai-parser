@@ -17,7 +17,7 @@ COPY web ./web
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release --bins \
+    cargo build --locked --release --bins \
     && mkdir -p /out \
     && cp target/release/gateway target/release/collector target/release/normalizer \
           target/release/analyst target/release/critic target/release/reporter /out/
