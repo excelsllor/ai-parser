@@ -256,8 +256,8 @@ impl Config {
         let oauth_provider =
             |id_key: &str, secret_key: Option<&str>, redirect_key: &str, path: &str| {
                 let client_id = env::var(id_key).ok().filter(|v| !v.is_empty())?;
-                let client_secret = secret_key
-                    .and_then(|key| env::var(key).ok().filter(|v| !v.is_empty()));
+                let client_secret =
+                    secret_key.and_then(|key| env::var(key).ok().filter(|v| !v.is_empty()));
                 if secret_key.is_some() && client_secret.is_none() {
                     tracing::warn!(
                         provider = id_key,
@@ -296,12 +296,7 @@ impl Config {
             "YANDEX_REDIRECT_URI",
             "/auth/yandex/token",
         );
-        let oauth_vk = oauth_provider(
-            "VK_CLIENT_ID",
-            None,
-            "VK_REDIRECT_URI",
-            "/auth/vk/callback",
-        );
+        let oauth_vk = oauth_provider("VK_CLIENT_ID", None, "VK_REDIRECT_URI", "/auth/vk/callback");
 
         Ok(Self {
             env_name,
