@@ -40,6 +40,20 @@
 - Образы запускаются non-root, read-only, без capabilities.
 - Откат: `docker compose up -d <previous-sha>` или тег предыдущего образа.
 
+## HTTPS
+
+Сервис `caddy` включается профилем `tls` и терминирует TLS для gateway
+на портах 80/443 (`HTTP_PORT`/`HTTPS_PORT` можно переопределить).
+
+1. В `.env`: `COMPOSE_PROFILES=tls`, `DOMAIN=<hostname>`, `TRUST_PROXY_HEADERS=true`,
+   `CORS_ORIGINS=https://<hostname>`.
+2. `DOMAIN` должен резолвиться на сервер. Без своего домена подойдёт
+   `1-2-3-4.sslip.io` (имя кодирует IP).
+3. На сервере рядом с `docker-compose.yml` и `.env` должен лежать `Caddyfile`.
+4. `docker compose up -d` — Caddy сам получит и обновит сертификат Let's
+   Encrypt (нужны открытые 80/443). Для `DOMAIN=localhost` используется
+   локальный CA, браузер будет предупреждать.
+
 ## Локальная проверка
 
 ```bash
