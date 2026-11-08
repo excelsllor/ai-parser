@@ -18,9 +18,11 @@ pub async fn security_headers(request: Request<axum::body::Body>, next: Next) ->
     headers
         .entry("content-security-policy")
         .or_insert(HeaderValue::from_static(
-            "default-src 'self'; script-src 'self'; style-src 'self'; \
-             img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; \
-             base-uri 'self'; form-action 'self'; object-src 'none'",
+            "default-src 'self'; \
+             script-src 'self' 'sha256-0QByiwckHM2UCphp5K1A0jZOeeMw9uouubKhB8hUEAk='; \
+             style-src 'self'; img-src 'self' data:; connect-src 'self'; \
+             frame-ancestors 'none'; base-uri 'self'; form-action 'self'; \
+             object-src 'none'",
         ));
     headers.insert(
         "strict-transport-security",

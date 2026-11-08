@@ -138,7 +138,14 @@ pub async fn callback(
 }
 
 fn secure(state: &AppState) -> bool {
+    let https = |provider: &Option<news_shared::config::OAuthProviderConfig>| {
+        provider
+            .as_ref()
+            .is_some_and(|config| config.redirect_uri.starts_with("https://"))
+    };
     state.config.public_url.starts_with("https://")
+        || https(&state.config.oauth_yandex)
+        || https(&state.config.oauth_vk)
 }
 
 fn state_cookie(value: &str, secure: bool, max_age: i64) -> HeaderValue {

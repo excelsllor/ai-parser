@@ -22,7 +22,7 @@ pub struct LlmConfig {
 #[derive(Clone, Debug)]
 pub struct OAuthProviderConfig {
     pub client_id: String,
-    pub client_secret: String,
+    pub client_secret: Option<String>,
     pub redirect_uri: String,
 }
 
@@ -253,29 +253,55 @@ impl Config {
             })
             .unwrap_or_default();
 
-        let oauth_provider = |id_key: &str, secret_key: &str, path: &str| {
-            let client_id = env::var(id_key).ok().filter(|v| !v.is_empty())?;
-            let client_secret = env::var(secret_key).ok().filter(|v| !v.is_empty())?;
-            if public_url.is_empty() {
-                tracing::warn!(
-                    provider = id_key,
-                    "OAuth provider disabled: PUBLIC_URL is not set"
-                );
-                return None;
-            }
-            Some(OAuthProviderConfig {
-                client_id,
-                client_secret,
-                redirect_uri: format!("{public_url}{path}"),
-            })
-        };
+        let oauth_provider =
+            |id_key: &str, secret_key: Option<&str>, redirect_key: &str, path: &str| {
+                let client_id = env::var(id_key).ok().filter(|v| !v.is_empty())?;
+                let client_secret = secret_key
+                    .and_then(|key| env::var(key).ok().filter(|v| !v.is_empty()));
+                if secret_key.is_some() && client_secret.is_none() {
+                    tracing::warn!(
+                        provider = id_key,
+                        "OAuth provider disabled: client secret is not set"
+                    );
+                    return None;
+                }
+                let redirect_uri = env::var(redirect_key)
+                    .ok()
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty())
+                    .or_else(|| {
+                        if public_url.is_empty() {
+                            None
+                        } else {
+                            Some(format!("{public_url}{path}"))
+                        }
+                    });
+                let Some(redirect_uri) = redirect_uri else {
+                    tracing::warn!(
+                        provider = id_key,
+                        "OAuth provider disabled: {redirect_key} and PUBLIC_URL are not set"
+                    );
+                    return None;
+                };
+                Some(OAuthProviderConfig {
+                    client_id,
+                    client_secret,
+                    redirect_uri,
+                })
+            };
 
         let oauth_yandex = oauth_provider(
             "YANDEX_CLIENT_ID",
-            "YANDEX_CLIENT_SECRET",
+            Some("YANDEX_CLIENT_SECRET"),
+            "YANDEX_REDIRECT_URI",
             "/auth/yandex/token",
         );
-        let oauth_vk = oauth_provider("VK_CLIENT_ID", "VK_CLIENT_SECRET", "/auth/vk/callback");
+        let oauth_vk = oauth_provider(
+            "VK_CLIENT_ID",
+            None,
+            "VK_REDIRECT_URI",
+            "/auth/vk/callback",
+        );
 
         Ok(Self {
             env_name,

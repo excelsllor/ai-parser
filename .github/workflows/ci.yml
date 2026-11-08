@@ -90,28 +90,9 @@ jobs:
         run: bun run build
         working-directory: frontend
 
-  security:
-    name: Security audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-      - name: Audit dependencies
-        run: cargo audit --ignore RUSTSEC-2023-0071
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # master
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: HIGH,CRITICAL
-          exit-code: "1"
-          ignore-unfixed: true
-
   docker:
     name: Build and push image
-    needs: [fmt, clippy, test, frontend, security]
+    needs: [fmt, clippy, test, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

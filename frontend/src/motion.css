@@ -64,6 +64,13 @@ html[data-theme-transition]::view-transition-new(root) {
   clip-path: circle(0 at 100% 0);
   mix-blend-mode: normal;
 }
+html[data-theme-transition]::view-transition,
+html[data-theme-transition]::view-transition-group(root),
+html[data-theme-transition]::view-transition-image-pair(root),
+html[data-theme-transition]::view-transition-old(root),
+html[data-theme-transition]::view-transition-new(root) {
+  pointer-events: none !important;
+}
 @keyframes theme-circle-reveal {
   to { clip-path: circle(150vmax at 100% 0); }
 }

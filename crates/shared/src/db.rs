@@ -833,7 +833,13 @@ pub async fn create_user(
     .bind(password_hash)
     .bind(role)
     .fetch_one(pool)
-    .await?;
+    .await
+    .map_err(|error| match &error {
+        sqlx::Error::Database(db) if db.code().as_deref() == Some("23505") => {
+            AppError::Conflict("username is already taken".into())
+        }
+        _ => AppError::from(error),
+    })?;
     Ok(user)
 }
 

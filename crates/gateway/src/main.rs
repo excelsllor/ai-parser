@@ -84,6 +84,7 @@ fn build_router(state: AppState) -> Router {
             post(handlers::oauth::callback),
         )
         .route("/api/auth/login", post(handlers::auth::login))
+        .route("/api/auth/register", post(handlers::auth::register))
         .route("/api/auth/refresh", post(handlers::auth::refresh))
         .route("/api/auth/logout", post(handlers::auth::logout))
         .route("/metrics", get(handlers::health::metrics))

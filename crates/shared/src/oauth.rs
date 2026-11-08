@@ -115,13 +115,17 @@ async fn exchange_yandex(
     code: &str,
     redirect_uri: &str,
 ) -> AppResult<OAuthIdentity> {
+    let client_secret = config
+        .client_secret
+        .as_deref()
+        .ok_or_else(|| AppError::Config("yandex oauth client secret is not set".into()))?;
     let token = post_form(
         "https://oauth.yandex.ru/token",
         &[
             ("grant_type", "authorization_code"),
             ("code", code),
             ("client_id", &config.client_id),
-            ("client_secret", &config.client_secret),
+            ("client_secret", client_secret),
             ("redirect_uri", redirect_uri),
         ],
     )

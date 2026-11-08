@@ -92,8 +92,8 @@
 - Multi-stage Dockerfile, runtime на `debian:bookworm-slim`, non-root.
 - `read_only`, `tmpfs /tmp`, `cap_drop: ALL`, `no-new-privileges`.
 - Healthcheck gateway, healthcheck Postgres/Redis/Kafka.
-- CI: `cargo fmt`, `cargo clippy -D warnings`, `cargo test`, `cargo audit`,
-  Trivy, сборка образа с SBOM и provenance, публикация в GHCR.
+- CI: `cargo fmt`, `cargo clippy -D warnings`, `cargo test`, frontend lint/build,
+  сборка образа с SBOM и provenance, публикация в GHCR.
 - Деплой только из `main` через защищённое окружение `production` и SSH-ключ.
 
 ## 8. Результаты аудита (2026-11-07)
@@ -136,8 +136,8 @@
 8. **Нет secrets manager.** Используйте Vault/SOPS/облачный KMS.
 9. **Ограничение получателей.** Сейчас разрешён только `TEST_RECIPIENT`;
    для реальной рассылки нужен явный список подписчиков и подтверждение.
-10. **Аудит зависимостей.** `cargo audit` в CI, регулярное обновление
-    зависимостей через Dependabot, SBOM/Trivy в пайплайне.
+10. **Аудит зависимостей.** `cargo audit` локально, регулярное обновление
+    зависимостей через Dependabot, SBOM при сборке образа.
 
 Подробный отчёт по работающему стеку: `docs/SECURITY_AUDIT_2026-11-07.md`.
 

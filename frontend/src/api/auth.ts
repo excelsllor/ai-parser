@@ -65,6 +65,13 @@ export function login(username: string, password: string): Promise<LoginResponse
   });
 }
 
+export function register(username: string, password: string): Promise<LoginResponse> {
+  return request<LoginResponse>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
 export function saveSession(session: LoginResponse, remember: boolean): void {
   const storage = remember ? window.localStorage : window.sessionStorage;
   const other = remember ? window.sessionStorage : window.localStorage;

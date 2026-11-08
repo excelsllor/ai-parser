@@ -12,7 +12,7 @@ use news_shared::auth::{
 use news_shared::db;
 use news_shared::error::{AppError, AppResult};
 use news_shared::models::{LoginRequest, LoginResponse, RefreshRequest, User, UserResponse};
-use news_shared::security::validate_password;
+use news_shared::security::{validate_password, validate_username};
 use serde::Deserialize;
 use serde_json::json;
 use sqlx::PgPool;
@@ -85,6 +85,29 @@ pub async fn login(
     }
 
     let session = issue_session(&state, &user, ip, "auth.login.success").await?;
+    Ok(Json(session))
+}
+
+pub async fn register(
+    State(state): State<AppState>,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<LoginRequest>,
+) -> AppResult<Json<LoginResponse>> {
+    let key = format!("ratelimit:register:{ip}");
+    let allowed = state.redis.rate_limit(&key, 5, 600).await.unwrap_or(true);
+    if !allowed {
+        return Err(AppError::RateLimited(
+            "too many registration attempts, try again later".into(),
+        ));
+    }
+
+    let username = payload.username.trim().to_lowercase();
+    validate_username(&username)?;
+    validate_password(&payload.password)?;
+
+    let hash = hash_password(&payload.password)?;
+    let user = db::create_user(&state.pool, &username, &hash, "viewer").await?;
+    let session = issue_session(&state, &user, ip, "auth.register.success").await?;
     Ok(Json(session))
 }
 

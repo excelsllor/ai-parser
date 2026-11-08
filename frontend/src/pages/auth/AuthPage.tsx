@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { login, saveSession, startOAuth, fetchAuthProviders } from '@api/auth';
+import { login, register, saveSession, startOAuth, fetchAuthProviders } from '@api/auth';
 import { ApiError } from '@api/http';
 import vkLogo from '@assets/providers/vk.svg';
 import yandexButton from '@assets/providers/yandex-button-content.svg';
@@ -106,7 +106,7 @@ export default function AuthPage() {
     }
   }
 
-  function handleRegister(event: FormEvent<HTMLFormElement>) {
+  async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setNotice(null);
@@ -115,8 +115,12 @@ export default function AuthPage() {
       setError('Заполните все поля.');
       return;
     }
-    if (password.length < 8) {
-      setError('Пароль должен содержать не менее 8 символов.');
+    if (username.trim().length < 3) {
+      setError('Имя пользователя должно содержать не менее 3 символов.');
+      return;
+    }
+    if (password.length < 10) {
+      setError('Пароль должен содержать не менее 10 символов.');
       return;
     }
     if (password !== confirmPassword) {
@@ -128,9 +132,24 @@ export default function AuthPage() {
       return;
     }
 
-    setNotice(
-      'Самостоятельная регистрация пока не подключена. Аккаунты создаёт администратор.',
-    );
+    setLoading(true);
+    try {
+      const session = await register(username.trim(), password);
+      saveSession(session, remember);
+      navigate('/', { replace: true });
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setError(
+          caught.status === 409
+            ? 'Пользователь с таким именем уже существует.'
+            : caught.message,
+        );
+      } else {
+        setError('Не удалось создать аккаунт. Проверьте соединение с сервером.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleOAuth(provider: OAuthProvider) {
@@ -286,7 +305,7 @@ export default function AuthPage() {
               <form className="auth-form" onSubmit={handleRegister} noValidate>
                 <div className="auth-field">
                   <label className="auth-label" htmlFor="register-username">
-                    Имя пользователя или Email
+                    Имя пользователя
                   </label>
                   <div className="auth-control">
                     <span className="auth-control-icon">
@@ -298,7 +317,7 @@ export default function AuthPage() {
                       name="username"
                       type="text"
                       autoComplete="username"
-                      placeholder="name@company.com"
+                      placeholder="username"
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
                     />
@@ -400,8 +419,8 @@ export default function AuthPage() {
                   </label>
                 </div>
 
-                <button className="auth-submit" type="submit">
-                  <span>Создать аккаунт</span>
+                <button className="auth-submit" type="submit" disabled={loading}>
+                  <span>{loading ? 'Создаём…' : 'Создать аккаунт'}</span>
                   <ArrowRightIcon className="auth-submit-icon" />
                 </button>
               </form>

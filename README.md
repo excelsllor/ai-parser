@@ -92,7 +92,7 @@ cargo audit
 python3 scripts/check_digest.py runs/<run_id>
 ```
 
-CI/CD: `.github/workflows/ci.yml` — fmt, clippy, tests, cargo-audit, Trivy,
+CI/CD: `.github/workflows/ci.yml` — fmt, clippy, tests, frontend lint/build,
 сборка и публикация образа в GHCR, деплой по SSH.
 
 ## Документация

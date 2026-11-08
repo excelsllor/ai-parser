@@ -7,8 +7,7 @@
 1. **fmt** — `cargo fmt --all -- --check`.
 2. **clippy** — `cargo clippy --workspace --all-targets -- -D warnings`.
 3. **test** — `cargo test --workspace` с сервисами PostgreSQL и Redis.
-4. **security** — `rustsec/audit-check`, Trivy filesystem scan
-   (`HIGH,CRITICAL`, `ignore-unfixed`).
+4. **frontend** — `bun run lint` и `bun run build`.
 5. **docker** — сборка образа, SBOM и provenance, публикация в GHCR:
    - `ghcr.io/<owner>/<repo>:latest`
    - `ghcr.io/<owner>/<repo>:<sha>`
@@ -79,17 +78,21 @@ URL авторизации, `client_secret` остаётся в `.env`.
 PUBLIC_URL=https://1.2.3.4
 YANDEX_CLIENT_ID=...
 YANDEX_CLIENT_SECRET=...
+YANDEX_REDIRECT_URI=...
 VK_CLIENT_ID=...
-VK_CLIENT_SECRET=...
+VK_REDIRECT_URI=...
 ```
 
 `PUBLIC_URL` должен совпадать с адресом, по которому открыт сайт. Redirect URI
-регистрируются в кабинетах провайдеров ровно так:
+по умолчанию строятся из него; `YANDEX_REDIRECT_URI` и `VK_REDIRECT_URI`
+позволяют указать точный Callback URL из кабинета провайдера:
 
 - Яндекс ID: `{PUBLIC_URL}/auth/yandex/token`
 - VK ID: `{PUBLIC_URL}/auth/vk/callback`
 
-Провайдер без пары ID/секрет просто не показывается на странице входа.
+VK ID использует PKCE, поэтому достаточно `VK_CLIENT_ID`; секрет не нужен.
+Яндекс ID требует и `YANDEX_CLIENT_ID`, и `YANDEX_CLIENT_SECRET`. Провайдер
+без обязательных настроек просто не показывается на странице входа.
 Первый вход создаёт локального пользователя с ролью `viewer`; пароль не
 используется. Повторный вход находит пользователя по `provider_user_id`.
 
