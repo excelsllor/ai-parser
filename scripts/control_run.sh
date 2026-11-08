@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-if [ -f .env ]; then
+if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env
@@ -16,10 +16,10 @@ OUT_DIR="${OUT_DIR:-./runs}"
 
 USERNAME="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
 PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-}"
-if [ -z "$PASSWORD" ] && [ -f data/bootstrap_password.txt ]; then
+if [[ -z "$PASSWORD" ]] && [[ -f data/bootstrap_password.txt ]]; then
   PASSWORD="$(cat data/bootstrap_password.txt)"
 fi
-if [ -z "$PASSWORD" ]; then
+if [[ -z "$PASSWORD" ]]; then
   echo "Задайте BOOTSTRAP_ADMIN_PASSWORD или сгенерируйте data/bootstrap_password.txt" >&2
   exit 1
 fi
@@ -27,7 +27,7 @@ fi
 TOKEN="$(curl -fsS -X POST "$BASE/api/auth/login" \
   -H 'Content-Type: application/json' \
   -d "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}" | jq -r .access_token)"
-if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+if [[ -z "$TOKEN" || "$TOKEN" = "null" ]]; then
   echo "Не удалось авторизоваться" >&2
   exit 1
 fi
@@ -35,12 +35,12 @@ fi
 ARGS=(-sS -X POST "$BASE/api/runs" -H "Authorization: Bearer $TOKEN" \
   -F "mode=$MODE" -F "control_time=$CONTROL_TIME")
 
-if [ "$MODE" = "file" ]; then
-  if [ -z "$DATASET" ] || [ ! -e "$DATASET" ]; then
+if [[ "$MODE" = "file" ]]; then
+  if [[ -z "$DATASET" || ! -e "$DATASET" ]]; then
     echo "Для режима file укажите DATASET=/path/to/file-or-zip" >&2
     exit 1
   fi
-  if [ -d "$DATASET" ]; then
+  if [[ -d "$DATASET" ]]; then
     while IFS= read -r file; do
       ARGS+=(-F "files=@$file")
     done < <(find "$DATASET" -maxdepth 1 -type f)
@@ -51,7 +51,7 @@ fi
 
 RUN_JSON="$(curl "${ARGS[@]}")"
 RUN_ID="$(echo "$RUN_JSON" | jq -r .id)"
-if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+if [[ -z "$RUN_ID" || "$RUN_ID" = "null" ]]; then
   echo "Не удалось создать запуск: $RUN_JSON" >&2
   exit 1
 fi

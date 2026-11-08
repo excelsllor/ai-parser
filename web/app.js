@@ -49,7 +49,25 @@ function clearSession() {
   sessionStorage.clear();
 }
 
+function safeApiPath(path) {
+  if (typeof path !== "string" || path.length === 0 || path.length > 2048) {
+    throw new Error("invalid API path");
+  }
+  if (/[\u0000-\u001F\u007F]/.test(path)) {
+    throw new Error("invalid API path");
+  }
+  const url = new URL(path, window.location.origin);
+  if (url.origin !== window.location.origin) {
+    throw new Error("cross-origin API path");
+  }
+  if (!url.pathname.startsWith("/api/") || url.pathname.includes("..") || url.pathname.includes("//")) {
+    throw new Error("invalid API path");
+  }
+  return url.pathname + url.search;
+}
+
 async function api(path, options = {}) {
+  const requestPath = safeApiPath(path);
   const headers = new Headers(options.headers || {});
   if (store.token) headers.set("Authorization", `Bearer ${store.token}`);
   let body = options.body;
@@ -57,8 +75,14 @@ async function api(path, options = {}) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(body);
   }
-  const response = await fetch(path, { ...options, headers, body });
-  if (response.status === 401 && !path.includes("/auth/login")) {
+  const response = await fetch(requestPath, { // NOSONAR - requestPath is validated same-origin /api/ path
+    ...options,
+    headers,
+    body,
+    credentials: "omit",
+    referrerPolicy: "no-referrer",
+  });
+  if (response.status === 401 && !requestPath.includes("/auth/login")) {
     clearSession();
     location.hash = "#/login";
     throw new Error("Требуется авторизация");
@@ -99,7 +123,7 @@ async function downloadArtifact(runId, name) {
 function shell(content) {
   const isAdmin = store.role === "admin";
   const isWriter = store.role === "admin" || store.role === "analyst";
-  $("#app").innerHTML = `
+  $("#app").innerHTML = DOMPurify.sanitize(`
     <div class="layout">
       <aside class="sidebar">
         <h1>NEWS DIGEST</h1>
@@ -116,12 +140,12 @@ function shell(content) {
         </div>
       </aside>
       <main class="main">${content}</main>
-    </div>`;
+    </div>`);
   $("#logout")?.addEventListener("click", logout);
 }
 
 function renderLogin() {
-  $("#app").innerHTML = `
+  $("#app").innerHTML = DOMPurify.sanitize(`
     <div style="max-width:420px;margin:10vh auto;padding:24px">
       <div class="card">
         <h1 style="margin-top:0">Дайджест по кибербезопасности</h1>
@@ -135,7 +159,7 @@ function renderLogin() {
           <button type="submit">Войти</button>
         </form>
       </div>
-    </div>`;
+    </div>`);
   $("#loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
@@ -169,10 +193,10 @@ async function renderRuns() {
     try {
       const runs = await api("/api/runs");
       if (!runs.length) {
-        $("#runsBox").innerHTML = '<p class="muted">Запусков пока нет.</p>';
+        $("#runsBox").innerHTML = DOMPurify.sanitize('<p class="muted">Запусков пока нет.</p>');
         return;
       }
-      $("#runsBox").innerHTML = `<table><thead><tr><th>Дата</th><th>Режим</th><th>Контрольное время</th><th>Статус</th><th>Модель</th><th></th></tr></thead><tbody>
+      $("#runsBox").innerHTML = DOMPurify.sanitize(`<table><thead><tr><th>Дата</th><th>Режим</th><th>Контрольное время</th><th>Статус</th><th>Модель</th><th></th></tr></thead><tbody>
         ${runs.map((run) => `<tr>
           <td>${esc(fmt(run.created_at))}</td>
           <td>${esc(run.mode)}</td>
@@ -181,9 +205,9 @@ async function renderRuns() {
           <td>${esc(run.model)}</td>
           <td><a href="#/runs/${run.id}">Открыть</a></td>
         </tr>`).join("")}
-      </tbody></table>`;
+      </tbody></table>`);
     } catch (error) {
-      $("#runsBox").innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      $("#runsBox").innerHTML = DOMPurify.sanitize(`<div class="error">${esc(error.message)}</div>`);
     }
   };
   $("#refreshRuns").addEventListener("click", load);
@@ -270,7 +294,7 @@ async function renderRun(runId) {
         store.timer = setTimeout(load, 3000);
       }
     } catch (error) {
-      $("#runMeta").innerHTML = `<div class="error">${esc(error.message)}</div>`;
+      $("#runMeta").innerHTML = DOMPurify.sanitize(`<div class="error">${esc(error.message)}</div>`);
     }
   };
   await load();
@@ -278,7 +302,7 @@ async function renderRun(runId) {
 
 function renderRunMeta(detail) {
   const run = detail.run;
-  $("#runMeta").innerHTML = `
+  $("#runMeta").innerHTML = DOMPurify.sanitize(`
     <div class="row" style="justify-content:space-between">
       <div>
         <h3 style="margin:0">${esc(run.mode === "live" ? "Живой сбор" : "Файловый датасет")}</h3>
@@ -297,7 +321,7 @@ function renderRunMeta(detail) {
       ${["digest.md", "post.md", "journal.csv", "email.html", "ai.md", "run_stats.json", "check_results.json"]
         .map((name) => `<button class="secondary small" data-download="${name}">Скачать ${name}</button>`).join("")}
       ${store.role === "viewer" ? "" : '<button class="small" id="sendEmail">Отправить тестовое письмо</button>'}
-    </div>`;
+    </div>`);
   $$("[data-download]").forEach((button) => {
     button.addEventListener("click", () => downloadArtifact(run.id, button.dataset.download));
   });
@@ -325,16 +349,16 @@ function renderRunBody(detail) {
     events: "События",
     add: "Добавить публикацию",
   };
-  $("#runBody").innerHTML = `
+  $("#runBody").innerHTML = DOMPurify.sanitize(`
     <div class="tabs">${tabs.map((tab) => `<button data-tab="${tab}" class="${store.runTab === tab ? "active" : ""}">${labels[tab]}</button>`).join("")}</div>
-    <div id="runTab" class="card">Загрузка…</div>`;
+    <div id="runTab" class="card">Загрузка…</div>`);
   $$("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       store.runTab = button.dataset.tab;
       renderRunBody(detail);
     });
   });
-  renderRunTab(detail);
+  void renderRunTab(detail);
 }
 
 async function renderRunTab(detail) {
@@ -342,46 +366,46 @@ async function renderRunTab(detail) {
   const tab = store.runTab;
   const box = $("#runTab");
   if (tab === "add" && store.role === "viewer") {
-    box.innerHTML = '<p class="muted">Недостаточно прав.</p>';
+    box.innerHTML = DOMPurify.sanitize('<p class="muted">Недостаточно прав.</p>');
     return;
   }
   try {
     if (tab === "digest" || tab === "post") {
       const text = await api(`/api/runs/${run.id}/artifacts/${tab}.md`);
-      box.innerHTML = `<pre>${esc(text)}</pre>`;
+      box.innerHTML = DOMPurify.sanitize(`<pre>${esc(text)}</pre>`);
     } else if (tab === "email") {
       const html = await api(`/api/runs/${run.id}/artifacts/email.html`);
       box.innerHTML = `<iframe id="emailFrame"></iframe>`;
       $("#emailFrame").srcdoc = html;
     } else if (tab === "journal") {
       const rows = detail.journal || [];
-      box.innerHTML = rows.length ? `<table><thead><tr><th>ID</th><th>Статус</th><th>Группа</th><th>Причина</th><th>Ошибка</th></tr></thead><tbody>
+      box.innerHTML = DOMPurify.sanitize(rows.length ? `<table><thead><tr><th>ID</th><th>Статус</th><th>Группа</th><th>Причина</th><th>Ошибка</th></tr></thead><tbody>
         ${rows.map((row) => `<tr>
           <td>${esc(row.external_id || row.item_id)}</td>
           <td><span class="badge ${row.status === "включён" ? "ok" : row.status === "объединён" ? "warn" : "bad"}">${esc(row.status)}</span></td>
           <td>${esc(row.group_key || "")}</td>
           <td>${esc(row.reason)}</td>
           <td>${esc(row.error || "")}</td>
-        </tr>`).join("")}</tbody></table>` : '<p class="muted">Журнал пуст.</p>';
+        </tr>`).join("")}</tbody></table>` : '<p class="muted">Журнал пуст.</p>');
     } else if (tab === "checks") {
       const checks = await api(`/api/runs/${run.id}/checks`);
-      box.innerHTML = checks.length ? `<table><thead><tr><th>Проверка</th><th>Результат</th><th>Комментарий</th></tr></thead><tbody>
+      box.innerHTML = DOMPurify.sanitize(checks.length ? `<table><thead><tr><th>Проверка</th><th>Результат</th><th>Комментарий</th></tr></thead><tbody>
         ${checks.map((check) => `<tr>
           <td>${esc(check.scenario)}</td>
           <td><span class="badge ${check.passed ? "ok" : "bad"}">${check.passed ? "пройдена" : "не пройдена"}</span></td>
           <td>${esc(check.note)}</td>
-        </tr>`).join("")}</tbody></table>` : '<p class="muted">Проверки ещё не выполнены.</p>';
+        </tr>`).join("")}</tbody></table>` : '<p class="muted">Проверки ещё не выполнены.</p>');
     } else if (tab === "events") {
       const events = detail.events || [];
-      box.innerHTML = events.length ? events.map((event) => `
+      box.innerHTML = DOMPurify.sanitize(events.length ? events.map((event) => `
         <div class="card" style="background:var(--panel-2)">
           <h3>${esc(event.rank)}. ${esc(event.title)}</h3>
           <p><strong>Суть:</strong> ${esc(event.summary)}</p>
           <p><strong>Последствия:</strong> ${esc(event.consequences)}</p>
           <p><strong>Обоснование:</strong> ${esc(event.justification)}</p>
-        </div>`).join("") : '<p class="muted">Событий нет.</p>';
+        </div>`).join("") : '<p class="muted">Событий нет.</p>');
     } else if (tab === "add") {
-      box.innerHTML = `
+      box.innerHTML = DOMPurify.sanitize(`
         <h3>Добавить публикацию и перезапустить анализ</h3>
         <form id="addItemForm">
           <div class="grid">
@@ -395,7 +419,7 @@ async function renderRunTab(detail) {
           <div id="addError" class="error"></div>
           <div style="height:10px"></div>
           <button type="submit">Добавить и обработать</button>
-        </form>`;
+        </form>`);
       $("#addItemForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
@@ -419,7 +443,7 @@ async function renderRunTab(detail) {
       });
     }
   } catch (error) {
-    box.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    box.innerHTML = DOMPurify.sanitize(`<div class="error">${esc(error.message)}</div>`);
   }
 }
 
@@ -434,14 +458,14 @@ async function renderAdmin() {
   $$("[data-admin-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       store.adminTab = button.dataset.adminTab;
-      renderAdmin();
+      void renderAdmin();
     });
   });
   const box = $("#adminBody");
   try {
     if (store.adminTab === "users") {
       const users = await api("/api/admin/users");
-      box.innerHTML = `
+      box.innerHTML = DOMPurify.sanitize(`
         <h3>Пользователи</h3>
         <table><thead><tr><th>Логин</th><th>Роль</th><th>Активен</th><th></th></tr></thead><tbody>
           ${users.map((u) => `<tr>
@@ -459,31 +483,31 @@ async function renderAdmin() {
           <label>Логин<input name="username" required></label>
           <label>Пароль<input name="password" type="password" required></label>
           <label>Роль<select name="role"><option value="viewer">viewer</option><option value="analyst">analyst</option><option value="admin">admin</option></select></label>
-        </div><div style="height:10px"></div><button>Создать</button></form>`;
+        </div><div style="height:10px"></div><button>Создать</button></form>`);
       $$("[data-disable]").forEach((button) => button.addEventListener("click", async () => {
         if (!confirm("Отключить пользователя?")) return;
         await api(`/api/admin/users/${button.dataset.disable}`, { method: "DELETE" });
-        renderAdmin();
+        void renderAdmin();
       }));
       $$("[data-role]").forEach((button) => button.addEventListener("click", async () => {
         const role = prompt("Новая роль: admin, analyst или viewer", "viewer");
         if (!role) return;
         await api(`/api/admin/users/${button.dataset.role}`, { method: "PUT", body: { role } });
-        renderAdmin();
+        void renderAdmin();
       }));
       $("#createUser").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
         try {
           await api("/api/admin/users", { method: "POST", body: { username: form.get("username"), password: form.get("password"), role: form.get("role") } });
-          renderAdmin();
+          void renderAdmin();
         } catch (error) {
           alert(error.message);
         }
       });
     } else if (store.adminTab === "sources") {
       const sources = await api("/api/admin/sources");
-      box.innerHTML = `
+      box.innerHTML = DOMPurify.sanitize(`
         <h3>Источники</h3>
         <table><thead><tr><th>Название</th><th>Тип</th><th>URL</th><th>Доверие</th><th>Включён</th><th></th></tr></thead><tbody>
           ${sources.map((s) => `<tr>
@@ -498,48 +522,48 @@ async function renderAdmin() {
           <label>Тип<select name="kind"><option value="rss">rss</option><option value="html">html</option></select></label>
           <label>URL<input name="url" required></label>
           <label>Доверие<select name="trust"><option value="unknown">unknown</option><option value="primary">primary</option><option value="reprint">reprint</option></select></label>
-        </div><div style="height:10px"></div><button>Добавить</button></form>`;
+        </div><div style="height:10px"></div><button>Добавить</button></form>`);
       $$("[data-toggle]").forEach((button) => button.addEventListener("click", async () => {
         await api(`/api/admin/sources/${button.dataset.toggle}`, { method: "PUT", body: { enabled: button.dataset.enabled !== "true" } });
-        renderAdmin();
+        void renderAdmin();
       }));
       $$("[data-delete]").forEach((button) => button.addEventListener("click", async () => {
         if (!confirm("Удалить источник?")) return;
         await api(`/api/admin/sources/${button.dataset.delete}`, { method: "DELETE" });
-        renderAdmin();
+        void renderAdmin();
       }));
       $("#createSource").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
         try {
           await api("/api/admin/sources", { method: "POST", body: { name: form.get("name"), kind: form.get("kind"), url: form.get("url"), trust: form.get("trust") } });
-          renderAdmin();
+          void renderAdmin();
         } catch (error) {
           alert(error.message);
         }
       });
     } else if (store.adminTab === "keywords") {
       const keywords = await api("/api/admin/keywords");
-      box.innerHTML = `
+      box.innerHTML = DOMPurify.sanitize(`
         <h3>Ключевые слова</h3>
         <div class="row" style="flex-wrap:wrap">
           ${keywords.map((k) => `<span class="badge">${esc(k.word)} <button class="danger small" data-delete-keyword="${k.id}">×</button></span>`).join("")}
         </div>
         <h4>Добавить слово</h4>
-        <form id="createKeyword" class="row"><input name="word" required style="max-width:320px"><button>Добавить</button></form>`;
+        <form id="createKeyword" class="row"><input name="word" required style="max-width:320px"><button>Добавить</button></form>`);
       $$("[data-delete-keyword]").forEach((button) => button.addEventListener("click", async () => {
         await api(`/api/admin/keywords/${button.dataset.deleteKeyword}`, { method: "DELETE" });
-        renderAdmin();
+        void renderAdmin();
       }));
       $("#createKeyword").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = new FormData(event.target);
         await api("/api/admin/keywords", { method: "POST", body: { word: form.get("word") } });
-        renderAdmin();
+        void renderAdmin();
       });
     } else {
       const settings = await api("/api/admin/settings");
-      box.innerHTML = `<h3>Настройки</h3><pre>${esc(JSON.stringify(settings, null, 2))}</pre>
+      box.innerHTML = DOMPurify.sanitize(`<h3>Настройки</h3><pre>${esc(JSON.stringify(settings, null, 2))}</pre>
         <h4>Изменить настройку</h4>
         <div class="grid">
           <label>Ключ<select id="settingKey"><option value="weights">weights</option><option value="model">model</option><option value="prompt_version">prompt_version</option><option value="selection">selection</option></select></label>
@@ -547,7 +571,7 @@ async function renderAdmin() {
         <div style="height:10px"></div>
         <label>JSON-значение<textarea id="settingValue">{"impact":0.35,"scale":0.25,"urgency":0.2,"relevance":0.15,"confidence":0.05,"uncertainty_penalty":0.15}</textarea></label>
         <div style="height:10px"></div>
-        <button id="saveSetting">Сохранить</button>`;
+        <button id="saveSetting">Сохранить</button>`);
       $("#saveSetting").addEventListener("click", async () => {
         try {
           const value = JSON.parse($("#settingValue").value);
@@ -555,14 +579,14 @@ async function renderAdmin() {
             method: "PUT",
             body: { key: $("#settingKey").value, value },
           });
-          renderAdmin();
+          void renderAdmin();
         } catch (error) {
           alert(error.message);
         }
       });
     }
   } catch (error) {
-    box.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    box.innerHTML = DOMPurify.sanitize(`<div class="error">${esc(error.message)}</div>`);
   }
 }
 
@@ -574,12 +598,12 @@ async function renderDebug() {
     const services = await api("/api/admin/debug/services");
     $("#services").textContent = JSON.stringify(services, null, 2);
     const calls = await api("/api/admin/debug/llm-calls");
-    $("#llmCalls").innerHTML = calls.length ? `<table><thead><tr><th>Время</th><th>Назначение</th><th>Модель</th><th>Токены</th><th>Стоимость</th><th>мс</th><th>OK</th></tr></thead><tbody>
+    $("#llmCalls").innerHTML = DOMPurify.sanitize(calls.length ? `<table><thead><tr><th>Время</th><th>Назначение</th><th>Модель</th><th>Токены</th><th>Стоимость</th><th>мс</th><th>OK</th></tr></thead><tbody>
       ${calls.map((c) => `<tr>
         <td>${esc(fmt(c.created_at))}</td><td>${esc(c.purpose)}</td><td>${esc(c.model)}</td>
         <td>${esc(c.input_tokens)} / ${esc(c.output_tokens)}</td><td>${esc(c.cost)}</td><td>${esc(c.latency_ms)}</td>
         <td>${c.ok ? "да" : "нет"}</td>
-      </tr>`).join("")}</tbody></table>` : '<p class="muted">Вызовов пока нет.</p>';
+      </tr>`).join("")}</tbody></table>` : '<p class="muted">Вызовов пока нет.</p>');
   } catch (error) {
     $("#services").textContent = error.message;
   }
@@ -589,13 +613,13 @@ async function renderAudit() {
   shell(`<div class="topbar"><h2>Аудит</h2></div><div class="card" id="auditBox">Загрузка…</div>`);
   try {
     const rows = await api("/api/admin/audit?limit=200");
-    $("#auditBox").innerHTML = rows.length ? `<table><thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Ресурс</th><th>IP</th><th>Детали</th></tr></thead><tbody>
+    $("#auditBox").innerHTML = DOMPurify.sanitize(rows.length ? `<table><thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Ресурс</th><th>IP</th><th>Детали</th></tr></thead><tbody>
       ${rows.map((r) => `<tr>
         <td>${esc(fmt(r.created_at))}</td><td>${esc(r.actor_username)}</td><td>${esc(r.action)}</td>
         <td>${esc(r.resource)}</td><td>${esc(r.ip)}</td><td><code>${esc(JSON.stringify(r.detail))}</code></td>
-      </tr>`).join("")}</tbody></table>` : '<p class="muted">Записей нет.</p>';
+      </tr>`).join("")}</tbody></table>` : '<p class="muted">Записей нет.</p>');
   } catch (error) {
-    $("#auditBox").innerHTML = `<div class="error">${esc(error.message)}</div>`;
+    $("#auditBox").innerHTML = DOMPurify.sanitize(`<div class="error">${esc(error.message)}</div>`);
   }
 }
 
@@ -626,4 +650,4 @@ async function route() {
 }
 
 window.addEventListener("hashchange", route);
-route();
+void route();
