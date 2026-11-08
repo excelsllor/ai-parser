@@ -5,7 +5,16 @@ export interface CurrentUser {
   username: string;
   role: string;
   is_active: boolean;
+  display_name: string;
+  department: string;
+  email: string | null;
   created_at: string;
+}
+
+export interface ProfileSession {
+  id: string;
+  created_at: string;
+  expires_at: string;
 }
 
 export interface LoginResponse {
@@ -97,6 +106,50 @@ export function getCurrentUser(): { username: string; role: string } | null {
   } catch {
     return null;
   }
+}
+
+export function updateProfile(input: {
+  display_name?: string;
+  department?: string;
+  email?: string;
+}): Promise<CurrentUser> {
+  return request<CurrentUser>('/auth/me', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function changePassword(input: {
+  current_password: string;
+  new_password: string;
+}): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function listSessions(): Promise<ProfileSession[]> {
+  return request<ProfileSession[]>('/auth/sessions', {
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+  });
+}
+
+export function revokeSession(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/auth/sessions/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+  });
+}
+
+export function revokeOtherSessions(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/sessions/revoke-others', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify({ refresh_token: getRefreshToken() ?? '' }),
+  });
 }
 
 export function getMe(): Promise<CurrentUser> {

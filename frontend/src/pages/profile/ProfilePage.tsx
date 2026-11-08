@@ -2,8 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { clearSession, getCurrentUser, getMe } from '@api/auth';
-import type { CurrentUser } from '@api/auth';
+import {
+  changePassword,
+  clearSession,
+  getCurrentUser,
+  getMe,
+  listSessions,
+  revokeOtherSessions,
+  revokeSession,
+  updateProfile,
+} from '@api/auth';
+import type { CurrentUser, ProfileSession } from '@api/auth';
 import AppHeader from '@components/layout/AppHeader';
 import {
   AlternateEmailIcon,
@@ -16,12 +25,10 @@ import {
   EyeIcon,
   EyeOffIcon,
   KeyIcon,
-  LaptopIcon,
   LockIcon,
   LogoutIcon,
   MailIcon,
   PasswordIcon,
-  PhoneIcon,
   SaveIcon,
   UserIcon,
   VerifiedUserIcon,
@@ -60,34 +67,6 @@ function formatDate(value: string | undefined): string {
   }).format(date);
 }
 
-function deviceInfo(): { title: string; subtitle: string; icon: 'phone' | 'laptop' } {
-  const ua = navigator.userAgent;
-  const browser = /Firefox/.test(ua)
-    ? 'Firefox'
-    : /Edg/.test(ua)
-      ? 'Edge'
-      : /Chrome/.test(ua)
-        ? 'Chrome'
-        : /Safari/.test(ua)
-          ? 'Safari'
-          : 'Браузер';
-  const os = /Windows/.test(ua)
-    ? 'Windows'
-    : /Mac OS X/.test(ua)
-      ? 'macOS'
-      : /Android/.test(ua)
-        ? 'Android'
-        : /Linux/.test(ua)
-          ? 'Linux'
-          : 'ОС';
-  const phone = /iPhone|Android.*Mobile/.test(ua);
-
-  return {
-    title: `${browser} / ${os}`,
-    subtitle: phone ? 'Мобильное устройство' : 'Рабочая станция',
-    icon: phone ? 'phone' : 'laptop',
-  };
-}
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -95,7 +74,10 @@ export default function ProfilePage() {
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ProfileSession[]>([]);
 
+  const [displayName, setDisplayName] = useState('');
+  const [department, setDepartment] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -105,16 +87,18 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
-  const device = useMemo(() => deviceInfo(), []);
-
   useEffect(() => {
     let active = true;
 
     void (async () => {
       try {
-        const user = await getMe();
+        const [user, sessionList] = await Promise.all([getMe(), listSessions()]);
         if (active) {
           setMe(user);
+          setSessions(sessionList);
+          setDisplayName(user.display_name);
+          setDepartment(user.department);
+          setNewEmail(user.email ?? '');
         }
       } catch {
         if (active) {
@@ -124,6 +108,9 @@ export default function ProfilePage() {
             username: local?.username ?? '—',
             role: local?.role ?? 'analyst',
             is_active: true,
+            display_name: '',
+            department: '',
+            email: null,
             created_at: '',
           });
         }
@@ -154,7 +141,7 @@ export default function ProfilePage() {
     return score;
   }, [newPassword]);
 
-  function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
 
@@ -163,10 +150,24 @@ export default function ProfilePage() {
       return;
     }
 
-    setNotice('Смена email пока не подключена к backend. Форма готова к следующему этапу.');
+    try {
+      const updated = await updateProfile({
+        display_name: displayName.trim(),
+        department: department.trim(),
+        email: newEmail.trim(),
+      });
+      setMe(updated);
+      setDisplayName(updated.display_name);
+      setDepartment(updated.department);
+      setNewEmail(updated.email ?? '');
+      setConfirmEmail('');
+      setNotice('Профиль обновлён.');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Не удалось обновить профиль.');
+    }
   }
 
-  function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice(null);
 
@@ -179,7 +180,38 @@ export default function ProfilePage() {
       return;
     }
 
-    setNotice('Смена пароля пока не подключена к backend. Форма готова к следующему этапу.');
+    try {
+      await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setRepeatPassword('');
+      setNotice('Пароль изменён.');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Не удалось сменить пароль.');
+    }
+  }
+
+  async function handleRevokeSession(session: ProfileSession) {
+    try {
+      await revokeSession(session.id);
+      setSessions((previous) => previous.filter((item) => item.id !== session.id));
+      setNotice('Сессия завершена.');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Не удалось завершить сессию.');
+    }
+  }
+
+  async function handleRevokeOthers() {
+    try {
+      await revokeOtherSessions();
+      setSessions((previous) => previous.slice(0, 1));
+      setNotice('Другие сессии завершены.');
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'Не удалось завершить сессии.');
+    }
   }
 
   function handleLogout() {
@@ -285,12 +317,13 @@ export default function ProfilePage() {
                   <span className="pf-avatar">{initials}</span>
                   <div>
                     <div className="pf-profile-name-row">
-                      <strong>{me?.username ?? 'Пользователь'}</strong>
+                      <strong>{me?.display_name || me?.username || 'Пользователь'}</strong>
                       <span className="pf-mono">@{me?.username ?? 'user'}</span>
                     </div>
                     <p className="pf-profile-role">
                       <VerifiedUserIcon />
                       {accessLabel(me?.role)}
+                      {me?.department ? ` · ${me.department}` : ''}
                     </p>
                   </div>
                 </div>
@@ -345,12 +378,34 @@ export default function ProfilePage() {
               <form className="pf-form" onSubmit={handleEmailSubmit}>
                 <div className="pf-fields">
                   <label className="pf-field">
+                    <span>Отображаемое имя</span>
+                    <div className="pf-input-wrap">
+                      <UserIcon className="pf-input-icon" />
+                      <input
+                        placeholder="Александр Смирнов"
+                        value={displayName}
+                        onChange={(event) => setDisplayName(event.target.value)}
+                      />
+                    </div>
+                  </label>
+                  <label className="pf-field">
+                    <span>Подразделение</span>
+                    <div className="pf-input-wrap">
+                      <BadgeIcon className="pf-input-icon" />
+                      <input
+                        placeholder="SOC Monitoring & Ops"
+                        value={department}
+                        onChange={(event) => setDepartment(event.target.value)}
+                      />
+                    </div>
+                  </label>
+                  <label className="pf-field">
                     <span>Текущий адрес эл. почты</span>
                     <div className="pf-input-wrap">
                       <LockIcon className="pf-input-icon" />
-                      <input value="Не задан" readOnly disabled />
+                      <input value={me?.email ?? 'Не задан'} readOnly disabled />
                     </div>
-                    <small>Почта не привязана к аккаунту</small>
+                    <small>{me?.email ? 'Текущий адрес профиля' : 'Почта не привязана к аккаунту'}</small>
                   </label>
                   <label className="pf-field">
                     <span>Новый адрес эл. почты</span>
@@ -557,37 +612,60 @@ export default function ProfilePage() {
             </summary>
 
             <div className="pf-card-body">
-              <div className="pf-session">
-                <div className="pf-session-main">
-                  <span className="pf-session-icon">
-                    {device.icon === 'phone' ? <PhoneIcon /> : <LaptopIcon />}
-                  </span>
-                  <div>
-                    <div className="pf-session-title">
-                      {device.title}
-                      <span className="pf-session-badge">Этот браузер</span>
-                    </div>
-                    <div className="pf-session-meta">
-                      <span>{device.subtitle}</span>
-                      <span>•</span>
-                      <span className="pf-online">Онлайн сейчас</span>
+              {sessions.map((session, index) => (
+                <div className="pf-session" key={session.id}>
+                  <div className="pf-session-main">
+                    <span className="pf-session-icon">
+                      <DevicesIcon />
+                    </span>
+                    <div>
+                      <div className="pf-session-title">
+                        Сессия от {formatDate(session.created_at)}
+                        {index === 0 && (
+                          <span className="pf-session-badge">Текущая</span>
+                        )}
+                      </div>
+                      <div className="pf-session-meta">
+                        <span>Действует до {formatDate(session.expires_at)}</span>
+                        <span>•</span>
+                        <span className="pf-online">
+                          {index === 0 ? 'Онлайн сейчас' : 'Активна'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                  {index === 0 ? (
+                    <button
+                      className="pf-button pf-button--danger"
+                      type="button"
+                      onClick={handleLogout}
+                    >
+                      <LogoutIcon />
+                      Выйти
+                    </button>
+                  ) : (
+                    <button
+                      className="pf-button pf-button--ghost"
+                      type="button"
+                      onClick={() => void handleRevokeSession(session)}
+                    >
+                      Завершить
+                    </button>
+                  )}
                 </div>
-                <button className="pf-button pf-button--danger" type="button" onClick={handleLogout}>
-                  <LogoutIcon />
-                  Выйти
-                </button>
-              </div>
+              ))}
+              {sessions.length === 0 && (
+                <p className="pf-readonly-note">Активных сессий не найдено.</p>
+              )}
 
               <div className="pf-form-actions pf-form-actions--between">
                 <span className="pf-readonly-note">
-                  Другие сессии не отслеживаются в текущей версии backend.
+                  Завершение других сессий отзывает refresh-токены.
                 </span>
                 <button
                   className="pf-button pf-button--ghost"
                   type="button"
-                  onClick={() => setNotice('Завершение других сессий появится после подключения backend.')}
+                  onClick={() => void handleRevokeOthers()}
                 >
                   Завершить все другие сессии
                 </button>
