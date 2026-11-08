@@ -936,6 +936,7 @@ mod tests {
             interval_hours: 24,
             max_items: 5,
             parent_run_id: None,
+            source_ids: Vec::new(),
         }
     }
 

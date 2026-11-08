@@ -233,6 +233,7 @@ pub async fn create(
         interval_hours,
         max_items,
         parent_run_id,
+        &sources,
     )
     .await?;
 
@@ -459,6 +460,7 @@ pub async fn rerun(
         old.interval_hours,
         old.max_items,
         Some(old.id),
+        &old.source_ids,
     )
     .await?;
 
@@ -478,7 +480,7 @@ pub async fn rerun(
         run_id: run.id,
         mode: old.mode.clone(),
         control_time: old.control_time,
-        sources: Vec::new(),
+        sources: old.source_ids.clone(),
         dataset_dir,
     };
     let run_id = run.id;

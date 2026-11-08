@@ -158,6 +158,7 @@ pub struct Run {
     pub interval_hours: i32,
     pub max_items: i32,
     pub parent_run_id: Option<Uuid>,
+    pub source_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

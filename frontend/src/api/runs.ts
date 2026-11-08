@@ -33,6 +33,7 @@ export interface RunInfo extends RunSummary {
   stats: Record<string, unknown>;
   interval_hours: number;
   max_items: number;
+  source_ids: string[];
 }
 
 export interface RunStage {
