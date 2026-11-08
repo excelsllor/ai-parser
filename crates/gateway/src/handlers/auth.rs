@@ -94,6 +94,7 @@ pub async fn login(
         .bind(expires)
         .execute(&state.pool)
         .await?;
+    let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
     let _ = write_audit(
         &state.pool,
@@ -155,6 +156,7 @@ pub async fn refresh(
         .bind(refresh_expiry(&state.config))
         .execute(&state.pool)
         .await?;
+    let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
     let access = create_access_token(&state.config, &user)?;
 
