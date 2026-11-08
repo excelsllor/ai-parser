@@ -3,9 +3,9 @@
   top: 0;
   z-index: 40;
   height: 64px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   padding: 0 24px;
   border-bottom: 1px solid var(--ws-border, #e2e8f0);
@@ -23,11 +23,55 @@
 }
 
 .app-header-left {
+  justify-self: start;
   gap: 16px;
+}
+
+.app-header-center {
+  justify-self: center;
+  min-width: 0;
 }
 
 .app-header-right {
   position: relative;
+  justify-self: end;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.app-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--ws-muted, #64748b);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-nav-item:hover {
+  background: var(--ws-bg, #f8fafc);
+  color: var(--ws-text-strong, #0f172a);
+}
+
+.app-nav-item--active {
+  background: #eff6ff;
+  color: var(--ws-primary, #2563eb);
+}
+
+.app-nav-item svg {
+  flex: 0 0 auto;
+  font-size: 18px;
 }
 
 .app-brand {
@@ -137,8 +181,33 @@ button.app-brand {
   color: #f5f5f5;
 }
 
+[data-theme='dark'] .app-nav-item {
+  color: #a3a3a3;
+}
+
+[data-theme='dark'] .app-nav-item:hover {
+  background: #141414;
+  color: #f5f5f5;
+}
+
+[data-theme='dark'] .app-nav-item--active {
+  background: #141414;
+  color: #93c5fd;
+}
+
+@media (max-width: 1000px) {
+  .app-nav-label {
+    display: none;
+  }
+
+  .app-nav-item {
+    padding: 8px 10px;
+  }
+}
+
 @media (max-width: 760px) {
   .app-header {
+    gap: 8px;
     padding: 0 16px;
   }
 }

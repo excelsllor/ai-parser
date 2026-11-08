@@ -15,9 +15,9 @@ import {
 } from '@api/auth';
 import type { CurrentUser, ProfileSession } from '@api/auth';
 import AppHeader from '@components/layout/AppHeader';
+import AppNav from '@components/layout/AppNav';
 import {
   AlternateEmailIcon,
-  ArrowLeftIcon,
   BadgeIcon,
   CheckCircleIcon,
   ChevronDownIcon,
@@ -375,44 +375,11 @@ export default function ProfilePage() {
     navigate('/login', { replace: true });
   }
 
-  function navigateStub(label: string) {
-    setNotice(`Раздел «${label}» пока не подключён.`);
-  }
-
-  return (
-    <div className="ws-page pf-page">
+  return (    <div className="ws-page pf-page">
       <AppHeader
         onBrandClick={() => navigate('/')}
         sub="Security Ops"
-        nav={
-          <nav className="pf-nav" aria-label="Основное меню">
-            <button className="pf-nav-item" type="button" onClick={() => navigate('/')}>
-              Мониторинг
-            </button>
-            <button className="pf-nav-item" type="button" onClick={() => navigateStub('Инциденты')}>
-              Инциденты
-            </button>
-            <button className="pf-nav-item" type="button" onClick={() => navigateStub('Разведка угроз')}>
-              Разведка угроз
-            </button>
-            <button className="pf-nav-item" type="button" onClick={() => navigateStub('Журнал аудита')}>
-              Журнал аудита
-            </button>
-            {me?.role === 'admin' && (
-              <button
-                className="pf-nav-item"
-                type="button"
-                onClick={() => navigate('/admin')}
-              >
-                Администрирование
-              </button>
-            )}
-            <button className="pf-nav-item pf-nav-item--active" type="button">
-              <UserIcon />
-              Профиль
-            </button>
-          </nav>
-        }
+        nav={<AppNav />}
       >
         <div className="pf-user-chip">
           <span className="pf-avatar pf-avatar--small">{initials}</span>
@@ -421,16 +388,6 @@ export default function ProfilePage() {
             <span>{roleLabel(me?.role)}</span>
           </span>
         </div>
-
-        <button
-          className="pf-back"
-          type="button"
-          title="Назад в рабочее пространство"
-          aria-label="Назад в рабочее пространство"
-          onClick={() => navigate('/')}
-        >
-          <ArrowLeftIcon />
-        </button>
       </AppHeader>
 
       <main className="pf-main">

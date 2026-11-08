@@ -50,8 +50,9 @@ export default function AppHeader({
         ) : (
           <div className="app-brand">{brand}</div>
         )}
-        {nav}
       </div>
+
+      <div className="app-header-center">{nav}</div>
 
       <div className="app-header-right">
         <button

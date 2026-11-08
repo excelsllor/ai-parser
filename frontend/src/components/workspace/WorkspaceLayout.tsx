@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { clearSession, getCurrentUser } from '@api/auth';
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
+import AppNav from '@components/layout/AppNav';
 import {
   AddIcon,
   ChevronDownIcon,
@@ -153,6 +154,7 @@ export default function WorkspaceLayout({
           </button>
         }
         badge="AI"
+        nav={<AppNav />}
       >
         <span className="ws-header-divider" />
         <div className="ws-user-wrap">
