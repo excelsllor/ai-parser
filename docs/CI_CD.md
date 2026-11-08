@@ -50,10 +50,10 @@
 | `TLS_MODE` | Сертификат | Когда использовать |
 |---|---|---|
 | `internal` (по умолчанию) | локальный CA Caddy | сервер без домена, доступ по IP |
-| `public` | Let's Encrypt | есть домен или `1-2-3-4.sslip.io` |
+| `public` | Let's Encrypt (`shortlived`) | IP или домен, указывающий на сервер |
 
-В `.env`: `COMPOSE_PROFILES=tls`, `TLS_MODE=internal`, `DOMAIN=<IP сервера>`,
-`TRUST_PROXY_HEADERS=true`, `CORS_ORIGINS=https://<IP>`.
+В `.env`: `COMPOSE_PROFILES=tls`, `TLS_MODE=<режим>`, `DOMAIN=<IP или домен>`,
+`TRUST_PROXY_HEADERS=true`, `CORS_ORIGINS=https://<IP или домен>`.
 
 Для `TLS_MODE=internal` браузер будет предупреждать о недоверенном
 сертификате. Чтобы убрать предупреждение, импортируй корневой CA Caddy:
@@ -62,8 +62,10 @@
 docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
 ```
 
-Для `TLS_MODE=public` домен должен резолвиться на сервер, а порты 80/443
-быть открыты. Caddy сам получит и обновит сертификат.
+Для `TLS_MODE=public` `DOMAIN` может быть и доменом, и голым IP. Let's
+Encrypt выдаёт сертификаты на IP только в профиле `shortlived` (~6 дней),
+поэтому в `Caddyfile.public` он выбран явно; Caddy обновляет сертификат
+автоматически. Нужны открытые 80/443 и чтобы `DOMAIN` указывал на сервер.
 
 На сервере рядом с `docker-compose.yml` и `.env` должны лежать
 `Caddyfile.internal` и `Caddyfile.public`.
