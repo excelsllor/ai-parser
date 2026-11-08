@@ -1,4 +1,3 @@
-use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
@@ -13,7 +12,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::*;
 
 pub async fn init_db(config: &Config) -> AppResult<PgPool> {
-    fs::create_dir_all(&config.data_dir)?;
+    tokio::fs::create_dir_all(&config.data_dir).await?;
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .min_connections(1)
@@ -57,10 +56,10 @@ pub async fn bootstrap_admin(pool: &PgPool, config: &Config) -> AppResult<()> {
         None => {
             let generated = generate_password(20);
             let path = config.data_dir.join("bootstrap_password.txt");
-            fs::write(&path, &generated)?;
-            let mut perms = fs::metadata(&path)?.permissions();
+            tokio::fs::write(&path, &generated).await?;
+            let mut perms = tokio::fs::metadata(&path).await?.permissions();
             perms.set_mode(0o600);
-            fs::set_permissions(&path, perms)?;
+            tokio::fs::set_permissions(&path, perms).await?;
             tracing::warn!(
                 path = %path.display(),
                 "bootstrap admin password generated; read it from the file"
@@ -1146,6 +1145,6 @@ pub fn generate_password(len: usize) -> String {
 }
 
 pub async fn ensure_dir(path: &Path) -> AppResult<()> {
-    fs::create_dir_all(path)?;
+    tokio::fs::create_dir_all(path).await?;
     Ok(())
 }

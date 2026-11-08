@@ -28,9 +28,9 @@ fi
 echo "no hardcoded secrets"
 
 echo "== .env permissions =="
-if [ -f .env ]; then
+if [[ -f .env ]]; then
   perm=$(stat -c '%a' .env)
-  if [ "$perm" != "600" ] && [ "$perm" != "640" ]; then
+  if [[ "$perm" != "600" && "$perm" != "640" ]]; then
     echo "warning: .env permissions are $perm (recommend 600)" >&2
   else
     echo ".env permissions: $perm"

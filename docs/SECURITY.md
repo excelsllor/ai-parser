@@ -101,7 +101,7 @@
 | Проверка | Результат |
 |---|---|
 | `cargo clippy --workspace --all-targets -- -D warnings` | без предупреждений |
-| `cargo test --workspace` | 24 теста пройдено |
+| `cargo test --workspace` | 25 тестов пройдено |
 | `cargo audit` | `zip` обновлён до 9.4.1; `rsa` остаётся в lock только как optional-зависимость `sqlx-mysql` и не компилируется; `fxhash` — unmaintained, без известных уязвимостей |
 | `docker compose config` | конфигурация валидна |
 | Ручной обзор | секретов в коде нет; SQL параметризован; SSRF-проверки есть; path traversal закрыт; HTML экранируется; получатели почты ограничены |
