@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { ShieldHeartIcon } from '@components/ui/icons';
+
+import AppHeader from '@components/layout/AppHeader';
 
 import './AuthPage.css';
 
@@ -26,11 +27,12 @@ export default function VkCallbackPage() {
 
   return (
     <div className="auth-page">
+      <AppHeader />
       <main className="auth-main">
         <div className="auth-wrap">
           <section className="auth-card auth-token-card">
             <div className="auth-logo">
-              <ShieldHeartIcon />
+              <img src="/icons/logo.svg" alt="" />
             </div>
             <h1 className="auth-title">VK ID</h1>
             <p className="auth-token-status">{status}</p>

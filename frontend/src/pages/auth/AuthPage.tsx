@@ -14,9 +14,9 @@ import {
   InfoIcon,
   LockIcon,
   MailIcon,
-  ShieldHeartIcon,
   SparklesIcon,
 } from '@components/ui/icons';
+import AppHeader from '@components/layout/AppHeader';
 import { loadScript } from '@utils/loadScript';
 
 import './AuthPage.css';
@@ -33,6 +33,21 @@ const YANDEX_REDIRECT_URI = import.meta.env.VITE_YANDEX_REDIRECT_URI as
 const VK_SDK_URL = 'https://unpkg.com/@vkid/sdk@%3C3.0.0/dist-sdk/umd/index.js';
 const VK_APP_ID = Number(import.meta.env.VITE_VK_APP_ID || 54883348);
 const VK_REDIRECT_URL = import.meta.env.VITE_VK_REDIRECT_URL as string | undefined;
+
+function canInitYandex(): boolean {
+  if (!YANDEX_CLIENT_ID) {
+    return false;
+  }
+
+  const isStandardHttps =
+    window.location.protocol === 'https:' &&
+    (window.location.port === '' || window.location.port === '443');
+  const isLocalhost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  return isStandardHttps || isLocalhost;
+}
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -66,18 +81,8 @@ export default function AuthPage() {
     }
     yandexStarted.current = true;
 
-    if (!YANDEX_CLIENT_ID) {
-      return;
-    }
-
-    const isStandardHttps =
-      window.location.protocol === 'https:' &&
-      (window.location.port === '' || window.location.port === '443');
-    const isLocalhost =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1';
-
-    if (!isStandardHttps && !isLocalhost) {
+    const clientId = YANDEX_CLIENT_ID;
+    if (!canInitYandex() || !clientId) {
       return;
     }
 
@@ -94,7 +99,7 @@ export default function AuthPage() {
 
         const { handler } = await sdk.init(
           {
-            client_id: YANDEX_CLIENT_ID,
+            client_id: clientId,
             response_type: 'token',
             redirect_uri: redirectUri,
           },
@@ -166,7 +171,7 @@ export default function AuthPage() {
             showAlternativeLogin: true,
             styles: {
               width: vkWidth,
-              height: 56,
+              height: 48,
               borderRadius: 8,
             },
             oauthList: ['ok_ru', 'mail_ru'],
@@ -276,24 +281,17 @@ export default function AuthPage() {
 
   return (
     <div className="auth-page">
-      <header className="auth-topbar">
-        <div className="auth-brand">
-          <span className="auth-brand-mark">
-            <ShieldHeartIcon />
-          </span>
-          <span className="auth-brand-name">CyberTech</span>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="auth-main">
         <div className="auth-wrap">
           <section className="auth-card" aria-labelledby="auth-title">
             <div className="auth-card-head">
               <div className="auth-logo">
-                <ShieldHeartIcon />
+                <img src="/icons/logo.svg" alt="" />
               </div>
               <h1 className="auth-title" id="auth-title">
-                CyberTech
+                CyberBug
               </h1>
               <span className="auth-badge">
                 <SparklesIcon />
@@ -545,7 +543,13 @@ export default function AuthPage() {
 
             <div className="auth-sso">
               <div className="auth-yandex">
-                <div className="auth-yandex-sdk" id="yandex-auth-button" />
+                <div
+                  className="auth-yandex-sdk"
+                  id="yandex-auth-button"
+                  style={{
+                    display: yandexReady ? undefined : 'none',
+                  }}
+                />
                 {!yandexReady && (
                   <button
                     className="auth-yandex-official"

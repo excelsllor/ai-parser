@@ -45,3 +45,8 @@ select {
     transform: translateX(0);
   }
 }
+
+[data-theme='dark'] body {
+  background: #000;
+  color: #fafafa;
+}
