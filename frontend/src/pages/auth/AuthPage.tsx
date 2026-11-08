@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { login, saveSession } from '@api/auth';
+import { login, saveSession, startOAuth, fetchAuthProviders } from '@api/auth';
 import { ApiError } from '@api/http';
 import vkLogo from '@assets/providers/vk.svg';
 import yandexButton from '@assets/providers/yandex-button-content.svg';
@@ -17,36 +17,15 @@ import {
   SparklesIcon,
 } from '@components/ui/icons';
 import AppHeader from '@components/layout/AppHeader';
-import { loadScript } from '@utils/loadScript';
 
 import './AuthPage.css';
 
 type Tab = 'login' | 'register';
+type OAuthProvider = 'yandex' | 'vk';
 
-const YANDEX_SDK_URL =
-  'https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js';
-const YANDEX_CLIENT_ID = import.meta.env.VITE_YANDEX_CLIENT_ID as string | undefined;
-const YANDEX_REDIRECT_URI = import.meta.env.VITE_YANDEX_REDIRECT_URI as
-  | string
-  | undefined;
-
-const VK_SDK_URL = 'https://unpkg.com/@vkid/sdk@%3C3.0.0/dist-sdk/umd/index.js';
-const VK_APP_ID = Number(import.meta.env.VITE_VK_APP_ID || 54883348);
-const VK_REDIRECT_URL = import.meta.env.VITE_VK_REDIRECT_URL as string | undefined;
-
-function canInitYandex(): boolean {
-  if (!YANDEX_CLIENT_ID) {
-    return false;
-  }
-
-  const isStandardHttps =
-    window.location.protocol === 'https:' &&
-    (window.location.port === '' || window.location.port === '443');
-  const isLocalhost =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1';
-
-  return isStandardHttps || isLocalhost;
+interface ProviderAvailability {
+  yandex: boolean;
+  vk: boolean;
 }
 
 export default function AuthPage() {
@@ -68,129 +47,27 @@ export default function AuthPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const yandexStarted = useRef(false);
-  const [yandexReady, setYandexReady] = useState(false);
-
-  const vkStarted = useRef(false);
-  const vkContainerRef = useRef<HTMLDivElement>(null);
-  const [vkStatus, setVkStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [providers, setProviders] = useState<ProviderAvailability | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
 
   useEffect(() => {
-    if (yandexStarted.current) {
-      return;
-    }
-    yandexStarted.current = true;
+    let active = true;
 
-    const clientId = YANDEX_CLIENT_ID;
-    if (!canInitYandex() || !clientId) {
-      return;
-    }
-
-    const redirectUri =
-      YANDEX_REDIRECT_URI || `${window.location.origin}/auth/yandex/token`;
-
-    void (async () => {
-      try {
-        await loadScript(YANDEX_SDK_URL);
-        const sdk = window.YaAuthSuggest;
-        if (!sdk) {
-          throw new Error('Yandex SDK is unavailable');
+    void fetchAuthProviders()
+      .then((availability) => {
+        if (active) {
+          setProviders(availability);
         }
-
-        const { handler } = await sdk.init(
-          {
-            client_id: clientId,
-            response_type: 'token',
-            redirect_uri: redirectUri,
-          },
-          window.location.origin,
-          {
-            view: 'button',
-            parentId: 'yandex-auth-button',
-            buttonView: 'main',
-            buttonTheme: 'light',
-            buttonSize: 'm',
-            buttonBorderRadius: '8',
-            buttonIcon: 'ya',
-          },
-        );
-
-        const resultPromise = handler();
-        setYandexReady(true);
-        const result = await resultPromise;
-
-        if (result.status === 'ok') {
-          setNotice(
-            'Яндекс ID: вход выполнен. Это тестовый режим — токен не отправляется на сервер.',
-          );
+      })
+      .catch(() => {
+        if (active) {
+          setProviders({ yandex: false, vk: false });
         }
-      } catch {
-        setNotice(
-          'Кнопка Яндекс ID недоступна. Проверьте Redirect URI в настройках OAuth-приложения.',
-        );
-      }
-    })();
-  }, []);
+      });
 
-  useEffect(() => {
-    if (vkStarted.current) {
-      return;
-    }
-    vkStarted.current = true;
-
-    const container = vkContainerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const redirectUrl =
-      VK_REDIRECT_URL || `${window.location.origin}/auth/vk/callback`;
-
-    void (async () => {
-      try {
-        await loadScript(VK_SDK_URL);
-        const VKID = window.VKIDSDK;
-        if (!VKID) {
-          throw new Error('VK ID SDK is unavailable');
-        }
-
-        VKID.Config.init({
-          app: VK_APP_ID,
-          redirectUrl,
-          responseMode: VKID.ConfigResponseMode.Callback,
-          source: VKID.ConfigSource.LOWCODE,
-          scope: '',
-        });
-
-        const vkWidth = Math.max(Math.round(container.clientWidth), 260);
-
-        const oneTap = new VKID.OneTap();
-        oneTap
-          .render({
-            container,
-            showAlternativeLogin: true,
-            styles: {
-              width: vkWidth,
-              height: 48,
-              borderRadius: 8,
-            },
-            oauthList: ['ok_ru', 'mail_ru'],
-          })
-          .on(VKID.WidgetEvents.ERROR, () => {
-            setNotice('VK ID: не удалось открыть виджет. Попробуйте позже.');
-          })
-          .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, () => {
-            setNotice(
-              'VK ID: вход выполнен. Это тестовый режим — токен не запрашивается.',
-            );
-          });
-
-        setVkStatus('ready');
-      } catch {
-        setVkStatus('failed');
-        setNotice('Виджет VK ID недоступен. Проверьте блокировку скриптов.');
-      }
-    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   function switchTab(next: Tab) {
@@ -256,27 +133,22 @@ export default function AuthPage() {
     );
   }
 
-  function handleSso(provider: string) {
-    setError(null);
-    setNotice(`Вход через ${provider} пока не подключён.`);
-  }
-
-  function startYandexOAuth() {
+  async function handleOAuth(provider: OAuthProvider) {
     setError(null);
     setNotice(null);
+    setOauthLoading(provider);
 
-    if (!YANDEX_CLIENT_ID) {
-      setNotice('Яндекс ID не настроен: отсутствует client_id.');
-      return;
+    try {
+      const url = await startOAuth(provider);
+      window.location.assign(url);
+    } catch (caught) {
+      setOauthLoading(null);
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Не удалось начать вход через внешний сервис.',
+      );
     }
-
-    const redirectUri =
-      YANDEX_REDIRECT_URI || `${window.location.origin}/auth/yandex/token`;
-    const url = new URL('https://oauth.yandex.ru/authorize');
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', YANDEX_CLIENT_ID);
-    url.searchParams.set('redirect_uri', redirectUri);
-    window.location.assign(url.toString());
   }
 
   return (
@@ -542,33 +414,39 @@ export default function AuthPage() {
             </div>
 
             <div className="auth-sso">
-              <div className="auth-yandex">
-                <div className="auth-yandex-sdk" id="yandex-auth-button" />
-                {!yandexReady && (
+              {providers?.yandex && (
+                <div className="auth-yandex">
                   <button
                     className="auth-yandex-official"
                     type="button"
-                    onClick={startYandexOAuth}
+                    onClick={() => void handleOAuth('yandex')}
+                    disabled={oauthLoading !== null}
                     aria-label="Войти с Яндекс ID"
                   >
                     <img src={yandexButton} alt="Войти с Яндекс ID" />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
-              <div className="auth-vk">
-                <div className="auth-vk-sdk" ref={vkContainerRef} />
-                {vkStatus === 'failed' && (
+              {providers?.vk && (
+                <div className="auth-vk">
                   <button
                     className="auth-sso-button auth-vk-fallback"
                     type="button"
-                    onClick={() => handleSso('VK ID')}
+                    onClick={() => void handleOAuth('vk')}
+                    disabled={oauthLoading !== null}
                   >
                     <img className="auth-sso-logo" src={vkLogo} alt="" />
-                    <span>VK ID</span>
+                    <span>{oauthLoading === 'vk' ? 'Переход в VK ID…' : 'VK ID'}</span>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
+
+              {providers && !providers.yandex && !providers.vk && (
+                <p className="auth-sso-unavailable">
+                  Вход через внешние сервисы не настроен.
+                </p>
+              )}
             </div>
           </section>
         </div>

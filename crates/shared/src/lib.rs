@@ -6,6 +6,7 @@ pub mod db;
 pub mod error;
 pub mod llm;
 pub mod models;
+pub mod oauth;
 pub mod redis_cache;
 pub mod registry;
 pub mod security;

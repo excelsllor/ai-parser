@@ -20,6 +20,13 @@ pub struct LlmConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct OAuthProviderConfig {
+    pub client_id: String,
+    pub client_secret: String,
+    pub redirect_uri: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct SmtpConfig {
     pub host: String,
     pub port: u16,
@@ -100,6 +107,9 @@ pub struct Config {
     pub trust_proxy_headers: bool,
     pub metrics_public: bool,
     pub metrics_token: Option<String>,
+    pub public_url: String,
+    pub oauth_yandex: Option<OAuthProviderConfig>,
+    pub oauth_vk: Option<OAuthProviderConfig>,
 }
 
 impl Config {
@@ -231,6 +241,42 @@ impl Config {
         .parse()
         .unwrap_or(false);
 
+        let public_url = env::var("PUBLIC_URL")
+            .ok()
+            .map(|value| value.trim().trim_end_matches('/').to_string())
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                cors_origins
+                    .iter()
+                    .find(|origin| origin.starts_with("https://") || origin.starts_with("http://"))
+                    .map(|origin| origin.trim_end_matches('/').to_string())
+            })
+            .unwrap_or_default();
+
+        let oauth_provider = |id_key: &str, secret_key: &str, path: &str| {
+            let client_id = env::var(id_key).ok().filter(|v| !v.is_empty())?;
+            let client_secret = env::var(secret_key).ok().filter(|v| !v.is_empty())?;
+            if public_url.is_empty() {
+                tracing::warn!(
+                    provider = id_key,
+                    "OAuth provider disabled: PUBLIC_URL is not set"
+                );
+                return None;
+            }
+            Some(OAuthProviderConfig {
+                client_id,
+                client_secret,
+                redirect_uri: format!("{public_url}{path}"),
+            })
+        };
+
+        let oauth_yandex = oauth_provider(
+            "YANDEX_CLIENT_ID",
+            "YANDEX_CLIENT_SECRET",
+            "/auth/yandex/token",
+        );
+        let oauth_vk = oauth_provider("VK_CLIENT_ID", "VK_CLIENT_SECRET", "/auth/vk/callback");
+
         Ok(Self {
             env_name,
             database_url,
@@ -306,6 +352,9 @@ impl Config {
                 .parse()
                 .unwrap_or(!is_prod),
             metrics_token: env::var("METRICS_TOKEN").ok().filter(|s| !s.is_empty()),
+            public_url,
+            oauth_yandex,
+            oauth_vk,
         })
     }
 

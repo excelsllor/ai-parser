@@ -70,7 +70,30 @@ Encrypt выдаёт сертификаты на IP только в профил
 На сервере рядом с `docker-compose.yml` и `.env` должны лежать
 `Caddyfile.internal` и `Caddyfile.public`.
 
-## Локальная проверка
+## OAuth
+
+Вход через Яндекс ID и VK ID выполняется на сервере: браузер получает только
+URL авторизации, `client_secret` остаётся в `.env`.
+
+```bash
+PUBLIC_URL=https://1.2.3.4
+YANDEX_CLIENT_ID=...
+YANDEX_CLIENT_SECRET=...
+VK_CLIENT_ID=...
+VK_CLIENT_SECRET=...
+```
+
+`PUBLIC_URL` должен совпадать с адресом, по которому открыт сайт. Redirect URI
+регистрируются в кабинетах провайдеров ровно так:
+
+- Яндекс ID: `{PUBLIC_URL}/auth/yandex/token`
+- VK ID: `{PUBLIC_URL}/auth/vk/callback`
+
+Провайдер без пары ID/секрет просто не показывается на странице входа.
+Первый вход создаёт локального пользователя с ролью `viewer`; пароль не
+используется. Повторный вход находит пользователя по `provider_user_id`.
+
+
 
 ```bash
 cargo fmt --all -- --check

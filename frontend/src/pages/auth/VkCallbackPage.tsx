@@ -1,29 +1,51 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
-
+import { completeOAuth, saveSession } from '@api/auth';
 import AppHeader from '@components/layout/AppHeader';
 
 import './AuthPage.css';
 
-function getCallbackStatus(): string {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-  const error = params.get('error_description') || params.get('error');
-
-  if (error) {
-    return `VK ID: ${error}`;
-  }
-
-  if (code) {
-    return 'VK ID: код авторизации получен. Это тестовый режим — обмен на токен не выполняется.';
-  }
-
-  return 'VK ID: параметры авторизации не найдены.';
-}
-
 export default function VkCallbackPage() {
-  const [status] = useState(getCallbackStatus);
+  const navigate = useNavigate();
+  const started = useRef(false);
+  const [params] = useState(() => new URLSearchParams(window.location.search));
+  const [status, setStatus] = useState(() => {
+    const error = params.get('error_description') || params.get('error');
+    if (error) {
+      return `VK ID: ${error}`;
+    }
+    if (!params.get('code') || !params.get('state')) {
+      return 'VK ID: параметры авторизации не найдены.';
+    }
+    return 'Завершаем вход через VK ID…';
+  });
+
+  useEffect(() => {
+    if (started.current) {
+      return;
+    }
+    started.current = true;
+
+    const code = params.get('code');
+    const state = params.get('state');
+    if (!code || !state) {
+      return;
+    }
+
+    void completeOAuth('vk', code, state)
+      .then((session) => {
+        saveSession(session, true);
+        navigate('/', { replace: true });
+      })
+      .catch((caught: unknown) => {
+        setStatus(
+          caught instanceof Error
+            ? `VK ID: ${caught.message}`
+            : 'VK ID: не удалось завершить вход.',
+        );
+      });
+  }, [navigate, params]);
 
   return (
     <div className="auth-page">

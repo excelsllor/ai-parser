@@ -74,6 +74,15 @@ fn build_router(state: AppState) -> Router {
     let public = Router::new()
         .route("/api/health", get(handlers::health::health))
         .route("/api/auth/status", get(handlers::auth::status))
+        .route("/api/auth/providers", get(handlers::oauth::providers))
+        .route(
+            "/api/auth/oauth/{provider}/start",
+            post(handlers::oauth::start),
+        )
+        .route(
+            "/api/auth/oauth/{provider}/callback",
+            post(handlers::oauth::callback),
+        )
         .route("/api/auth/login", post(handlers::auth::login))
         .route("/api/auth/refresh", post(handlers::auth::refresh))
         .route("/api/auth/logout", post(handlers::auth::logout))

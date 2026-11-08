@@ -1,7 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 
 import AppHeader from '@components/layout/AppHeader';
-import AppNav from '@components/layout/AppNav';
 import {
   BotIcon,
   DashboardIcon,
@@ -20,11 +19,9 @@ const TABS = [
 ];
 
 export default function AdminLayout() {
-  const navigate = useNavigate();
-
   return (
     <div className="ws-page admin-page">
-      <AppHeader badge="Admin" nav={<AppNav />} onBrandClick={() => navigate('/')} />
+      <AppHeader badge="Admin" />
 
       <nav className="admin-tabs" aria-label="Разделы администрирования">
         {TABS.map((tab) => {
