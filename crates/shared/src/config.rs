@@ -9,6 +9,7 @@ use crate::error::{AppError, AppResult};
 #[derive(Clone, Debug)]
 pub struct LlmConfig {
     pub base_url: String,
+    pub vllm_base_url: String,
     pub api_key: Option<String>,
     pub model: String,
     pub temperature: f32,
@@ -182,6 +183,7 @@ impl Config {
 
         let llm = LlmConfig {
             base_url: env_or("LLM_BASE_URL", "http://localhost:8000/v1"),
+            vllm_base_url: env_or("VLLM_BASE_URL", "http://vllm:8000/v1"),
             api_key: env::var("LLM_API_KEY").ok().filter(|s| !s.is_empty()),
             model: env_or("LLM_MODEL", "Qwen2.5-14B-Instruct"),
             temperature: env_or("LLM_TEMPERATURE", "0.1")

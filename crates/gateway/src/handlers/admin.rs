@@ -397,6 +397,7 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         "prompt_version",
         "selection",
         "llm_base_url",
+        "llm_provider",
     ];
     let mut out = serde_json::Map::new();
     for key in keys {
@@ -419,6 +420,11 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let provider = out
+        .get("llm_provider")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| "api".to_owned());
     let weights = out
         .get("weights")
         .and_then(|value| {
@@ -430,7 +436,9 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         "effective": {
             "model": model,
             "prompt_version": prompt_version,
+            "provider": provider,
             "base_url": base_url,
+            "vllm_base_url": state.config.llm.vllm_base_url,
             "weights": {
                 "impact": weights.impact,
                 "scale": weights.scale,
@@ -481,6 +489,7 @@ pub async fn put_setting(
         "prompt_version",
         "selection",
         "llm_base_url",
+        "llm_provider",
     ];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));

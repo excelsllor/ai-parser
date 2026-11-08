@@ -67,7 +67,7 @@ for _ in $(seq 1 300); do
 done
 
 mkdir -p "$OUT_DIR/$RUN_ID"
-for name in digest.md post.md journal.csv email.html ai.md run_stats.json check_results.json; do
+for name in digest.md post.md journal.csv email.html ai.md run_stats.json check_results.json vulnerabilities.json; do
   curl -fsS "$BASE/api/runs/$RUN_ID/artifacts/$name" -H "Authorization: Bearer $TOKEN" \
     -o "$OUT_DIR/$RUN_ID/$name" || true
 done

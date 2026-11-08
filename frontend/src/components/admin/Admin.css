@@ -905,3 +905,42 @@
 .admin-service {
   box-shadow: var(--panel-shadow);
 }
+
+.admin-provider-toggle {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-provider-option {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--md-outline-variant, #cac4d0);
+  border-radius: 999px;
+  background: var(--md-surface-container, #f3edf7);
+  color: var(--md-on-surface-variant, #49454f);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.admin-provider-option--active {
+  border-color: var(--md-primary, #6750a4);
+  background: var(--md-primary-container, #eaddff);
+  color: var(--md-on-primary-container, #21005d);
+}
+
+.admin-field--full {
+  grid-column: 1 / -1;
+}
+
+.admin-form .admin-form-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.admin-provider-option {
+  min-height: 44px;
+}

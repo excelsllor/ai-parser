@@ -88,6 +88,29 @@ services:
       - news_net
     restart: unless-stopped
 
+  vllm:
+    image: vllm/vllm-openai:v0.9.0
+    container_name: service-vllm
+    profiles: ["vllm"]
+    command: ["--model", "${VLLM_MODEL:-Qwen/Qwen2.5-14B-Instruct}", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    ports:
+      - "127.0.0.1:8001:8000"
+    networks:
+      - news_net
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   mailpit:
     image: axllent/mailpit:v1.33
     container_name: service-mailpit
@@ -123,6 +146,7 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8000/v1}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://vllm:8000/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-Qwen2.5-14B-Instruct}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-4}
@@ -179,6 +203,7 @@ services:
       GRPC_TIMEOUT_SECS: ${GRPC_TIMEOUT_SECS:-600}
       JWT_SECRET: ${JWT_SECRET}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8000/v1}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://vllm:8000/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-Qwen2.5-14B-Instruct}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-4}
@@ -187,6 +212,15 @@ services:
       ALLOWED_SOURCE_HOSTS: ${ALLOWED_SOURCE_HOSTS:-}
       LIVE_FETCH_ENABLED: ${LIVE_FETCH_ENABLED:-true}
       MAX_ARTICLES_PER_RUN: ${MAX_ARTICLES_PER_RUN:-60}
+      SECURITY_ENRICH_ENABLED: ${SECURITY_ENRICH_ENABLED:-true}
+      SECURITY_LOOKUP_CONCURRENCY: ${SECURITY_LOOKUP_CONCURRENCY:-4}
+      NVD_API_BASE: ${NVD_API_BASE:-https://services.nvd.nist.gov}
+      NVD_API_KEY: ${NVD_API_KEY:-}
+      BDU_API_BASE: ${BDU_API_BASE:-https://bdu.fstec.ru}
+      FSTEC_BDU_INSECURE_FALLBACK: ${FSTEC_BDU_INSECURE_FALLBACK:-0}
+      CMDB_ENDPOINT: ${CMDB_ENDPOINT:-}
+      CMDB_AUTH_TYPE: ${CMDB_AUTH_TYPE:-none}
+      CMDB_AUTH_TOKEN: ${CMDB_AUTH_TOKEN:-}
       METRICS_PUBLIC: "false"
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
@@ -278,6 +312,7 @@ volumes:
   pgdata:
   redisdata:
   news_data:
+  vllm_cache:
   caddy_data:
   caddy_config:
 

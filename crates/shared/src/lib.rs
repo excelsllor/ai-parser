@@ -26,3 +26,5 @@ pub const TOPIC_DIGEST_VERIFIED: &str = "news.digest.verified";
 pub const TOPIC_ARTIFACTS_READY: &str = "news.artifacts.ready";
 pub const TOPIC_RUN_FAILED: &str = "news.run.failed";
 pub const TOPIC_AUDIT_EVENTS: &str = "news.audit.events";
+
+pub mod vuln;
