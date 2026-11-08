@@ -182,6 +182,7 @@ export default function WorkspacePage() {
 
   const selectedCount = selectedSources.size;
   const enabledCount = enabledSources.length;
+  const canSubmit = selectedCount > 0 && !submitting && !loadingSources;
   const estimatedSeconds =
     selectedCount === 0
       ? 0
@@ -345,7 +346,16 @@ export default function WorkspacePage() {
                 {selectedCount === 0 ? 'выберите источники' : formatEstimate(estimatedSeconds)}
               </strong>
             </span>
-            <button className="ws-submit" type="submit" disabled={submitting}>
+            <button
+              className="ws-submit"
+              type="submit"
+              disabled={!canSubmit}
+              title={
+                selectedCount === 0
+                  ? 'Выберите хотя бы один источник'
+                  : undefined
+              }
+            >
               <BoltIcon />
               {submitting ? 'Запускаем…' : 'Сформировать дайджест'}
             </button>

@@ -594,6 +594,7 @@ export default function RunPage() {
   async function openRegenModal() {
     setRegenError(null);
     setRegenOpen(true);
+    setRegenSelected(new Set());
     setRegenControlTime(toDateTimeLocal(detail?.run?.control_time));
     setRegenInterval(detail?.run.interval_hours ?? 24);
     setRegenLimit(detail?.run.max_items ?? 5);
@@ -602,8 +603,13 @@ export default function RunPage() {
     try {
       const sources = await listSources();
       setRegenSources(sources);
+      const runSourceIds = new Set(detail?.run.source_ids ?? []);
       setRegenSelected(
-        new Set(sources.filter((source) => source.enabled).map((source) => source.id)),
+        new Set(
+          sources
+            .filter((source) => source.enabled && runSourceIds.has(source.id))
+            .map((source) => source.id),
+        ),
       );
     } catch (caught) {
       setRegenError(
@@ -632,13 +638,13 @@ export default function RunPage() {
     if (!run) {
       return;
     }
-    if (regenSelected.size === 0) {
+    if (run.mode !== 'file' && regenSelected.size === 0) {
       setRegenError('Выберите хотя бы один источник мониторинга.');
       return;
     }
 
     const controlTime = new Date(regenControlTime);
-    if (Number.isNaN(controlTime.getTime())) {
+    if (run.mode !== 'file' && Number.isNaN(controlTime.getTime())) {
       setRegenError('Укажите корректное контрольное время.');
       return;
     }
@@ -748,6 +754,14 @@ export default function RunPage() {
       </WorkspaceLayout>
     );
   }
+
+  const canRegenerate =
+    !regenSubmitting &&
+    !regenLoadingSources &&
+    (run.mode === 'file' ||
+      (regenSelected.size > 0 &&
+        regenControlTime.trim() !== '' &&
+        !Number.isNaN(new Date(regenControlTime).getTime())));
 
   return (
     <WorkspaceLayout
@@ -1500,7 +1514,12 @@ export default function RunPage() {
                 <button
                   className="rp-primary-button"
                   type="submit"
-                  disabled={regenSubmitting || regenLoadingSources}
+                  disabled={!canRegenerate}
+                  title={
+                    run.mode !== 'file' && regenSelected.size === 0
+                      ? 'Выберите хотя бы один источник'
+                      : undefined
+                  }
                 >
                   <RefreshIcon />
                   {regenSubmitting ? 'Запускаем…' : 'Сохранить и перегенерировать'}
