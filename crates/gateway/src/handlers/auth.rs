@@ -295,9 +295,7 @@ pub async fn update_profile(
                         .trim()
                         .to_lowercase();
                     if stored.as_deref() != Some(provided.as_str()) {
-                        return Err(AppError::Validation(
-                            "current email is incorrect".into(),
-                        ));
+                        return Err(AppError::Validation("current email is incorrect".into()));
                     }
                 }
                 let taken: Option<Uuid> = sqlx::query_scalar(
@@ -349,7 +347,9 @@ pub async fn change_password(
 ) -> AppResult<Json<serde_json::Value>> {
     let current = fetch_user(&state.pool, user.id).await?;
     if !verify_password(&payload.current_password, &current.password_hash) {
-        return Err(AppError::Unauthorized("current password is incorrect".into()));
+        return Err(AppError::Unauthorized(
+            "current password is incorrect".into(),
+        ));
     }
     validate_password(&payload.new_password)?;
     let hash = hash_password(&payload.new_password)?;

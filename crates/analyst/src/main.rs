@@ -145,8 +145,16 @@ pub(crate) async fn process_items_normalized(
             let llm_base_url = llm_base_url.clone();
             let policies = policies.clone();
             async move {
-                analyze_item(state, run_id, llm_base_url, model, prompt_version, policies, item)
-                    .await
+                analyze_item(
+                    state,
+                    run_id,
+                    llm_base_url,
+                    model,
+                    prompt_version,
+                    policies,
+                    item,
+                )
+                .await
             }
         })
         .buffer_unordered(concurrency)

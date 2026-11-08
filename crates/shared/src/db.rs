@@ -913,18 +913,13 @@ pub async fn list_user_sessions(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<R
     .map_err(AppError::from)
 }
 
-pub async fn revoke_user_session(
-    pool: &PgPool,
-    user_id: Uuid,
-    session_id: Uuid,
-) -> AppResult<()> {
-    let result = sqlx::query(
-        "UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND user_id = $2",
-    )
-    .bind(session_id)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+pub async fn revoke_user_session(pool: &PgPool, user_id: Uuid, session_id: Uuid) -> AppResult<()> {
+    let result =
+        sqlx::query("UPDATE refresh_tokens SET revoked = TRUE WHERE id = $1 AND user_id = $2")
+            .bind(session_id)
+            .bind(user_id)
+            .execute(pool)
+            .await?;
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound("session not found".into()));
     }
