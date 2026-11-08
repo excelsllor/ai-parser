@@ -1,0 +1,340 @@
+/* Shared motion layer. Kept external because CSP is style-src 'self'. */
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-fade-down {
+  from { opacity: 0; transform: translate3d(0, -8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-scale-in {
+  from { opacity: 0; transform: scale(0.975); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes motion-menu-in {
+  from { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes motion-slide-left {
+  from { opacity: 0; transform: translate3d(-10px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-bar-grow {
+  from { transform: scaleY(0.05); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes motion-fill-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* Page and route surfaces */
+.app-header {
+  animation: motion-fade-down var(--motion-slow) var(--motion-ease-soft) both;
+}
+.auth-card {
+  animation: motion-scale-in var(--motion-slow) var(--motion-ease) both;
+}
+.pf-main > *,
+.ws-main > *,
+.admin-main > * {
+  animation: motion-fade-up var(--motion-slow) var(--motion-ease) both;
+}
+.auth-page .auth-card,
+.pf-page .pf-main > *,
+.ws-page .ws-main > *,
+.admin-page .admin-main > * {
+  will-change: transform, opacity;
+}
+
+/* Staggered collections */
+.ws-sessions > *,
+.ws-sources > *,
+.pf-cards > *,
+.admin-stats > *,
+.admin-service-grid > *,
+.rp-checks-grid > *,
+.admin-table tbody tr,
+.rp-journal-table tbody tr {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+.ws-sessions > *:nth-child(2),
+.ws-sources > *:nth-child(2),
+.pf-cards > *:nth-child(2),
+.admin-stats > *:nth-child(2),
+.admin-service-grid > *:nth-child(2),
+.rp-checks-grid > *:nth-child(2),
+.admin-table tbody tr:nth-child(2),
+.rp-journal-table tbody tr:nth-child(2) { animation-delay: 40ms; }
+.ws-sessions > *:nth-child(3),
+.ws-sources > *:nth-child(3),
+.pf-cards > *:nth-child(3),
+.admin-stats > *:nth-child(3),
+.admin-service-grid > *:nth-child(3),
+.rp-checks-grid > *:nth-child(3),
+.admin-table tbody tr:nth-child(3),
+.rp-journal-table tbody tr:nth-child(3) { animation-delay: 80ms; }
+.ws-sessions > *:nth-child(4),
+.ws-sources > *:nth-child(4),
+.pf-cards > *:nth-child(4),
+.admin-stats > *:nth-child(4),
+.admin-service-grid > *:nth-child(4),
+.rp-checks-grid > *:nth-child(4),
+.admin-table tbody tr:nth-child(4),
+.rp-journal-table tbody tr:nth-child(4) { animation-delay: 120ms; }
+.ws-sessions > *:nth-child(5),
+.ws-sources > *:nth-child(5),
+.pf-cards > *:nth-child(5),
+.admin-stats > *:nth-child(5),
+.admin-service-grid > *:nth-child(5),
+.rp-checks-grid > *:nth-child(5),
+.admin-table tbody tr:nth-child(5),
+.rp-journal-table tbody tr:nth-child(5) { animation-delay: 160ms; }
+.ws-sessions > *:nth-child(n + 6),
+.ws-sources > *:nth-child(n + 6),
+.pf-cards > *:nth-child(n + 6),
+.admin-stats > *:nth-child(n + 6),
+.admin-service-grid > *:nth-child(n + 6),
+.rp-checks-grid > *:nth-child(n + 6),
+.admin-table tbody tr:nth-child(n + 6),
+.rp-journal-table tbody tr:nth-child(n + 6) { animation-delay: 200ms; }
+
+/* Tabs, navigation and sidebar */
+.app-nav a,
+.auth-tab,
+.admin-tab,
+.pf-nav-item,
+.ws-menu-button,
+.ws-link-button,
+.ws-session-open,
+.ws-session-delete {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+.auth-tab:hover,
+.admin-tab:hover,
+.pf-nav-item:hover,
+.app-nav a:hover {
+  transform: translateY(-1px);
+}
+.auth-tab--active,
+.admin-tab--active,
+.pf-nav-item--active {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+.ws-sidebar {
+  animation: motion-slide-left var(--motion-slow) var(--motion-ease) both;
+}
+.ws-user-menu {
+  animation: motion-menu-in var(--motion-base) var(--motion-ease) both;
+  transform-origin: top right;
+}
+
+/* Cards, panels and controls */
+.ws-card,
+.pf-card,
+.admin-card,
+.admin-stat,
+.admin-service,
+.rp-check,
+.auth-sso-button,
+.auth-submit {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+.ws-card:hover,
+.pf-card:hover,
+.admin-card:hover,
+.admin-stat:hover,
+.admin-service:hover,
+.rp-check:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.09);
+}
+[data-theme='dark'] .ws-card:hover,
+[data-theme='dark'] .pf-card:hover,
+[data-theme='dark'] .admin-card:hover,
+[data-theme='dark'] .admin-stat:hover,
+[data-theme='dark'] .admin-service:hover,
+[data-theme='dark'] .rp-check:hover {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+button:not(:disabled),
+[role='button'],
+input,
+select,
+textarea,
+a {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+button:not(:disabled):hover,
+[role='button']:hover,
+.auth-submit:hover,
+.rp-primary-button:hover,
+.pf-button:hover,
+.admin-button:hover {
+  transform: translateY(-1px);
+}
+button:not(:disabled):active,
+[role='button']:active,
+.auth-submit:active,
+.rp-primary-button:active,
+.pf-button:active,
+.admin-button:active {
+  transform: translateY(0) scale(0.985);
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+/* Notices, errors and modals */
+.auth-alert,
+.ws-alert,
+.pf-notice,
+.admin-error,
+.admin-notice,
+.rp-modal-note {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+.rp-modal-backdrop,
+.ws-backdrop {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+.rp-modal {
+  animation: motion-scale-in var(--motion-base) var(--motion-ease) both;
+}
+.rp-modal-backdrop,
+.ws-backdrop {
+  backdrop-filter: blur(2px);
+}
+
+/* Charts */
+.admin-chart-bar {
+  transform-origin: bottom;
+  animation: motion-bar-grow 520ms var(--motion-ease-soft) both;
+  transition: height var(--motion-base) var(--motion-ease);
+}
+.admin-chart-col:nth-child(2n) .admin-chart-bar { animation-delay: 40ms; }
+.admin-chart-col:nth-child(3n) .admin-chart-bar { animation-delay: 80ms; }
+.admin-dist-fill {
+  transform-origin: left center;
+  animation: motion-fill-grow 620ms var(--motion-ease-soft) both;
+  transition: width var(--motion-base) var(--motion-ease);
+}
+.admin-live-dot,
+.ws-muted-dot,
+.pf-online,
+.rp-footer-dot {
+  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+}
+
+/* Brand and header details */
+.app-brand-mark img,
+.app-brand-mark svg {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+.app-brand:hover .app-brand-mark img,
+.app-brand:hover .app-brand-mark svg {
+  transform: rotate(-6deg) scale(1.06);
+}
+.app-header-icon svg {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+.app-header-icon:hover svg {
+  transform: rotate(18deg);
+}
+.auth-logo,
+.pf-avatar,
+.ws-avatar,
+.admin-avatar {
+  transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) ease;
+}
+.auth-logo:hover,
+.pf-avatar:hover,
+.ws-avatar:hover,
+.admin-avatar:hover {
+  transform: scale(1.04);
+}
+
+/* Loading surfaces */
+.snake-loader,
+.rp-loading,
+.admin-live-dot {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+.snake-loader-stage {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+/* Reduced motion: keep state changes instant and understandable. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ws-card:hover,
+  .pf-card:hover,
+  .admin-card:hover,
+  .admin-stat:hover,
+  .admin-service:hover,
+  .rp-check:hover,
+  button:not(:disabled):hover,
+  [role='button']:hover {
+    transform: none;
+  }
+}
