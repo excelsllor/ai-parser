@@ -38,7 +38,7 @@
 - Внешний контур: TLS 1.3 на reverse proxy (Caddy/nginx), HTTP/2, HSTS.
 - Gateway отдаёт: CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
   `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP/CORP.
-- CSP запрещает inline-скрипты и сторонние источники; UI использует `/app.js`.
+- CSP запрещает inline-скрипты и сторонние источники; статический UI собирается Vite и отдаётся gateway из `/app/web`.
 - CORS — только явный allowlist из `CORS_ORIGINS`.
 - gRPC между сервисами работает по h2c внутри Docker-сети; порты 50051 не
   публикуются. Для production включите TLS/mTLS для gRPC.

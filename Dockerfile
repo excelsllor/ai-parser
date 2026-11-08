@@ -10,7 +10,6 @@ RUN apt-get update \
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-COPY web ./web
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
@@ -30,7 +29,7 @@ RUN apt-get update \
     && chown -R app:app /data /app
 
 COPY --from=builder /out/ /usr/local/bin/
-COPY web /app/web
+COPY frontend/dist /app/web
 
 ENV DATA_DIR=/data \
     FRONTEND_DIR=/app/web \
