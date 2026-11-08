@@ -352,11 +352,12 @@ pub async fn create_run(
     max_items: i32,
     parent_run_id: Option<Uuid>,
     source_ids: &[Uuid],
+    policies: &RunPolicies,
 ) -> AppResult<Run> {
     let run = sqlx::query_as::<_, Run>(
         "INSERT INTO runs (mode, control_time, period_start, period_end, model, prompt_version,
-                           created_by, interval_hours, max_items, parent_run_id, source_ids)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                           created_by, interval_hours, max_items, parent_run_id, source_ids, policies)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *",
     )
     .bind(mode)
@@ -370,6 +371,7 @@ pub async fn create_run(
     .bind(max_items)
     .bind(parent_run_id)
     .bind(source_ids.to_vec())
+    .bind(serde_json::to_value(policies)?)
     .fetch_one(pool)
     .await?;
     Ok(run)

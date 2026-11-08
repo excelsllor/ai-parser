@@ -893,6 +893,15 @@
   user-select: none;
 }
 
+.ws-switch-label--interactive {
+  cursor: pointer;
+}
+
+.ws-switch-label--interactive:has(.ws-switch-input:focus-visible) .ws-switch-track {
+  outline: 2px solid var(--ws-primary);
+  outline-offset: 2px;
+}
+
 .ws-switch-input {
   position: absolute;
   width: 1px;

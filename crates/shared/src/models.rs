@@ -139,6 +139,30 @@ pub struct Keyword {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RunPolicies {
+    #[serde(default = "enabled_by_default")]
+    pub dedup: bool,
+    #[serde(default = "enabled_by_default")]
+    pub injection_guard: bool,
+    #[serde(default = "enabled_by_default")]
+    pub neutral: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
+}
+
+impl Default for RunPolicies {
+    fn default() -> Self {
+        Self {
+            dedup: true,
+            injection_guard: true,
+            neutral: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Run {
     pub id: Uuid,
@@ -159,6 +183,13 @@ pub struct Run {
     pub max_items: i32,
     pub parent_run_id: Option<Uuid>,
     pub source_ids: Vec<Uuid>,
+    pub policies: serde_json::Value,
+}
+
+impl Run {
+    pub fn policy_flags(&self) -> RunPolicies {
+        serde_json::from_value(self.policies.clone()).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

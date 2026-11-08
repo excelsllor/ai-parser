@@ -13,7 +13,7 @@ use news_shared::error::{AppError, AppResult};
 use news_shared::llm::LlmClient;
 use news_shared::models::{
     DigestDraftEvent, DraftEvent, DraftSource, EventAttributes, Item, ItemsNormalizedEvent,
-    LlmItemAnalysis,
+    LlmItemAnalysis, RunPolicies,
 };
 use news_shared::redis_cache::RedisCache;
 use news_shared::telemetry::{init_metrics, init_tracing};
@@ -106,6 +106,7 @@ pub(crate) async fn process_items_normalized(
         .and_then(|value| value.as_str().map(ToOwned::to_owned))
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let policies = run.policy_flags();
     let all_items = db::get_items(&state.pool, event.run_id).await?;
     let mut duplicates: HashMap<Uuid, Vec<Item>> = HashMap::new();
     for item in all_items.iter().filter(|i| i.status == "duplicate") {
@@ -142,8 +143,10 @@ pub(crate) async fn process_items_normalized(
             let prompt_version = run.prompt_version.clone();
             let model = run.model.clone();
             let llm_base_url = llm_base_url.clone();
+            let policies = policies.clone();
             async move {
-                analyze_item(state, run_id, llm_base_url, model, prompt_version, item).await
+                analyze_item(state, run_id, llm_base_url, model, prompt_version, policies, item)
+                    .await
             }
         })
         .buffer_unordered(concurrency)
@@ -424,6 +427,7 @@ async fn analyze_item(
     llm_base_url: String,
     model: String,
     prompt_version: String,
+    policies: RunPolicies,
     item: Item,
 ) -> AppResult<AnalyzedItem> {
     let text = truncate_chars(&item.clean_text, state.config.max_article_chars);
@@ -444,7 +448,9 @@ async fn analyze_item(
         &published,
         &item.title,
         &text,
+        policies.injection_guard,
     );
+    let system = prompts::system(&policies);
 
     let result = state
         .llm
@@ -453,7 +459,7 @@ async fn analyze_item(
             &model,
             "item_analysis",
             &prompt_version,
-            prompts::SYSTEM,
+            &system,
             &user,
         )
         .await;

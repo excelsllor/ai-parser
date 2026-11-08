@@ -13,6 +13,12 @@ export interface Source {
   created_at: string;
 }
 
+export interface RunPolicies {
+  dedup: boolean;
+  injection_guard: boolean;
+  neutral: boolean;
+}
+
 export interface RunSummary {
   id: string;
   status: string;
@@ -34,6 +40,7 @@ export interface RunInfo extends RunSummary {
   interval_hours: number;
   max_items: number;
   source_ids: string[];
+  policies: RunPolicies;
 }
 
 export interface RunStage {
@@ -55,6 +62,7 @@ export interface RunStatusResponse {
 export interface CreateRunInput {
   mode: 'live' | 'file';
   sources: string[];
+  policies?: RunPolicies;
   controlTime?: string;
   intervalHours?: number;
   maxItems?: number;
@@ -134,6 +142,10 @@ export function createRun(input: CreateRunInput): Promise<RunInfo> {
 
   if (input.sources.length > 0) {
     form.set('sources', input.sources.join(','));
+  }
+
+  if (input.policies) {
+    form.set('policies', JSON.stringify(input.policies));
   }
 
   for (const file of input.files ?? []) {

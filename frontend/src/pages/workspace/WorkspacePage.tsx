@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ApiError } from '@api/http';
 import { createRun, deleteRun, listSources } from '@api/runs';
-import type { RunSummary, Source } from '@api/runs';
+import type { RunPolicies, RunSummary, Source } from '@api/runs';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
@@ -17,6 +17,7 @@ import {
   TuneIcon,
 } from '@components/ui/icons';
 import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
+import PolicySwitches from '@components/workspace/PolicySwitches';
 
 const INTERVALS = [
   { hours: 12, label: '12 часов' },
@@ -31,11 +32,11 @@ const NEWS_COUNTS = [
   { value: 10 },
 ] as const;
 
-const POLICIES = [
-  'Склейка дубликатов',
-  'Защита Prompt Injection',
-  'Без оценочных суждений',
-] as const;
+const DEFAULT_POLICIES: RunPolicies = {
+  dedup: true,
+  injection_guard: true,
+  neutral: true,
+};
 
 function formatEstimate(seconds: number): string {
   if (seconds <= 0) {
@@ -64,6 +65,7 @@ export default function WorkspacePage() {
 
   const [intervalHours, setIntervalHours] = useState(24);
   const [newsCount, setNewsCount] = useState(5);
+  const [policies, setPolicies] = useState<RunPolicies>(DEFAULT_POLICIES);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -125,10 +127,15 @@ export default function WorkspacePage() {
     setSelectedSources(new Set());
   }
 
+  function togglePolicy(key: keyof RunPolicies) {
+    setPolicies((previous) => ({ ...previous, [key]: !previous[key] }));
+  }
+
   function resetForm() {
     setSelectedSources(new Set());
     setIntervalHours(24);
     setNewsCount(5);
+    setPolicies(DEFAULT_POLICIES);
     setSubmitError(null);
     setSessionNotice(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -167,6 +174,7 @@ export default function WorkspacePage() {
         sources: [...selectedSources],
         intervalHours,
         maxItems: newsCount,
+        policies,
       });
       navigate(`/runs/${run.id}`);
     } catch (error) {
@@ -323,21 +331,7 @@ export default function WorkspacePage() {
         </div>
 
         <div className="ws-card-footer">
-          <div className="ws-policies">
-            {POLICIES.map((policy) => (
-              <label className="ws-switch-label" key={policy}>
-                <input
-                  className="ws-switch-input"
-                  type="checkbox"
-                  checked
-                  disabled
-                  readOnly
-                />
-                <span className="ws-switch-track" />
-                <span>{policy}</span>
-              </label>
-            ))}
-          </div>
+          <PolicySwitches value={policies} onChange={togglePolicy} />
 
           <div className="ws-submit-block">
             <span className="ws-estimate">

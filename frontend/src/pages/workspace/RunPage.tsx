@@ -15,8 +15,9 @@ import {
   runVersionChain,
   sendTestEmail,
 } from '@api/runs';
-import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
+import type { CheckResult, RunDetail, RunPolicies, RunSummary, Source } from '@api/runs';
 import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
+import PolicySwitches from '@components/workspace/PolicySwitches';
 import SnakeLoader from '@components/ui/SnakeLoader';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
@@ -335,6 +336,11 @@ export default function RunPage() {
   const [regenControlTime, setRegenControlTime] = useState('');
   const [regenInterval, setRegenInterval] = useState(24);
   const [regenLimit, setRegenLimit] = useState(5);
+  const [regenPolicies, setRegenPolicies] = useState<RunPolicies>({
+    dedup: true,
+    injection_guard: true,
+    neutral: true,
+  });
   const [regenError, setRegenError] = useState<string | null>(null);
   const [regenLoadingSources, setRegenLoadingSources] = useState(false);
   const [regenSubmitting, setRegenSubmitting] = useState(false);
@@ -598,6 +604,9 @@ export default function RunPage() {
     setRegenControlTime(toDateTimeLocal(detail?.run?.control_time));
     setRegenInterval(detail?.run.interval_hours ?? 24);
     setRegenLimit(detail?.run.max_items ?? 5);
+    setRegenPolicies(
+      detail?.run.policies ?? { dedup: true, injection_guard: true, neutral: true },
+    );
     setRegenLoadingSources(true);
 
     try {
@@ -662,6 +671,7 @@ export default function RunPage() {
               intervalHours: regenInterval,
               maxItems: regenLimit,
               parentRunId: run.id,
+              policies: regenPolicies,
             });
 
       setRegenOpen(false);
@@ -1458,26 +1468,19 @@ export default function RunPage() {
 
               <div className="rp-modal-field">
                 <span className="rp-modal-label">Фильтры нормализации и безопасности</span>
-                <div className="ws-policies rp-modal-policies">
-                  {[
-                    'Склейка дубликатов',
-                    'Защита Prompt Injection',
-                    'Без оценочных суждений',
-                  ].map((label) => (
-                    <label className="ws-switch-label" key={label}>
-                      <input
-                        className="ws-switch-input"
-                        type="checkbox"
-                        checked
-                        disabled
-                        readOnly
-                      />
-                      <span className="ws-switch-track" />
-                      <span>{label}</span>
-                    </label>
-                  ))}
-                </div>
-                <small className="rp-modal-note">Политики применяются автоматически.</small>
+                <PolicySwitches
+                  className="rp-modal-policies"
+                  value={regenPolicies}
+                  onChange={(key) =>
+                    setRegenPolicies((previous) => ({
+                      ...previous,
+                      [key]: !previous[key],
+                    }))
+                  }
+                />
+                <small className="rp-modal-note">
+                  Политики применяются к новому прогону.
+                </small>
               </div>
 
               {detail?.run.mode === 'file' && (

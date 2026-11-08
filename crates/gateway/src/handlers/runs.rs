@@ -47,6 +47,7 @@ pub async fn create(
     let mut interval_hours: Option<i32> = None;
     let mut max_items: Option<i32> = None;
     let mut parent_run_id: Option<Uuid> = None;
+    let mut policies = RunPolicies::default();
 
     while let Some(field) = multipart
         .next_field()
@@ -117,6 +118,16 @@ pub async fn create(
                         Uuid::parse_str(raw.trim())
                             .map_err(|_| AppError::BadRequest("invalid parent_run_id".into()))?,
                     );
+                }
+            }
+            "policies" => {
+                let raw = field
+                    .text()
+                    .await
+                    .map_err(|e| AppError::BadRequest(e.to_string()))?;
+                if !raw.trim().is_empty() {
+                    policies = serde_json::from_str::<RunPolicies>(&raw)
+                        .map_err(|_| AppError::BadRequest("invalid policies".into()))?;
                 }
             }
             "sources" => {
@@ -234,6 +245,7 @@ pub async fn create(
         max_items,
         parent_run_id,
         &sources,
+        &policies,
     )
     .await?;
 
@@ -461,6 +473,7 @@ pub async fn rerun(
         old.max_items,
         Some(old.id),
         &old.source_ids,
+        &old.policy_flags(),
     )
     .await?;
 
