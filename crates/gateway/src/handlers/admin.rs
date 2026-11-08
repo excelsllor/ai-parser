@@ -1,7 +1,7 @@
 use axum::extract::{Extension, Path, Query, State};
-use chrono::Utc;
 use axum::http::StatusCode;
 use axum::Json;
+use chrono::Utc;
 use news_shared::audit::{write_audit, AuditRecord};
 use news_shared::auth::AuthUser;
 use news_shared::db;
@@ -391,7 +391,13 @@ pub async fn delete_keyword(
 
 pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let keys = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
+    let keys = [
+        "weights",
+        "model",
+        "prompt_version",
+        "selection",
+        "llm_base_url",
+    ];
     let mut out = serde_json::Map::new();
     for key in keys {
         if let Some(value) = db::get_setting(&state.pool, key).await? {
@@ -469,7 +475,13 @@ pub async fn put_setting(
     Json(payload): Json<SettingRequest>,
 ) -> AppResult<Json<Value>> {
     user.require_admin()?;
-    let allowed = ["weights", "model", "prompt_version", "selection", "llm_base_url"];
+    let allowed = [
+        "weights",
+        "model",
+        "prompt_version",
+        "selection",
+        "llm_base_url",
+    ];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));
     }
@@ -576,7 +588,20 @@ pub async fn health_history(
 ) -> AppResult<Json<Value>> {
     user.require_admin()?;
     let limit = query.limit.unwrap_or(30).clamp(1, 200);
-    let rows = sqlx::query_as::<_, (Uuid, chrono::DateTime<Utc>, bool, bool, Option<i64>, bool, bool, i32, i32)>(
+    let rows = sqlx::query_as::<
+        _,
+        (
+            Uuid,
+            chrono::DateTime<Utc>,
+            bool,
+            bool,
+            Option<i64>,
+            bool,
+            bool,
+            i32,
+            i32,
+        ),
+    >(
         "SELECT id, checked_at, database_ok, redis_ok, redis_latency_ms, kafka_ok, llm_ok,
                 registry_alive, registry_total
          FROM health_snapshots ORDER BY checked_at DESC LIMIT $1",

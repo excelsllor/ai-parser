@@ -217,10 +217,7 @@ impl LlmClient {
             .await
             .map_err(|_| AppError::llm("LLM semaphore closed"))?;
 
-        let url = format!(
-            "{}/chat/completions",
-            base_url.trim_end_matches('/')
-        );
+        let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
         let started = Instant::now();
         let mut last_error = None;
         let mut use_json_mode = json_mode;
