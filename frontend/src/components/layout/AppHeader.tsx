@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
+import { animate } from 'animejs';
 
 import { useTheme } from '@hooks/useTheme';
 import { MoonIcon, SunIcon } from '@components/ui/icons';
@@ -23,6 +24,24 @@ export default function AppHeader({
   onBrandClick,
 }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const themeIconRef = useRef<HTMLSpanElement>(null);
+
+  function handleThemeToggle() {
+    const icon = themeIconRef.current;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (icon && !reduceMotion) {
+      animate(icon, {
+        rotate: [theme === 'dark' ? '90deg' : '-90deg', '0deg'],
+        scale: [0.76, 1],
+        opacity: [0.5, 1],
+        duration: 520,
+        ease: 'inOutQuint',
+      });
+    }
+
+    toggleTheme();
+  }
 
   const brand = (
     <>
@@ -60,9 +79,11 @@ export default function AppHeader({
           type="button"
           title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
           aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-          onClick={toggleTheme}
+          onClick={handleThemeToggle}
         >
-          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          <span className="app-theme-icon" ref={themeIconRef}>
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </span>
         </button>
         {children}
       </div>
