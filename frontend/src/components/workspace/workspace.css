@@ -303,6 +303,8 @@
 }
 
 .ws-sidebar {
+  position: relative;
+  z-index: 1;
   width: 288px;
   flex: 0 0 288px;
   display: flex;
@@ -310,6 +312,7 @@
   justify-content: space-between;
   border-right: 1px solid var(--ws-border);
   background: var(--ws-paper);
+  box-shadow: var(--panel-shadow);
 }
 
 .ws-sidebar-top {
@@ -1256,7 +1259,7 @@
     width: 300px;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    box-shadow: var(--panel-shadow-modal);
+    box-shadow: var(--panel-shadow);
   }
 
   .ws-sidebar--open {
