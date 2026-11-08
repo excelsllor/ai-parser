@@ -127,6 +127,9 @@ pub struct Source {
     pub trust: String,
     pub language: String,
     pub created_at: DateTime<Utc>,
+    pub last_synced_at: Option<DateTime<Utc>>,
+    pub last_error: Option<String>,
+    pub items_collected: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

@@ -21,6 +21,9 @@ export interface AdminSource {
   trust: string;
   language: string;
   created_at: string;
+  last_synced_at: string | null;
+  last_error: string | null;
+  items_collected: number;
 }
 
 export interface AdminKeyword {

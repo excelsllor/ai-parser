@@ -102,6 +102,7 @@ export default function AdminSourcesPage() {
       active: sources.filter((source) => source.enabled).length,
       disabled: sources.filter((source) => !source.enabled).length,
       rss: sources.filter((source) => source.kind === 'rss').length,
+      collected: sources.reduce((sum, source) => sum + source.items_collected, 0),
     }),
     [sources],
   );
@@ -233,7 +234,9 @@ export default function AdminSourcesPage() {
             <RssIcon />
           </span>
           <strong className="admin-stat-value">{stats.total}</strong>
-          <span className="admin-stat-hint">{stats.rss} RSS · HTML остальные</span>
+          <span className="admin-stat-hint">
+            {stats.rss} RSS · собрано {stats.collected.toLocaleString('ru-RU')} материалов
+          </span>
         </article>
         <article className="admin-stat">
           <span className="admin-stat-label">
@@ -356,6 +359,7 @@ export default function AdminSourcesPage() {
                 <th>Тип</th>
                 <th>Доверие</th>
                 <th>Язык</th>
+                <th>Синхронизация</th>
                 <th>Статус</th>
                 <th>Действия</th>
               </tr>
@@ -386,6 +390,20 @@ export default function AdminSourcesPage() {
                   </td>
                   <td>{TRUST_LABELS[source.trust] ?? source.trust}</td>
                   <td>{source.language}</td>
+                  <td>
+                    {source.last_synced_at ? (
+                      <span className="admin-cell-strong">
+                        {formatDateTime(source.last_synced_at)}
+                      </span>
+                    ) : (
+                      <span className="admin-cell-sub">Ещё не было</span>
+                    )}
+                    {source.last_error && (
+                      <span className="admin-cell-sub" title={source.last_error}>
+                        ошибка · {source.items_collected} собрано
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <span
                       className={`admin-badge ${

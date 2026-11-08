@@ -881,6 +881,23 @@ pub async fn set_user_password(pool: &PgPool, user_id: Uuid, password_hash: &str
     Ok(())
 }
 
+pub async fn prune_user_sessions(pool: &PgPool, user_id: Uuid, keep: i64) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE refresh_tokens SET revoked = TRUE
+         WHERE user_id = $1 AND revoked = FALSE
+           AND id NOT IN (
+             SELECT id FROM refresh_tokens
+             WHERE user_id = $1 AND revoked = FALSE
+             ORDER BY created_at DESC LIMIT $2
+           )",
+    )
+    .bind(user_id)
+    .bind(keep.max(1))
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn list_user_sessions(pool: &PgPool, user_id: Uuid) -> AppResult<Vec<RefreshToken>> {
     sqlx::query_as::<_, RefreshToken>(
         "SELECT * FROM refresh_tokens
@@ -922,6 +939,24 @@ pub async fn revoke_other_sessions(
     )
     .bind(user_id)
     .bind(current_hash)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn record_source_sync(
+    pool: &PgPool,
+    source_id: Uuid,
+    error: Option<&str>,
+    collected: usize,
+) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE sources SET last_synced_at = now(), last_error = $2,
+         items_collected = items_collected + $3 WHERE id = $1",
+    )
+    .bind(source_id)
+    .bind(error)
+    .bind(collected as i64)
     .execute(pool)
     .await?;
     Ok(())
