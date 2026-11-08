@@ -314,6 +314,7 @@
 
 .ws-sidebar-top {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 12px;
   padding: 16px;
@@ -374,9 +375,10 @@
 
 .ws-sessions {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
-  max-height: calc(100vh - 260px);
+  min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
 }
