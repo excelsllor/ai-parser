@@ -103,6 +103,7 @@ export function confirmEmail(token: string): Promise<{ ok: boolean }> {
 export function requestEmailVerification(): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/auth/email/request', {
     method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
   });
 }
 
