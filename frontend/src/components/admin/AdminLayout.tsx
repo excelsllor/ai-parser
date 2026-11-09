@@ -7,6 +7,7 @@ import {
   DashboardIcon,
   GroupIcon,
   RssIcon,
+  SendIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
 
@@ -19,6 +20,7 @@ const TABS = [
   { to: '/admin', label: 'Обзор и метрики', icon: DashboardIcon, end: true },
   { to: '/admin/sources', label: 'Управление источниками', icon: RssIcon },
   { to: '/admin/llm', label: 'LLM', icon: BotIcon },
+  { to: '/admin/telegram', label: 'Telegram', icon: SendIcon },
   { to: '/admin/users', label: 'Пользователи и роли', icon: GroupIcon },
 ];
 

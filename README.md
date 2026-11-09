@@ -55,13 +55,15 @@ MODE=file DATASET=/path/to/dataset.zip CONTROL_TIME=2026-11-09T12:00:00+03:00 ./
 - журнал `journal.csv` на каждый материал;
 - обязательные проверки (дубли, <5 событий, пустой период, обрывки,
   противоречия, ошибки источников, prompt injection);
-- админ-панель, debug-панель, аудит, выгрузка артефактов, отправка тестового письма.
+- админ-панель, debug-панель, аудит, выгрузка артефактов, отправка тестового письма;
+- Telegram-бот: токен и канал задаются в админке, отправка дайджеста в один клик,
+  список пользователей, которые написали боту.
 
 ## Сервисы
 
 | Сервис | Назначение |
 |---|---|
-| `gateway` | REST API, JWT-аутентификация, UI, выгрузка, отправка письма |
+| `gateway` | REST API, JWT-аутентификация, UI, выгрузка, отправка письма и Telegram |
 | `collector` | живой RSS/HTML-сбор и файловый датасет |
 | `normalizer` | кодировки, даты МСК, период, тема, дедупликация |
 | `analyst` | vLLM: анализ, кластеризация, ранжирование, тексты |
@@ -79,6 +81,8 @@ MODE=file DATASET=/path/to/dataset.zip CONTROL_TIME=2026-11-09T12:00:00+03:00 ./
 - `POST /api/runs/{id}/email/send`, `POST /api/runs/{id}/items`
 - `GET /api/runs/{id}/checks`, `GET /api/sources`
 - `GET/POST/PUT/DELETE /api/admin/*` — пользователи, источники, ключевые слова
+- `POST /api/runs/{id}/telegram/send` — отправить дайджест в Telegram
+- `GET/POST /api/admin/telegram/*` — настройки бота, синхронизация и список пользователей
 - `GET /api/admin/debug/*`, `GET /api/admin/audit`
 - `GET /api/health`, `GET /api/ready`, `GET /metrics`
 

@@ -13,6 +13,7 @@ import {
   listSources,
   rerunRun,
   runVersionChain,
+  sendRunToTelegram,
   sendTestEmail,
   setRunStatus,
 } from '@api/runs';
@@ -224,6 +225,7 @@ export default function RunPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [telegramSending, setTelegramSending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [journalFilter, setJournalFilter] = useState('');
   const [reactions, setReactions] = useState<Record<string, boolean>>({});
@@ -635,6 +637,29 @@ export default function RunPage() {
     }
   }
 
+  async function handleSendTelegram() {
+    if (!id) {
+      return;
+    }
+    setTelegramSending(true);
+    setActionError(null);
+    setNotice(null);
+    try {
+      const result = await sendRunToTelegram(id);
+      setNotice(
+        result.message_id
+          ? `Дайджест отправлен в Telegram (message_id ${result.message_id}).`
+          : 'Дайджест отправлен в Telegram.',
+      );
+    } catch (caught) {
+      setActionError(
+        caught instanceof Error ? caught.message : 'Не удалось отправить дайджест в Telegram.',
+      );
+    } finally {
+      setTelegramSending(false);
+    }
+  }
+
   if (loading) {
     return (
       <WorkspaceLayout
@@ -742,6 +767,15 @@ export default function RunPage() {
                 Перегенерировать дайджест
               </button>
             )}
+            <button
+              className={cx(styles, "rp-secondary-button")}
+              type="button"
+              onClick={handleSendTelegram}
+              disabled={telegramSending || isGenerating}
+            >
+              <SendIcon />
+              {telegramSending ? 'Отправляем…' : 'В Telegram'}
+            </button>
             <button
               className={cx(styles, "rp-danger-button")}
               type="button"
@@ -1094,6 +1128,15 @@ export default function RunPage() {
                 <div className={cx(styles, "rp-email-actions")}>
                   <button
                     className={cx(styles, "rp-primary-button rp-primary-button--small")}
+                    type="button"
+                    onClick={handleSendTelegram}
+                    disabled={telegramSending}
+                  >
+                    <SendIcon />
+                    {telegramSending ? 'Отправляем…' : 'Отправить в Telegram'}
+                  </button>
+                  <button
+                    className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                     type="button"
                     onClick={handleSendEmail}
                     disabled={sending}

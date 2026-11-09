@@ -35,7 +35,11 @@ fn can_access_run(user: &AuthUser, run: &Run) -> bool {
     user.role == Role::Admin || run.created_by == Some(user.id)
 }
 
-async fn get_run_for_user(state: &AppState, user: &AuthUser, run_id: Uuid) -> AppResult<Run> {
+pub(crate) async fn get_run_for_user(
+    state: &AppState,
+    user: &AuthUser,
+    run_id: Uuid,
+) -> AppResult<Run> {
     let run = db::get_run(&state.pool, run_id).await?;
     if !can_access_run(user, &run) {
         return Err(AppError::NotFound("run not found".into()));
@@ -624,7 +628,7 @@ pub async fn rerun(
     Ok((StatusCode::CREATED, Json(run)))
 }
 
-fn safe_artifact_path(state: &AppState, path: &str) -> AppResult<std::path::PathBuf> {
+pub(crate) fn safe_artifact_path(state: &AppState, path: &str) -> AppResult<std::path::PathBuf> {
     let path = std::path::Path::new(path);
     let data_root = state
         .config

@@ -311,6 +311,17 @@ export function sendTestEmail(id: string, to?: string): Promise<unknown> {
   });
 }
 
+export function sendRunToTelegram(id: string): Promise<{
+  sent: boolean;
+  chat_id: string;
+  message_id: number | null;
+}> {
+  return request(`/runs/${id}/telegram/send`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
 export async function fetchArtifact(id: string, name: string): Promise<string> {
   const response = await fetch(
     `${API_BASE_URL}/runs/${id}/artifacts/${encodeURIComponent(name)}`,

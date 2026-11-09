@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 use crate::handlers::auth::fetch_user;
 use crate::handlers::runs::Pagination;
+use crate::handlers::telegram::{validate_bot_token, validate_chat_id};
 use crate::middleware::{request_ip, ClientIp};
 use crate::state::AppState;
 
@@ -397,6 +398,7 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         "prompt_version",
         "selection",
         "llm_base_url",
+        "telegram_chat_id",
     ];
     let mut out = serde_json::Map::new();
     for key in keys {
@@ -419,6 +421,20 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let telegram_token_configured = db::get_setting(&state.pool, "telegram_bot_token")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .is_some();
+    let telegram_chat_id = out
+        .get("telegram_chat_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    out.insert(
+        "telegram_bot_token_set".to_string(),
+        json!(telegram_token_configured),
+    );
     let weights = out
         .get("weights")
         .and_then(|value| {
@@ -438,6 +454,10 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
                 "relevance": weights.relevance,
                 "confidence": weights.confidence,
                 "uncertainty_penalty": weights.uncertainty_penalty,
+            },
+            "telegram": {
+                "bot_configured": telegram_token_configured,
+                "chat_id": telegram_chat_id,
             },
             "env": state.config.env_name,
         }
@@ -481,9 +501,25 @@ pub async fn put_setting(
         "prompt_version",
         "selection",
         "llm_base_url",
+        "telegram_bot_token",
+        "telegram_chat_id",
     ];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));
+    }
+    if payload.key == "telegram_bot_token" {
+        let token = payload
+            .value
+            .as_str()
+            .ok_or_else(|| AppError::Validation("telegram bot token must be a string".into()))?;
+        validate_bot_token(token)?;
+    }
+    if payload.key == "telegram_chat_id" {
+        let chat_id = payload
+            .value
+            .as_str()
+            .ok_or_else(|| AppError::Validation("telegram chat id must be a string".into()))?;
+        validate_chat_id(chat_id)?;
     }
     db::set_setting(&state.pool, &payload.key, payload.value.clone()).await?;
     let _ = write_audit(

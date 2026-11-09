@@ -535,6 +535,19 @@ pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct TelegramSubscriber {
+    pub chat_id: i64,
+    pub chat_type: String,
+    pub title: String,
+    pub username: Option<String>,
+    pub first_name: String,
+    pub last_name: String,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub last_seen_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserResponse {
     pub id: Uuid,

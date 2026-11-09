@@ -39,8 +39,29 @@ export interface AdminSettings {
     prompt_version: string;
     base_url: string;
     weights: Record<string, number>;
+    telegram: {
+      bot_configured: boolean;
+      chat_id: string;
+    };
     env: string;
   };
+}
+
+export interface TelegramSubscriber {
+  chat_id: number;
+  chat_type: string;
+  title: string;
+  username: string | null;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  created_at: string;
+  last_seen_at: string;
+}
+
+export interface TelegramSyncResult {
+  updated: number;
+  subscribers: TelegramSubscriber[];
 }
 
 export interface LlmModels {
@@ -213,6 +234,37 @@ export function putAdminSetting(key: string, value: unknown): Promise<{ ok: bool
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify({ key, value }),
+  });
+}
+
+export function testTelegramBot(): Promise<{ ok: boolean; username: string }> {
+  return request<{ ok: boolean; username: string }>('/admin/telegram/test', {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
+export function getTelegramSubscribers(): Promise<TelegramSubscriber[]> {
+  return request<TelegramSubscriber[]>('/admin/telegram/subscribers', {
+    headers: authHeaders(),
+  });
+}
+
+export function syncTelegramUsers(): Promise<TelegramSyncResult> {
+  return request<TelegramSyncResult>('/admin/telegram/sync', {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
+export function setTelegramSubscriberActive(
+  chatId: number,
+  active: boolean,
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/admin/telegram/subscribers/${chatId}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ active }),
   });
 }
 

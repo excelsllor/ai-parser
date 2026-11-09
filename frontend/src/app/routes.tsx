@@ -11,6 +11,7 @@ import { AdminLayout } from '@components';
 import AdminLlmPage from '@pages/admin/AdminLlmPage';
 import AdminOverviewPage from '@pages/admin/AdminOverviewPage';
 import AdminSourcesPage from '@pages/admin/AdminSourcesPage';
+import AdminTelegramPage from '@pages/admin/AdminTelegramPage';
 import AdminUsersPage from '@pages/admin/AdminUsersPage';
 import AuthPage from '@pages/auth/AuthPage';
 import ForgotPasswordPage from '@pages/auth/ForgotPasswordPage';
@@ -88,6 +89,7 @@ export default function AppRoutes() {
           <Route index element={<AdminOverviewPage />} />
           <Route path="sources" element={<AdminSourcesPage />} />
           <Route path="llm" element={<AdminLlmPage />} />
+          <Route path="telegram" element={<AdminTelegramPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="services" element={<Navigate to="/admin" replace />} />
         </Route>

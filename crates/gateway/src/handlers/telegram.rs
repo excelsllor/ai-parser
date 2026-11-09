@@ -1,0 +1,334 @@
+use std::time::Duration;
+
+use axum::extract::{Extension, Path, State};
+use axum::Json;
+use news_shared::audit::{write_audit, AuditRecord};
+use news_shared::auth::AuthUser;
+use news_shared::db;
+use news_shared::error::{AppError, AppResult};
+use news_shared::models::TelegramSubscriber;
+use serde::Deserialize;
+use serde_json::{json, Value};
+use uuid::Uuid;
+
+use crate::handlers::runs::{get_run_for_user, safe_artifact_path};
+use crate::middleware::ClientIp;
+use crate::state::AppState;
+
+const TELEGRAM_API: &str = "https://api.telegram.org";
+const MAX_MESSAGE_CHARS: usize = 4096;
+
+pub fn validate_bot_token(value: &str) -> AppResult<()> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(());
+    }
+    let Some((bot_id, secret)) = value.split_once(':') else {
+        return Err(AppError::Validation(
+            "telegram bot token must have the form <bot_id>:<secret>".into(),
+        ));
+    };
+    if bot_id.len() < 5
+        || !bot_id.chars().all(|character| character.is_ascii_digit())
+        || secret.len() < 20
+        || value.chars().any(char::is_whitespace)
+    {
+        return Err(AppError::Validation(
+            "telegram bot token has an invalid format".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub fn validate_chat_id(value: &str) -> AppResult<()> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(());
+    }
+    let valid = value
+        .strip_prefix('@')
+        .map(|name| {
+            !name.is_empty()
+                && name.len() <= 64
+                && name
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        })
+        .unwrap_or_else(|| {
+            value
+                .trim_start_matches('-')
+                .chars()
+                .all(|character| character.is_ascii_digit())
+                && value != "-"
+        });
+    if !valid {
+        return Err(AppError::Validation(
+            "telegram chat id must be numeric or @channel".into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn bot_token(state: &AppState) -> AppResult<String> {
+    db::get_setting(&state.pool, "telegram_bot_token")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AppError::BadRequest(
+                "Telegram bot is not configured. Add a bot token in Admin -> Telegram.".into(),
+            )
+        })
+}
+
+async fn target_chat_id(state: &AppState) -> AppResult<String> {
+    db::get_setting(&state.pool, "telegram_chat_id")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            AppError::BadRequest(
+                "Telegram chat is not configured. Add a chat id in Admin -> Telegram.".into(),
+            )
+        })
+}
+
+async fn call_api(
+    _state: &AppState,
+    token: &str,
+    method: &str,
+    payload: Option<Value>,
+) -> AppResult<Value> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .user_agent("CyberBug/1.0")
+        .build()?;
+    let url = format!("{TELEGRAM_API}/bot{token}/{method}");
+    let request = if let Some(payload) = payload {
+        client.post(url).json(&payload)
+    } else {
+        client.get(url)
+    };
+    let response = request
+        .send()
+        .await
+        .map_err(|_| AppError::internal("Telegram API request failed"))?;
+    let status = response.status();
+    let body: Value = response
+        .json()
+        .await
+        .map_err(|_| AppError::internal("Telegram API returned invalid JSON"))?;
+    if !status.is_success() || body.get("ok").and_then(Value::as_bool) != Some(true) {
+        let description = body
+            .get("description")
+            .and_then(Value::as_str)
+            .unwrap_or("Telegram API request failed");
+        return Err(AppError::BadRequest(format!("Telegram: {description}")));
+    }
+    Ok(body)
+}
+
+async fn read_run_text(state: &AppState, run_id: Uuid) -> AppResult<String> {
+    for name in ["digest.md", "post.md"] {
+        let Ok(artifact) = db::get_artifact(&state.pool, run_id, name).await else {
+            continue;
+        };
+        let path = safe_artifact_path(state, &artifact.path)?;
+        let text = tokio::fs::read_to_string(path).await?;
+        if !text.trim().is_empty() {
+            return Ok(text);
+        }
+    }
+    Err(AppError::NotFound(
+        "в запуске нет digest.md или post.md для отправки".into(),
+    ))
+}
+
+fn truncate_message(text: &str) -> String {
+    if text.chars().count() <= MAX_MESSAGE_CHARS {
+        return text.to_string();
+    }
+    let mut truncated: String = text.chars().take(MAX_MESSAGE_CHARS - 3).collect();
+    truncated.push_str("...");
+    truncated
+}
+
+async fn send_message(
+    state: &AppState,
+    token: &str,
+    chat_id: &str,
+    text: &str,
+) -> AppResult<Value> {
+    call_api(
+        state,
+        token,
+        "sendMessage",
+        Some(json!({
+            "chat_id": chat_id,
+            "text": truncate_message(text),
+            "disable_web_page_preview": true,
+        })),
+    )
+    .await
+}
+
+pub async fn send_run(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(run_id): Path<Uuid>,
+) -> AppResult<Json<Value>> {
+    user.require_write()?;
+    get_run_for_user(&state, &user, run_id).await?;
+    let token = bot_token(&state).await?;
+    let chat_id = target_chat_id(&state).await?;
+    let text = read_run_text(&state, run_id).await?;
+    let response = send_message(&state, &token, &chat_id, &text).await?;
+    let message_id = response
+        .pointer("/result/message_id")
+        .and_then(Value::as_i64);
+
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "telegram.send",
+            format!("run:{run_id}"),
+            json!({"chat_id": chat_id, "message_id": message_id}),
+            ip,
+        ),
+    )
+    .await;
+
+    Ok(Json(json!({
+        "sent": true,
+        "chat_id": chat_id,
+        "message_id": message_id,
+    })))
+}
+
+pub async fn test_bot(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let token = bot_token(&state).await?;
+    let response = call_api(&state, &token, "getMe", None).await?;
+    let username = response
+        .pointer("/result/username")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    Ok(Json(json!({"ok": true, "username": username})))
+}
+
+pub async fn list_subscribers(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Vec<TelegramSubscriber>>> {
+    user.require_admin()?;
+    Ok(Json(db::list_telegram_subscribers(&state.pool).await?))
+}
+
+pub async fn sync_subscribers(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let token = bot_token(&state).await?;
+    let response = call_api(
+        &state,
+        &token,
+        "getUpdates?timeout=0&allowed_updates=%5B%22message%22%2C%22my_chat_member%22%5D",
+        None,
+    )
+    .await?;
+
+    let updates = response
+        .get("result")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut updated = 0usize;
+    for update in updates {
+        let chat = update
+            .pointer("/message/chat")
+            .or_else(|| update.pointer("/my_chat_member/chat"));
+        let Some(chat) = chat else {
+            continue;
+        };
+        let Some(chat_id) = chat.get("id").and_then(Value::as_i64) else {
+            continue;
+        };
+        let chat_type = chat
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or("private");
+        let title = chat.get("title").and_then(Value::as_str).unwrap_or("");
+        let username = chat.get("username").and_then(Value::as_str);
+        let first_name = chat.get("first_name").and_then(Value::as_str).unwrap_or("");
+        let last_name = chat.get("last_name").and_then(Value::as_str).unwrap_or("");
+        db::upsert_telegram_subscriber(
+            &state.pool,
+            chat_id,
+            chat_type,
+            title,
+            username,
+            first_name,
+            last_name,
+        )
+        .await?;
+        updated += 1;
+    }
+
+    let subscribers = db::list_telegram_subscribers(&state.pool).await?;
+    Ok(Json(
+        json!({"updated": updated, "subscribers": subscribers}),
+    ))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SubscriberStateRequest {
+    pub active: bool,
+}
+
+pub async fn set_subscriber_active(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(chat_id): Path<i64>,
+    Json(payload): Json<SubscriberStateRequest>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    db::set_telegram_subscriber_active(&state.pool, chat_id, payload.active).await?;
+    Ok(Json(
+        json!({"ok": true, "chat_id": chat_id, "active": payload.active}),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_bot_token, validate_chat_id};
+
+    #[test]
+    fn accepts_telegram_bot_token_shape() {
+        assert!(validate_bot_token("123456789:AAH-abcdefghijklmnopqrstuvwxyz_123456").is_ok());
+        assert!(validate_bot_token("").is_ok());
+    }
+
+    #[test]
+    fn rejects_malformed_telegram_bot_token() {
+        assert!(validate_bot_token("not-a-token").is_err());
+        assert!(validate_bot_token("abc:AAH-abcdefghijklmnopqrstuvwxyz_123456").is_err());
+        assert!(validate_bot_token("123456:short").is_err());
+    }
+
+    #[test]
+    fn accepts_numeric_and_channel_chat_ids() {
+        assert!(validate_chat_id("-1001234567890").is_ok());
+        assert!(validate_chat_id("@cyberbug_channel").is_ok());
+        assert!(validate_chat_id("").is_ok());
+    }
+
+    #[test]
+    fn rejects_malformed_chat_id() {
+        assert!(validate_chat_id("channel name").is_err());
+        assert!(validate_chat_id("abc").is_err());
+    }
+}

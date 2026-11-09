@@ -177,6 +177,10 @@ fn build_router(state: AppState) -> Router {
             post(handlers::runs::email_send),
         )
         .route(
+            "/api/runs/{id}/telegram/send",
+            post(handlers::telegram::send_run),
+        )
+        .route(
             "/api/admin/users",
             get(handlers::admin::list_users).post(handlers::admin::create_user),
         )
@@ -205,6 +209,22 @@ fn build_router(state: AppState) -> Router {
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
         )
         .route("/api/admin/llm/models", get(handlers::admin::llm_models))
+        .route(
+            "/api/admin/telegram/test",
+            post(handlers::telegram::test_bot),
+        )
+        .route(
+            "/api/admin/telegram/sync",
+            post(handlers::telegram::sync_subscribers),
+        )
+        .route(
+            "/api/admin/telegram/subscribers",
+            get(handlers::telegram::list_subscribers),
+        )
+        .route(
+            "/api/admin/telegram/subscribers/{chat_id}",
+            put(handlers::telegram::set_subscriber_active),
+        )
         .route("/api/admin/audit", get(handlers::admin::audit))
         .route("/api/admin/metrics", get(handlers::admin::metrics))
         .route(

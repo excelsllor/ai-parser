@@ -1279,6 +1279,64 @@ pub async fn set_setting(pool: &PgPool, key: &str, value: serde_json::Value) -> 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn upsert_telegram_subscriber(
+    pool: &PgPool,
+    chat_id: i64,
+    chat_type: &str,
+    title: &str,
+    username: Option<&str>,
+    first_name: &str,
+    last_name: &str,
+) -> AppResult<()> {
+    sqlx::query(
+        "INSERT INTO telegram_subscribers
+            (chat_id, chat_type, title, username, first_name, last_name, last_seen_at)
+         VALUES ($1,$2,$3,$4,$5,$6,now())
+         ON CONFLICT (chat_id) DO UPDATE SET
+            chat_type = EXCLUDED.chat_type,
+            title = EXCLUDED.title,
+            username = EXCLUDED.username,
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            last_seen_at = now()",
+    )
+    .bind(chat_id)
+    .bind(chat_type)
+    .bind(title)
+    .bind(username)
+    .bind(first_name)
+    .bind(last_name)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn list_telegram_subscribers(pool: &PgPool) -> AppResult<Vec<TelegramSubscriber>> {
+    sqlx::query_as::<_, TelegramSubscriber>(
+        "SELECT * FROM telegram_subscribers ORDER BY last_seen_at DESC, chat_id",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(AppError::from)
+}
+
+pub async fn set_telegram_subscriber_active(
+    pool: &PgPool,
+    chat_id: i64,
+    active: bool,
+) -> AppResult<()> {
+    let result = sqlx::query("UPDATE telegram_subscribers SET is_active = $2 WHERE chat_id = $1")
+        .bind(chat_id)
+        .bind(active)
+        .execute(pool)
+        .await?;
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound("telegram subscriber not found".into()));
+    }
+    Ok(())
+}
+
 pub async fn list_audit(pool: &PgPool, limit: i64, offset: i64) -> AppResult<Vec<AuditEntry>> {
     let rows = sqlx::query_as::<_, AuditEntry>(
         "SELECT * FROM audit_log ORDER BY created_at DESC LIMIT $1 OFFSET $2",
