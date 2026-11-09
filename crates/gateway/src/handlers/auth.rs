@@ -191,17 +191,21 @@ pub async fn register(
         )
         .await?;
         let link = format!("{}/verify-email?token={token}", public_base(&state));
-        if let Err(error) = send_email_link(
-            &state,
-            email,
-            "Подтверждение почты в CyberBug",
-            &link,
-            "Подтвердите адрес электронной почты в CyberBug.",
-        )
-        .await
-        {
-            tracing::warn!(error = %error, "verification email send failed");
-        }
+        let send_state = state.clone();
+        let recipient = email.to_string();
+        tokio::spawn(async move {
+            if let Err(error) = send_email_link(
+                &send_state,
+                &recipient,
+                "Подтверждение почты в CyberBug",
+                &link,
+                "Подтвердите адрес электронной почты в CyberBug.",
+            )
+            .await
+            {
+                tracing::warn!(error = %error, "verification email send failed");
+            }
+        });
     }
     let session = issue_session(&state, &user, ip, "auth.register.success").await?;
     Ok(Json(session))
@@ -308,14 +312,21 @@ pub async fn request_email_verification(
     )
     .await?;
     let link = format!("{}/verify-email?token={token}", public_base(&state));
-    send_email_link(
-        &state,
-        email,
-        "Подтверждение почты в CyberBug",
-        &link,
-        "Подтвердите адрес электронной почты в CyberBug.",
-    )
-    .await?;
+    let send_state = state.clone();
+    let recipient = email.to_string();
+    tokio::spawn(async move {
+        if let Err(error) = send_email_link(
+            &send_state,
+            &recipient,
+            "Подтверждение почты в CyberBug",
+            &link,
+            "Подтвердите адрес электронной почты в CyberBug.",
+        )
+        .await
+        {
+            tracing::warn!(error = %error, "verification email send failed");
+        }
+    });
     Ok(Json(json!({"ok": true})))
 }
 

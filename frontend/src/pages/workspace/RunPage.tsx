@@ -54,21 +54,7 @@ import workspaceStyles from '@components/workspace/workspace.module.css';
 
 const styles = { ...workspaceStyles, ...runStyles };
 
-interface VulnerabilityRow {
-  item_title: string;
-  item_url: string;
-  cve_id: string;
-  bdu_id: string;
-  software: string;
-  severity: string;
-  cvss_score: number | null;
-  fixed_version: string;
-  cmdb_match: boolean;
-  cmdb_error: string;
-  recommendation: string;
-}
-
-type TabId = 'digest' | 'post' | 'email' | 'journal' | 'checks' | 'vulns';
+type TabId = 'digest' | 'post' | 'email' | 'journal' | 'checks';
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof DescriptionIcon }> = [
   { id: 'digest', label: 'Дайджест', icon: DescriptionIcon },
@@ -76,7 +62,6 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof DescriptionIcon }> = 
   { id: 'email', label: 'Предпросмотр письма', icon: MailIcon },
   { id: 'journal', label: 'Журнал обработки', icon: TableIcon },
   { id: 'checks', label: 'Обязательные проверки', icon: RuleIcon },
-  { id: 'vulns', label: 'Уязвимости', icon: ShieldHeartIcon },
 ];
 
 const RUN_STATUS_LABELS: Record<string, string> = {
@@ -361,9 +346,6 @@ export default function RunPage() {
     if (tab === 'email') {
       return ['email.html', 'email.md', 'email_subject.txt'];
     }
-    if (tab === 'vulns') {
-      return ['vulnerabilities.json'];
-    }
     return [];
   }, [tab]);
 
@@ -398,14 +380,6 @@ export default function RunPage() {
   const postText = artifacts['post.md'] ?? '';
   const emailHtml = artifacts['email.html'] ?? '';
   const emailSubject = (artifacts['email_subject.txt'] ?? '').trim();
-  const vulnerabilities = useMemo(() => {
-    try {
-      return JSON.parse(artifacts['vulnerabilities.json'] ?? '[]') as VulnerabilityRow[];
-    } catch {
-      return [];
-    }
-  }, [artifacts]);
-
   const parsedDigest = useMemo(() => parseDigest(digestText), [digestText]);
   const parsedPost = useMemo(() => parsePost(postText), [postText]);
   const run = detail?.run;
@@ -1205,68 +1179,6 @@ export default function RunPage() {
                 </table>
                 {filteredJournal.length === 0 && (
                   <p className={cx(styles, "rp-muted rp-journal-empty")}>Ничего не найдено.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {tab === 'vulns' && (
-            <div className={cx(styles, "rp-journal")}>
-              <div className={cx(styles, "rp-journal-toolbar")}>
-                <span className={cx(styles, "rp-muted")}>
-                  Обогащение BDU / NVD / CMDB по найденным идентификаторам
-                </span>
-                <span className={cx(styles, "rp-muted")}>
-                  {vulnerabilities.length} записей
-                </span>
-              </div>
-              <div className={cx(styles, "rp-journal-table-wrap")}>
-                <table className={cx(styles, "rp-journal-table")}>
-                  <thead>
-                    <tr>
-                      <th>Уязвимость</th>
-                      <th>ПО</th>
-                      <th>Уровень</th>
-                      <th>CMDB</th>
-                      <th>Исправление</th>
-                      <th>Рекомендация</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vulnerabilities.map((vuln, index) => (
-                      <tr key={`${vuln.cve_id || vuln.bdu_id}-${index}`}>
-                        <td>
-                          <span className={cx(styles, "rp-journal-group")}>
-                            {vuln.cve_id || vuln.bdu_id}
-                          </span>
-                          {vuln.bdu_id && vuln.cve_id && (
-                            <span className={cx(styles, "rp-journal-url")}>{vuln.bdu_id}</span>
-                          )}
-                        </td>
-                        <td>{vuln.software || '—'}</td>
-                        <td>
-                          <span className={cx(styles, "rp-chip")}>
-                            {vuln.severity}
-                            {vuln.cvss_score !== null ? ` · ${vuln.cvss_score}` : ''}
-                          </span>
-                        </td>
-                        <td>
-                          {vuln.cmdb_match
-                            ? 'Найдено'
-                            : vuln.cmdb_error
-                              ? 'Ошибка'
-                              : 'Не найдено'}
-                        </td>
-                        <td>{vuln.fixed_version || '—'}</td>
-                        <td>{vuln.recommendation || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {vulnerabilities.length === 0 && (
-                  <p className={cx(styles, "rp-muted rp-journal-empty")}>
-                    В этом запуске CVE/BDU не найдены или обогащение ещё не завершено.
-                  </p>
                 )}
               </div>
             </div>

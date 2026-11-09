@@ -7,6 +7,7 @@ import {
   getCurrentUser,
   getMe,
   listSessions,
+  requestEmailVerification,
   logout,
   revokeOtherSessions,
   revokeSession,
@@ -95,6 +96,8 @@ export default function ProfilePage() {
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [verificationSending, setVerificationSending] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ProfileSession[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [profileSaving, setProfileSaving] = useState(false);
@@ -360,6 +363,21 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleResendVerification() {
+    setVerificationSending(true);
+    setVerificationNotice(null);
+    try {
+      await requestEmailVerification();
+      setVerificationNotice('Ссылка отправлена. Проверьте почту и папку «Спам».');
+    } catch (caught) {
+      setVerificationNotice(
+        caught instanceof Error ? caught.message : 'Не удалось отправить письмо.',
+      );
+    } finally {
+      setVerificationSending(false);
+    }
+  }
+
   async function handleLogout() {
     await logout();
     navigate('/login', { replace: true });
@@ -386,6 +404,27 @@ export default function ProfilePage() {
           <div className={cx(styles, "pf-notice")} role="status">
             <CheckCircleIcon />
             <span>{notice}</span>
+          </div>
+        )}
+
+        {me?.email && !me.email_verified_at && (
+          <div className={cx(styles, "pf-verify-banner")} role="status">
+            <EmailReadIcon />
+            <div>
+              <strong>Почта не подтверждена</strong>
+              <span>
+                Подтвердите {me.email}, чтобы использовать восстановление пароля.
+              </span>
+              {verificationNotice && <small>{verificationNotice}</small>}
+            </div>
+            <button
+              className={cx(styles, "pf-button pf-button--primary")}
+              type="button"
+              disabled={verificationSending}
+              onClick={() => void handleResendVerification()}
+            >
+              {verificationSending ? 'Отправляем…' : 'Отправить ссылку'}
+            </button>
           </div>
         )}
 

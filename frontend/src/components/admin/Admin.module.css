@@ -492,14 +492,17 @@
 
 .admin-chart {
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 6px;
   height: 130px;
   padding-top: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .admin-chart-col {
-  flex: 1;
+  flex: 1 0 26px;
+  min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -510,14 +513,18 @@
 
 .admin-chart-bar {
   width: 100%;
+  max-height: calc(100% - 16px);
   min-height: 2px;
   border-radius: 4px 4px 0 0;
   background: #3b82f6;
 }
 
 .admin-chart-label {
+  flex: 0 0 auto;
   color: var(--ws-soft);
   font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .admin-dist-row {
@@ -885,6 +892,14 @@
 
   .admin-main {
     padding: 16px 12px;
+  }
+
+  .admin-chart {
+    gap: 4px;
+  }
+
+  .admin-chart-col {
+    flex-basis: 24px;
   }
 
   .admin-title {

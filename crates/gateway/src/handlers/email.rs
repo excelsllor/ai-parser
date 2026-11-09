@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
@@ -49,7 +51,8 @@ pub async fn send_html(
             state.config.smtp.username.clone(),
             state.config.smtp.password.clone(),
         ))
-    };
+    }
+    .timeout(Some(Duration::from_secs(12)));
 
     builder
         .build()

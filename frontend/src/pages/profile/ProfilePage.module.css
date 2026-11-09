@@ -261,6 +261,74 @@
   font-size: 16px;
 }
 
+.pf-verify-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.pf-verify-banner > svg {
+  flex: 0 0 auto;
+  font-size: 20px;
+  color: #d97706;
+}
+
+.pf-verify-banner > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pf-verify-banner strong {
+  font-size: 13px;
+}
+
+.pf-verify-banner span,
+.pf-verify-banner small {
+  color: #a16207;
+}
+
+.pf-verify-banner small {
+  font-size: 11px;
+}
+
+.pf-verify-banner .pf-button {
+  flex: 0 0 auto;
+}
+
+[data-theme='dark'] .pf-verify-banner {
+  border-color: #78350f;
+  background: #1c1205;
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .pf-verify-banner > svg,
+[data-theme='dark'] .pf-verify-banner span,
+[data-theme='dark'] .pf-verify-banner small {
+  color: #fbbf24;
+}
+
+@media (max-width: 760px) {
+  .pf-verify-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .pf-verify-banner .pf-button {
+    width: 100%;
+  }
+}
+
 .pf-cards {
   display: flex;
   flex-direction: column;

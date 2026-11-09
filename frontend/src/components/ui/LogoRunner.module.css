@@ -18,45 +18,38 @@
   border: 1px solid var(--ws-border, #e2e8f0);
   border-radius: 12px;
   background: var(--ws-paper, #ffffff);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
 }
 
-.logo-runner-ground {
+.logo-runner-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.logo-runner-overlay {
   position: absolute;
-  right: 0;
-  bottom: 22px;
-  left: 0;
-  height: 2px;
-  background: var(--ws-border, #e2e8f0);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #ffffff;
+  pointer-events: none;
+  text-align: center;
 }
 
-.logo-runner-sprite {
-  position: absolute;
-  bottom: 24px;
-  left: 18px;
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
-  animation: logo-runner-hop 2.4s ease-in-out infinite;
+.logo-runner-overlay strong {
+  font-size: 15px;
 }
 
-.logo-runner-obstacle {
-  position: absolute;
-  bottom: 24px;
-  width: 14px;
-  height: 30px;
-  border-radius: 3px;
-  background: var(--ws-primary, #2563eb);
-  animation: logo-runner-obstacle 2.4s linear infinite;
-}
-
-.logo-runner-obstacle--one {
-  animation-delay: 0s;
-}
-
-.logo-runner-obstacle--two {
-  animation-delay: 1.2s;
-  height: 22px;
-  background: var(--ws-muted, #94a3b8);
+.logo-runner-overlay span {
+  font-size: 11px;
+  opacity: 0.85;
 }
 
 .logo-runner-copy {
@@ -80,33 +73,8 @@
   line-height: 1.5;
 }
 
-@keyframes logo-runner-hop {
-  0%,
-  32%,
-  52%,
-  100% {
-    transform: translateY(0) rotate(0);
-  }
-  40% {
-    transform: translateY(-36px) rotate(-6deg);
-  }
-  46% {
-    transform: translateY(-8px) rotate(3deg);
-  }
-}
-
-@keyframes logo-runner-obstacle {
-  from {
-    left: 100%;
-  }
-  to {
-    left: -20px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .logo-runner-sprite,
-  .logo-runner-obstacle {
-    animation: none;
-  }
+.logo-runner-score {
+  color: var(--ws-soft, #94a3b8) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px !important;
 }
