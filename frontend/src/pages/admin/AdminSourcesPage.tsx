@@ -19,7 +19,12 @@ import {
   RefreshIcon,
   RssIcon,
   SearchIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import adminStyles from '@components/admin/Admin.module.css';
+
+const styles = adminStyles;
 
 import { formatDateTime, initials } from './utils';
 
@@ -188,24 +193,24 @@ export default function AdminSourcesPage() {
 
   return (
     <>
-      <header className="admin-head">
+      <header className={cx(styles, "admin-head")}>
         <div>
-          <span className="admin-eyebrow">
+          <span className={cx(styles, "admin-eyebrow")}>
             <RssIcon />
             Коннекторы данных
           </span>
-          <h1 className="admin-title">Источники сбора данных и парсинг</h1>
-          <p className="admin-sub">
+          <h1 className={cx(styles, "admin-title")}>Источники сбора данных и парсинг</h1>
+          <p className={cx(styles, "admin-sub")}>
             Конфигурация коннекторов, интервалов синхронизации и статусов парсинга.
           </p>
         </div>
-        <div className="admin-actions">
-          <button className="admin-button" type="button" onClick={() => void load()}>
+        <div className={cx(styles, "admin-actions")}>
+          <button className={cx(styles, "admin-button")} type="button" onClick={() => void load()}>
             <RefreshIcon />
             Обновить
           </button>
           <button
-            className="admin-button admin-button--primary"
+            className={cx(styles, "admin-button admin-button--primary")}
             type="button"
             onClick={() => setAddOpen((value) => !value)}
           >
@@ -215,70 +220,70 @@ export default function AdminSourcesPage() {
       </header>
 
       {error && (
-        <div className="admin-error" role="alert">
+        <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
         </div>
       )}
       {notice && (
-        <div className="admin-notice" role="status">
+        <div className={cx(styles, "admin-notice")} role="status">
           <CheckCircleIcon />
           <span>{notice}</span>
         </div>
       )}
 
-      <div className="admin-stats">
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+      <div className={cx(styles, "admin-stats")}>
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Всего источников
             <RssIcon />
           </span>
-          <strong className="admin-stat-value">{stats.total}</strong>
-          <span className="admin-stat-hint">
+          <strong className={cx(styles, "admin-stat-value")}>{stats.total}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>
             {stats.rss} RSS · собрано {stats.collected.toLocaleString('ru-RU')} материалов
           </span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Активны
             <CheckCircleIcon />
           </span>
-          <strong className="admin-stat-value">{stats.active}</strong>
-          <span className="admin-stat-hint">Участвуют в сборе</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.active}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Участвуют в сборе</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Приостановлены
             <AlertCircleIcon />
           </span>
-          <strong className="admin-stat-value">{stats.disabled}</strong>
-          <span className="admin-stat-hint">Исключены из выборки</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.disabled}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Исключены из выборки</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Стоп-слов
             <KeyIcon />
           </span>
-          <strong className="admin-stat-value">{keywords.length}</strong>
-          <span className="admin-stat-hint">Фильтры ключевых слов</span>
+          <strong className={cx(styles, "admin-stat-value")}>{keywords.length}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Фильтры ключевых слов</span>
         </article>
       </div>
 
       {addOpen && (
-        <form className="admin-form" onSubmit={handleCreate}>
-          <label className="admin-field">
+        <form className={cx(styles, "admin-form")} onSubmit={handleCreate}>
+          <label className={cx(styles, "admin-field")}>
             <span>Название</span>
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
           </label>
-          <label className="admin-field">
+          <label className={cx(styles, "admin-field")}>
             <span>Тип коннектора</span>
             <select
-              className="admin-select"
+              className={cx(styles, "admin-select")}
               value={sourceKind}
               onChange={(event) => setSourceKind(event.target.value)}
             >
@@ -286,20 +291,20 @@ export default function AdminSourcesPage() {
               <option value="html">HTML</option>
             </select>
           </label>
-          <label className="admin-field">
+          <label className={cx(styles, "admin-field")}>
             <span>URL</span>
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               required
               type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
             />
           </label>
-          <label className="admin-field">
+          <label className={cx(styles, "admin-field")}>
             <span>Доверие</span>
             <select
-              className="admin-select"
+              className={cx(styles, "admin-select")}
               value={trust}
               onChange={(event) => setTrust(event.target.value)}
             >
@@ -308,9 +313,9 @@ export default function AdminSourcesPage() {
               <option value="unknown">Неизвестно</option>
             </select>
           </label>
-          <div className="admin-form-actions">
+          <div className={cx(styles, "admin-form-actions")}>
             <button
-              className="admin-button admin-button--primary"
+              className={cx(styles, "admin-button admin-button--primary")}
               type="submit"
               disabled={submitting}
             >
@@ -320,19 +325,19 @@ export default function AdminSourcesPage() {
         </form>
       )}
 
-      <section className="admin-card">
-        <div className="admin-filters">
-          <div className="admin-search">
+      <section className={cx(styles, "admin-card")}>
+        <div className={cx(styles, "admin-filters")}>
+          <div className={cx(styles, "admin-search")}>
             <SearchIcon />
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               placeholder="Поиск по названию или домену"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
           <select
-            className="admin-select"
+            className={cx(styles, "admin-select")}
             value={kind}
             onChange={(event) => setKind(event.target.value)}
           >
@@ -341,7 +346,7 @@ export default function AdminSourcesPage() {
             <option value="html">HTML</option>
           </select>
           <select
-            className="admin-select"
+            className={cx(styles, "admin-select")}
             value={status}
             onChange={(event) => setStatus(event.target.value)}
           >
@@ -351,8 +356,8 @@ export default function AdminSourcesPage() {
           </select>
         </div>
 
-        <div className="admin-table-wrap admin-mt-14">
-          <table className="admin-table">
+        <div className={cx(styles, "admin-table-wrap admin-mt-14")}>
+          <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
                 <th>Источник</th>
@@ -367,23 +372,23 @@ export default function AdminSourcesPage() {
               {filtered.map((source) => (
                 <tr key={source.id}>
                   <td>
-                    <div className="admin-user-cell">
-                      <span className="admin-avatar">{initials(source.name)}</span>
+                    <div className={cx(styles, "admin-user-cell")}>
+                      <span className={cx(styles, "admin-avatar")}>{initials(source.name)}</span>
                       <span>
                         <a
-                          className="admin-cell-strong"
+                          className={cx(styles, "admin-cell-strong")}
                           href={source.url}
                           rel="noreferrer"
                           target="_blank"
                         >
                           {source.name}
                         </a>
-                        <span className="admin-cell-sub">{source.url}</span>
+                        <span className={cx(styles, "admin-cell-sub")}>{source.url}</span>
                       </span>
                     </div>
                   </td>
                   <td>
-                    <span className="admin-badge admin-badge--blue">
+                    <span className={cx(styles, "admin-badge admin-badge--blue")}>
                       {KIND_LABELS[source.kind] ?? source.kind}
                     </span>
                   </td>
@@ -391,20 +396,20 @@ export default function AdminSourcesPage() {
                   <td>{source.language}</td>
                   <td>
                     {source.last_synced_at ? (
-                      <span className="admin-cell-strong">
+                      <span className={cx(styles, "admin-cell-strong")}>
                         {formatDateTime(source.last_synced_at)}
                       </span>
                     ) : (
-                      <span className="admin-cell-sub">Ещё не было</span>
+                      <span className={cx(styles, "admin-cell-sub")}>Ещё не было</span>
                     )}
                     {source.last_error && (
-                      <span className="admin-cell-sub" title={source.last_error}>
+                      <span className={cx(styles, "admin-cell-sub")} title={source.last_error}>
                         ошибка · {source.items_collected} собрано
                       </span>
                     )}
                   </td>
                   <td>
-                    <div className="admin-row-actions">
+                    <div className={cx(styles, "admin-row-actions")}>
                       <button
                         aria-checked={source.enabled}
                         aria-label={
@@ -412,20 +417,20 @@ export default function AdminSourcesPage() {
                             ? `Отключить ${source.name}`
                             : `Включить ${source.name}`
                         }
-                        className={`admin-toggle${
+                        className={cx(styles, `admin-toggle${
                           source.enabled ? ' admin-toggle--on' : ''
-                        }`}
+                        }`)}
                         disabled={busyId === source.id}
                         role="switch"
                         title={source.enabled ? 'Активен' : 'Приостановлен'}
                         type="button"
                         onClick={() => void handleToggle(source)}
                       >
-                        <span className="admin-toggle-thumb" />
+                        <span className={cx(styles, "admin-toggle-thumb")} />
                       </button>
                       <button
                         aria-label={`Удалить ${source.name}`}
-                        className="admin-button admin-button--danger admin-button--small"
+                        className={cx(styles, "admin-button admin-button--danger admin-button--small")}
                         disabled={busyId === source.id}
                         type="button"
                         onClick={() => void handleDelete(source)}
@@ -439,42 +444,42 @@ export default function AdminSourcesPage() {
             </tbody>
           </table>
           {!loading && filtered.length === 0 && (
-            <p className="admin-empty">Источники не найдены.</p>
+            <p className={cx(styles, "admin-empty")}>Источники не найдены.</p>
           )}
-          {loading && <p className="admin-empty">Загружаем источники…</p>}
+          {loading && <p className={cx(styles, "admin-empty")}>Загружаем источники…</p>}
         </div>
-        <p className="admin-note admin-mt-10">
+        <p className={cx(styles, "admin-note admin-mt-10")}>
           Показано {filtered.length} из {sources.length}. Последнее обновление:{' '}
           {formatDateTime(updatedAt)}
         </p>
       </section>
 
-      <section className="admin-card">
-        <div className="admin-card-head">
+      <section className={cx(styles, "admin-card")}>
+        <div className={cx(styles, "admin-card-head")}>
           <div>
-            <h2 className="admin-card-title">Правила фильтрации стоп-слов</h2>
-            <p className="admin-card-sub">
+            <h2 className={cx(styles, "admin-card-title")}>Правила фильтрации стоп-слов</h2>
+            <p className={cx(styles, "admin-card-sub")}>
               Предотвращает перегрузку LLM-конвейера нерелевантными публикациями.
             </p>
           </div>
-          <span className="admin-badge admin-badge--green">
+          <span className={cx(styles, "admin-badge admin-badge--green")}>
             Активно {keywords.length}
           </span>
         </div>
 
-        <form className="admin-form admin-mb-12" onSubmit={handleAddKeyword}>
-          <label className="admin-field">
+        <form className={cx(styles, "admin-form admin-mb-12")} onSubmit={handleAddKeyword}>
+          <label className={cx(styles, "admin-field")}>
             <span>Новое стоп-слово</span>
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               placeholder="Например, вакансия"
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
             />
           </label>
-          <div className="admin-form-actions">
+          <div className={cx(styles, "admin-form-actions")}>
             <button
-              className="admin-button admin-button--primary"
+              className={cx(styles, "admin-button admin-button--primary")}
               type="submit"
               disabled={keywordSubmitting || !keyword.trim()}
             >
@@ -483,9 +488,9 @@ export default function AdminSourcesPage() {
           </div>
         </form>
 
-        <div className="admin-chips">
+        <div className={cx(styles, "admin-chips")}>
           {keywords.map((item) => (
-            <span className="admin-chip" key={item.id}>
+            <span className={cx(styles, "admin-chip")} key={item.id}>
               {item.word}
               <button
                 aria-label={`Удалить ${item.word}`}
@@ -496,7 +501,7 @@ export default function AdminSourcesPage() {
               </button>
             </span>
           ))}
-          {keywords.length === 0 && <span className="admin-note">Стоп-слов пока нет.</span>}
+          {keywords.length === 0 && <span className={cx(styles, "admin-note")}>Стоп-слов пока нет.</span>}
         </div>
       </section>
     </>

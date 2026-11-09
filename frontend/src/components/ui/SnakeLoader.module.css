@@ -76,3 +76,19 @@
     opacity: 1;
   }
 }
+
+
+/* Motion */
+.snake-loader {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+.snake-loader-stage {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

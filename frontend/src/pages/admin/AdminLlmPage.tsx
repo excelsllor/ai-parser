@@ -12,7 +12,12 @@ import {
   SaveIcon,
   ScheduleIcon,
   TuneIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import adminStyles from '@components/admin/Admin.module.css';
+
+const styles = adminStyles;
 
 import { downloadFile, formatDateTime, formatTime } from './utils';
 
@@ -166,19 +171,19 @@ export default function AdminLlmPage() {
 
   return (
     <>
-      <header className="admin-head">
+      <header className={cx(styles, "admin-head")}>
         <div>
-          <span className="admin-eyebrow">
+          <span className={cx(styles, "admin-eyebrow")}>
             <BotIcon />
             LLM runtime configuration
           </span>
-          <h1 className="admin-title">LLM</h1>
-          <p className="admin-sub">
+          <h1 className={cx(styles, "admin-title")}>LLM</h1>
+          <p className={cx(styles, "admin-sub")}>
             Base URL провайдера, выбор модели, веса ранжирования и расход токенов.
           </p>
         </div>
-        <div className="admin-actions">
-          <button className="admin-button" type="button" onClick={() => void load()}>
+        <div className={cx(styles, "admin-actions")}>
+          <button className={cx(styles, "admin-button")} type="button" onClick={() => void load()}>
             <RefreshIcon />
             Обновить
           </button>
@@ -186,90 +191,90 @@ export default function AdminLlmPage() {
       </header>
 
       {error && (
-        <div className="admin-error" role="alert">
+        <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
         </div>
       )}
       {notice && (
-        <div className="admin-notice" role="status">
+        <div className={cx(styles, "admin-notice")} role="status">
           <CheckCircleIcon />
           <span>{notice}</span>
         </div>
       )}
 
-      <div className="admin-stats">
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+      <div className={cx(styles, "admin-stats")}>
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Рабочая модель
             <BotIcon />
           </span>
-          <strong className="admin-stat-value admin-stat-value--sm">
+          <strong className={cx(styles, "admin-stat-value admin-stat-value--sm")}>
             {settings?.effective.model ?? '—'}
           </strong>
-          <span className="admin-stat-hint">Base URL: {settings?.effective.base_url ?? '—'}</span>
+          <span className={cx(styles, "admin-stat-hint")}>Base URL: {settings?.effective.base_url ?? '—'}</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Токенов обработано
             <TuneIcon />
           </span>
-          <strong className="admin-stat-value">
+          <strong className={cx(styles, "admin-stat-value")}>
             {stats.totalTokens.toLocaleString('ru-RU')}
           </strong>
-          <span className="admin-stat-hint">
+          <span className={cx(styles, "admin-stat-hint")}>
             {stats.inputTokens.toLocaleString('ru-RU')} вход ·{' '}
             {stats.outputTokens.toLocaleString('ru-RU')} выход
           </span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Средняя задержка
             <ScheduleIcon />
           </span>
-          <strong className="admin-stat-value">
+          <strong className={cx(styles, "admin-stat-value")}>
             {stats.avgLatency === null ? '—' : stats.avgLatency}
             {stats.avgLatency !== null && <small> мс</small>}
           </strong>
-          <span className="admin-stat-hint">По последним 200 вызовам</span>
+          <span className={cx(styles, "admin-stat-hint")}>По последним 200 вызовам</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Стоимость
             <DownloadIcon />
           </span>
-          <strong className="admin-stat-value">${stats.cost.toFixed(4)}</strong>
-          <span className="admin-stat-hint">
+          <strong className={cx(styles, "admin-stat-value")}>${stats.cost.toFixed(4)}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>
             {stats.ok} из {calls.length} успешных
           </span>
         </article>
       </div>
 
-      <div className="admin-grid">
-        <section className="admin-card">
-          <div className="admin-card-head">
+      <div className={cx(styles, "admin-grid")}>
+        <section className={cx(styles, "admin-card")}>
+          <div className={cx(styles, "admin-card-head")}>
             <div>
-              <h2 className="admin-card-title">Base URL и модель</h2>
-              <p className="admin-card-sub">Применяется к следующим запускам пайплайна</p>
+              <h2 className={cx(styles, "admin-card-title")}>Base URL и модель</h2>
+              <p className={cx(styles, "admin-card-sub")}>Применяется к следующим запускам пайплайна</p>
             </div>
-            <span className="admin-badge admin-badge--blue">Strict mode</span>
+            <span className={cx(styles, "admin-badge admin-badge--blue")}>Strict mode</span>
           </div>
 
-          <form className="admin-form" onSubmit={handleSave}>
-            <label className="admin-field">
+          <form className={cx(styles, "admin-form")} onSubmit={handleSave}>
+            <label className={cx(styles, "admin-field")}>
               <span>Base URL</span>
               <input
-                className="admin-input"
+                className={cx(styles, "admin-input")}
                 required
                 placeholder="https://provider.example/v1"
                 value={baseUrl}
                 onChange={(event) => setBaseUrl(event.target.value)}
               />
             </label>
-            <label className="admin-field">
+            <label className={cx(styles, "admin-field")}>
               <span>Модель</span>
               <select
-                className="admin-select"
+                className={cx(styles, "admin-select")}
                 required
                 value={model}
                 onChange={(event) => setModel(event.target.value)}
@@ -284,9 +289,9 @@ export default function AdminLlmPage() {
                 ))}
               </select>
             </label>
-            <div className="admin-form-actions">
+            <div className={cx(styles, "admin-form-actions")}>
               <button
-                className="admin-button"
+                className={cx(styles, "admin-button")}
                 type="button"
                 disabled={modelsLoading || !baseUrl.trim()}
                 onClick={() => void loadModels(baseUrl)}
@@ -295,7 +300,7 @@ export default function AdminLlmPage() {
                 {modelsLoading ? 'Загружаем…' : 'Загрузить модели'}
               </button>
               <button
-                className="admin-button admin-button--primary"
+                className={cx(styles, "admin-button admin-button--primary")}
                 type="submit"
                 disabled={saving || loading || !baseUrl.trim() || !model.trim()}
               >
@@ -306,29 +311,29 @@ export default function AdminLlmPage() {
           </form>
 
           {modelsError && (
-            <p className="admin-note admin-note--error admin-mt-10">
+            <p className={cx(styles, "admin-note admin-note--error admin-mt-10")}>
               Список моделей не получен: {modelsError}
             </p>
           )}
-          <p className="admin-note admin-mt-10">
+          <p className={cx(styles, "admin-note admin-mt-10")}>
             Окружение: {settings?.effective.env ?? '—'}. Значения сохраняются в
             настройках платформы и переопределяют переменные окружения.
           </p>
         </section>
 
-        <section className="admin-card">
-          <div className="admin-card-head">
+        <section className={cx(styles, "admin-card")}>
+          <div className={cx(styles, "admin-card-head")}>
             <div>
-              <h2 className="admin-card-title">Веса ранжирования</h2>
-              <p className="admin-card-sub">Влияют на порядок событий в дайджесте</p>
+              <h2 className={cx(styles, "admin-card-title")}>Веса ранжирования</h2>
+              <p className={cx(styles, "admin-card-sub")}>Влияют на порядок событий в дайджесте</p>
             </div>
           </div>
-          <form className="admin-form" onSubmit={handleSaveWeights}>
+          <form className={cx(styles, "admin-form")} onSubmit={handleSaveWeights}>
             {weightKeys.map((key) => (
-              <label className="admin-field" key={key}>
+              <label className={cx(styles, "admin-field")} key={key}>
                 <span>{WEIGHT_LABELS[key]}</span>
                 <input
-                  className="admin-input"
+                  className={cx(styles, "admin-input")}
                   max={1}
                   min={0}
                   step={0.01}
@@ -343,9 +348,9 @@ export default function AdminLlmPage() {
                 />
               </label>
             ))}
-            <div className="admin-form-actions">
+            <div className={cx(styles, "admin-form-actions")}>
               <button
-                className="admin-button admin-button--primary"
+                className={cx(styles, "admin-button admin-button--primary")}
                 type="submit"
                 disabled={savingWeights}
               >
@@ -354,29 +359,29 @@ export default function AdminLlmPage() {
               </button>
             </div>
           </form>
-          <p className="admin-note admin-mt-12">
+          <p className={cx(styles, "admin-note admin-mt-12")}>
             Температура и лимит токенов задаются конфигурацией backend и не
             редактируются из интерфейса.
           </p>
         </section>
       </div>
 
-      <section className="admin-card">
-        <div className="admin-card-head">
+      <section className={cx(styles, "admin-card")}>
+        <div className={cx(styles, "admin-card-head")}>
           <div>
-            <h2 className="admin-card-title">Журнал вызовов и расход токенов</h2>
-            <p className="admin-card-sub">Детализированная телеметрия последних генераций</p>
+            <h2 className={cx(styles, "admin-card-title")}>Журнал вызовов и расход токенов</h2>
+            <p className={cx(styles, "admin-card-sub")}>Детализированная телеметрия последних генераций</p>
           </div>
-          <div className="admin-actions">
-            <button className="admin-button" type="button" onClick={exportCsv}>
+          <div className={cx(styles, "admin-actions")}>
+            <button className={cx(styles, "admin-button")} type="button" onClick={exportCsv}>
               <DownloadIcon />
               Экспорт CSV
             </button>
           </div>
         </div>
 
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+        <div className={cx(styles, "admin-table-wrap")}>
+          <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
                 <th>Время</th>
@@ -392,11 +397,11 @@ export default function AdminLlmPage() {
             <tbody>
               {calls.slice(0, 40).map((call) => (
                 <tr key={call.id}>
-                  <td className="admin-mono">{formatTime(call.created_at)}</td>
+                  <td className={cx(styles, "admin-mono")}>{formatTime(call.created_at)}</td>
                   <td>
-                    <span className="admin-cell-strong">{call.purpose}</span>
+                    <span className={cx(styles, "admin-cell-strong")}>{call.purpose}</span>
                     {call.run_id && (
-                      <span className="admin-cell-sub">{call.run_id.slice(0, 8)}</span>
+                      <span className={cx(styles, "admin-cell-sub")}>{call.run_id.slice(0, 8)}</span>
                     )}
                   </td>
                   <td>{call.model}</td>
@@ -406,9 +411,9 @@ export default function AdminLlmPage() {
                   <td>{call.latency_ms} мс</td>
                   <td>
                     <span
-                      className={`admin-badge ${
+                      className={cx(styles, `admin-badge ${
                         call.ok ? 'admin-badge--green' : 'admin-badge--red'
-                      }`}
+                      }`)}
                     >
                       {call.ok ? 'OK' : 'Ошибка'}
                     </span>
@@ -418,12 +423,12 @@ export default function AdminLlmPage() {
             </tbody>
           </table>
           {!loading && calls.length === 0 && (
-            <p className="admin-empty">Вызовов LLM пока нет.</p>
+            <p className={cx(styles, "admin-empty")}>Вызовов LLM пока нет.</p>
           )}
-          {loading && <p className="admin-empty">Загружаем журнал вызовов…</p>}
+          {loading && <p className={cx(styles, "admin-empty")}>Загружаем журнал вызовов…</p>}
         </div>
 
-        <p className="admin-note admin-mt-10">
+        <p className={cx(styles, "admin-note admin-mt-10")}>
           Показаны последние {Math.min(calls.length, 40)} из {calls.length} вызовов · обновлено{' '}
           {formatDateTime(updatedAt)}
         </p>

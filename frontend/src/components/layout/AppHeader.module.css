@@ -211,3 +211,78 @@ button.app-brand {
     padding: 0 16px;
   }
 }
+
+
+/* Material You theme */
+body .app-header {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  box-shadow: var(--header-shadow);
+}
+
+body .app-nav-item {
+  border-radius: 999px;
+}
+
+body .app-nav-item--active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  box-shadow: none;
+}
+
+body .app-header-icon:hover,
+body .app-nav-item:hover {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+}
+
+
+/* Motion */
+.app-header {
+  animation: motion-fade-down var(--motion-slow) var(--motion-ease-soft) both;
+}
+
+.app-nav a {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.app-nav a:hover {
+  transform: translateY(-1px);
+}
+
+.app-brand-mark img,
+.app-brand-mark svg {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+.app-brand:hover .app-brand-mark img,
+.app-brand:hover .app-brand-mark svg {
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.app-header-icon svg {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+.app-header-icon:hover svg {
+  transform: scale(1.08);
+}
+
+.app-theme-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-down {
+  from { opacity: 0; transform: translate3d(0, -6px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}

@@ -14,7 +14,7 @@ use news_shared::models::{
 };
 use news_shared::redis_cache::RedisCache;
 use news_shared::telemetry::{init_metrics, init_tracing};
-use news_shared::text::{count_chars_without_urls, remove_em_dash, sha256_hex, truncate_chars};
+use news_shared::text::{count_chars_without_urls, remove_em_dash, sha256_hex};
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -293,6 +293,18 @@ async fn write_artifact(
     Ok(())
 }
 
+// The digest and post are cut to a character budget, not marked with an ellipsis.
+fn truncate_plain(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let mut cut: String = text.chars().take(max).collect();
+    if let Some(pos) = cut.rfind(char::is_whitespace) {
+        cut.truncate(pos);
+    }
+    cut.trim_end().to_string()
+}
+
 fn render_digest(
     events: &[DraftEvent],
     run: &news_shared::models::Run,
@@ -307,13 +319,13 @@ fn render_digest(
         }
         for event in events.iter_mut() {
             if event.summary.chars().count() > 220 {
-                event.summary = truncate_chars(&event.summary, 220);
+                event.summary = truncate_plain(&event.summary, 220);
             }
             if event.consequences.chars().count() > 180 {
-                event.consequences = truncate_chars(&event.consequences, 180);
+                event.consequences = truncate_plain(&event.consequences, 180);
             }
             if event.justification.chars().count() > 200 {
-                event.justification = truncate_chars(&event.justification, 200);
+                event.justification = truncate_plain(&event.justification, 200);
             }
         }
         let text = render_digest_full(&events, run, items);
@@ -321,19 +333,19 @@ fn render_digest(
             return text;
         }
         for event in events.iter_mut() {
-            event.summary = truncate_chars(&event.summary, 140);
-            event.consequences = truncate_chars(&event.consequences, 110);
-            event.justification = truncate_chars(&event.justification, 120);
+            event.summary = truncate_plain(&event.summary, 140);
+            event.consequences = truncate_plain(&event.consequences, 110);
+            event.justification = truncate_plain(&event.justification, 120);
         }
         let text = render_digest_full(&events, run, items);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
         for event in events.iter_mut() {
-            event.summary = truncate_chars(&event.summary, 90);
-            event.consequences = truncate_chars(&event.consequences, 70);
-            event.justification = truncate_chars(&event.justification, 80);
-            event.title = truncate_chars(&event.title, 100);
+            event.summary = truncate_plain(&event.summary, 90);
+            event.consequences = truncate_plain(&event.consequences, 70);
+            event.justification = truncate_plain(&event.justification, 80);
+            event.title = truncate_plain(&event.title, 100);
         }
     }
     render_digest_full(&events, run, items)
@@ -390,24 +402,24 @@ fn render_post(
             return text;
         }
         for event in events.iter_mut() {
-            event.summary = truncate_chars(&event.summary, 180);
-            event.title = truncate_chars(&event.title, 120);
+            event.summary = truncate_plain(&event.summary, 180);
+            event.title = truncate_plain(&event.title, 120);
         }
         let text = render_post_full(&events, run, items);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
         for event in events.iter_mut() {
-            event.summary = truncate_chars(&event.summary, 110);
-            event.title = truncate_chars(&event.title, 90);
+            event.summary = truncate_plain(&event.summary, 110);
+            event.title = truncate_plain(&event.title, 90);
         }
         let text = render_post_full(&events, run, items);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
         for event in events.iter_mut() {
-            event.summary = truncate_chars(&event.summary, 70);
-            event.title = truncate_chars(&event.title, 70);
+            event.summary = truncate_plain(&event.summary, 70);
+            event.title = truncate_plain(&event.title, 70);
         }
     }
     render_post_full(&events, run, items)
@@ -1015,6 +1027,7 @@ mod tests {
         assert!(digest.contains("Источники:"));
         assert!(digest.contains("Обоснование:"));
         assert!(!digest.contains('—'));
+        assert!(!digest.contains('…'));
     }
 
     #[test]
@@ -1029,6 +1042,14 @@ mod tests {
             assert!(post.contains(&format!("{}.", idx + 1)));
         }
         assert!(!post.contains('—'));
+        assert!(!post.contains('…'));
+    }
+
+    #[test]
+    fn truncate_plain_cuts_at_word_boundary_without_ellipsis() {
+        assert_eq!(truncate_plain("hello world", 8), "hello");
+        assert_eq!(truncate_plain("hello", 8), "hello");
+        assert!(!truncate_plain("hello world", 7).contains('…'));
     }
 
     #[test]

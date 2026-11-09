@@ -1256,7 +1256,7 @@
     bottom: 0;
     left: 0;
     z-index: 30;
-    width: 300px;
+    width: min(300px, 86vw);
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     box-shadow: var(--panel-shadow);
@@ -1582,4 +1582,271 @@
   border-color: #065f46;
   background: #064e3b;
   color: #a7f3d0;
+}
+
+
+/* Material You theme */
+body .ws-page {
+  --ws-primary: var(--md-primary);
+  --ws-primary-hover: var(--md-primary-hover);
+  --ws-button-bg: var(--md-primary);
+  --ws-button-hover: var(--md-primary-hover);
+  --ws-button-text: var(--md-on-primary);
+  --ws-button-shadow: transparent;
+  --ws-text: var(--md-on-surface);
+  --ws-text-strong: var(--md-on-surface);
+  --ws-muted: var(--md-on-surface-variant);
+  --ws-soft: var(--md-outline);
+  --ws-border: var(--md-outline-variant);
+  --ws-border-strong: var(--md-outline);
+  --ws-bg: var(--md-background);
+  --ws-paper: var(--md-surface-container-low);
+  background: var(--md-background);
+  color: var(--md-on-surface);
+}
+
+body .ws-header {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  box-shadow: var(--header-shadow);
+}
+
+body .ws-sidebar {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface-container);
+}
+
+body .ws-card,
+body .ws-user-menu {
+  border-color: var(--md-outline-variant);
+  border-radius: 28px;
+  background: var(--md-surface-container-low);
+  box-shadow: var(--panel-shadow);
+}
+
+body .ws-param {
+  border-color: var(--md-outline-variant);
+  border-radius: 20px;
+  background: var(--md-surface-container);
+}
+
+body .ws-user-menu {
+  background: var(--md-surface-container-high);
+}
+
+body .ws-session {
+  border-radius: 999px;
+}
+
+body .ws-session:hover,
+body .ws-session--active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .ws-source,
+body .ws-pill,
+body .ws-status {
+  border-radius: 999px;
+}
+
+body .ws-source {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface-container);
+}
+
+body .ws-pill,
+body .ws-status {
+  border-color: var(--md-outline-variant);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .ws-pill--active,
+body .ws-pill[aria-pressed='true'] {
+  border-color: var(--md-primary);
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+body .ws-submit {
+  border-radius: 999px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+body .ws-submit:hover {
+  background: var(--md-primary-hover);
+}
+
+body .ws-sessions-more {
+  border-color: var(--md-outline);
+  border-radius: 999px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .ws-alert {
+  border-radius: 16px;
+}
+
+body .ws-alert--error {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .ws-alert--info {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+body .ws-avatar {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  box-shadow: none;
+}
+
+body .ws-switch-track {
+  background: var(--md-surface-container-highest);
+}
+
+body .ws-switch-input:checked + .ws-switch-track {
+  background: var(--md-primary);
+}
+
+
+/* Motion */
+.ws-main > * {
+  animation: motion-fade-up var(--motion-slow) var(--motion-ease) both;
+}
+
+.ws-page .ws-main > * {
+  will-change: transform, opacity;
+}
+
+.ws-sessions > *,
+.ws-sources > * {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.ws-sessions > *:nth-child(2),
+.ws-sources > *:nth-child(2) { animation-delay: 40ms; }
+
+.ws-sessions > *:nth-child(3),
+.ws-sources > *:nth-child(3) { animation-delay: 80ms; }
+
+.ws-sessions > *:nth-child(4),
+.ws-sources > *:nth-child(4) { animation-delay: 120ms; }
+
+.ws-sessions > *:nth-child(5),
+.ws-sources > *:nth-child(5) { animation-delay: 160ms; }
+
+.ws-sessions > *:nth-child(n + 6),
+.ws-sources > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+.ws-session,
+.ws-source {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.ws-menu-button,
+.ws-link-button,
+.ws-session-open,
+.ws-session-delete {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+@media (min-width: 1101px) {
+  .ws-sidebar {
+    animation: motion-slide-left var(--motion-slow) var(--motion-ease) both;
+  }
+}
+
+.ws-user-menu {
+  animation: motion-menu-in var(--motion-base) var(--motion-ease) both;
+  transform-origin: top right;
+}
+
+.ws-card,
+.ws-user-menu {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.ws-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--panel-shadow-hover);
+}
+
+[data-theme='dark'] .ws-card:hover {
+  box-shadow: var(--panel-shadow-hover);
+}
+
+.ws-alert {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.ws-backdrop {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+.ws-backdrop {
+  backdrop-filter: blur(2px);
+}
+
+.ws-muted-dot {
+  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+}
+
+.ws-avatar {
+  transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) ease;
+}
+
+.ws-avatar:hover {
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+.ws-card:hover {
+    transform: none;
+  }
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-menu-in {
+  from { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes motion-slide-left {
+  from { opacity: 0; transform: translate3d(-10px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }

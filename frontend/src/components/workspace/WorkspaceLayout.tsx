@@ -3,9 +3,13 @@ import type { ReactNode, UIEvent } from 'react';
 
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
-import { AddIcon, DeleteIcon, MenuIcon } from '@components/ui/icons';
+import { AddIcon, DeleteIcon, MenuIcon } from '@components/ui';
 
-import './workspace.css';
+import { cx } from '@utils/cx';
+
+import workspaceStyles from './workspace.module.css';
+
+const styles = workspaceStyles;
 
 interface WorkspaceLayoutProps {
   children: ReactNode;
@@ -103,11 +107,11 @@ export default function WorkspaceLayout({
   }
 
   return (
-    <div className={`ws-page${sidebarCollapsed ? ' ws-page--sidebar-hidden' : ''}`}>
+    <div className={cx(styles, `ws-page${sidebarCollapsed ? ' ws-page--sidebar-hidden' : ''}`)}>
       <AppHeader
         left={
           <button
-            className="ws-icon-button ws-menu-button"
+            className={cx(styles, "ws-icon-button ws-menu-button")}
             type="button"
             aria-label="Меню сессий"
             onClick={toggleSidebar}
@@ -118,24 +122,24 @@ export default function WorkspaceLayout({
         badge="AI"
       />
 
-      <div className="ws-body">
+      <div className={cx(styles, "ws-body")}>
         {sidebarOpen && (
           <button
-            className="ws-backdrop"
+            className={cx(styles, "ws-backdrop")}
             type="button"
             aria-label="Закрыть меню"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        <aside className={`ws-sidebar${sidebarOpen ? ' ws-sidebar--open' : ''}`}>
-          <div className="ws-sidebar-top">
-            <button className="ws-new-query" type="button" onClick={handleNewQuery}>
+        <aside className={cx(styles, `ws-sidebar${sidebarOpen ? ' ws-sidebar--open' : ''}`)}>
+          <div className={cx(styles, "ws-sidebar-top")}>
+            <button className={cx(styles, "ws-new-query")} type="button" onClick={handleNewQuery}>
               <AddIcon />
               Новый запрос
             </button>
 
-            <div className="ws-sidebar-label">
+            <div className={cx(styles, "ws-sidebar-label")}>
               <span>Недавние сессии</span>
               <span>
                 {recordsLabel(runs.length)}
@@ -144,39 +148,39 @@ export default function WorkspaceLayout({
             </div>
 
             <nav
-              className="ws-sessions"
+              className={cx(styles, "ws-sessions")}
               aria-label="Недавние сессии"
               onScroll={handleSessionsScroll}
             >
-              {loadingRuns && <span className="ws-sidebar-note">Загрузка…</span>}
+              {loadingRuns && <span className={cx(styles, "ws-sidebar-note")}>Загрузка…</span>}
               {!loadingRuns && runs.length === 0 && (
-                <span className="ws-sidebar-note">Пока нет запусков</span>
+                <span className={cx(styles, "ws-sidebar-note")}>Пока нет запусков</span>
               )}
               {runs.map((run) => (
                 <div
-                  className={`ws-session${
+                  className={cx(styles, `ws-session${
                     run.id === activeRunId ? ' ws-session--active' : ''
-                  }`}
+                  }`)}
                   key={run.id}
                 >
                   <button
-                    className="ws-session-open"
+                    className={cx(styles, "ws-session-open")}
                     type="button"
                     onClick={() => handleSelectRun(run)}
                   >
-                    <span className="ws-session-top">
-                      <span className="ws-session-title">
+                    <span className={cx(styles, "ws-session-top")}>
+                      <span className={cx(styles, "ws-session-title")}>
                         Запуск {shortId(run.id)}
                       </span>
                     </span>
-                    <span className="ws-session-meta">
+                    <span className={cx(styles, "ws-session-meta")}>
                       <span>{formatDate(run.control_time)}</span>
                     </span>
                   </button>
-                  <span className={`ws-status-dot ws-status-dot--${statusClass(run.status)}`} />
+                  <span className={cx(styles, `ws-status-dot ws-status-dot--${statusClass(run.status)}`)} />
                   {onDeleteRun && (
                     <button
-                      className="ws-session-delete"
+                      className={cx(styles, "ws-session-delete")}
                       type="button"
                       title="Удалить сессию"
                       aria-label="Удалить сессию"
@@ -188,11 +192,11 @@ export default function WorkspaceLayout({
                 </div>
               ))}
               {loadingMoreRuns && (
-                <span className="ws-sidebar-note">Загрузка…</span>
+                <span className={cx(styles, "ws-sidebar-note")}>Загрузка…</span>
               )}
               {hasMoreRuns && !loadingMoreRuns && onLoadMoreRuns && (
                 <button
-                  className="ws-sessions-more"
+                  className={cx(styles, "ws-sessions-more")}
                   type="button"
                   onClick={onLoadMoreRuns}
                 >
@@ -203,7 +207,7 @@ export default function WorkspaceLayout({
           </div>
         </aside>
 
-        <main className="ws-main">{children}</main>
+        <main className={cx(styles, "ws-main")}>{children}</main>
       </div>
     </div>
   );

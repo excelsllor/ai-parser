@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { clearSession, getCurrentUser } from '@api/auth';
@@ -7,11 +7,17 @@ import {
   DashboardIcon,
   LogoutIcon,
   UserIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import workspaceStyles from '@components/workspace/workspace.module.css';
+
+const styles = workspaceStyles;
 
 export default function UserMenu() {
   const navigate = useNavigate();
   const user = getCurrentUser();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -20,8 +26,8 @@ export default function UserMenu() {
     }
 
     const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (!target?.closest('.ws-user-wrap')) {
+      const target = event.target as Node | null;
+      if (target && !containerRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -39,28 +45,28 @@ export default function UserMenu() {
   }
 
   return (
-    <div className="ws-user-wrap">
+    <div className={cx(styles, "ws-user-wrap")} ref={containerRef}>
       <button
-        className="ws-user"
+        className={cx(styles, "ws-user")}
         type="button"
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="ws-avatar">{initials}</span>
-        <span className="ws-user-text">
-          <span className="ws-user-name">{user?.username ?? 'Пользователь'}</span>
-          <span className="ws-user-role">{roleLabel}</span>
+        <span className={cx(styles, "ws-avatar")}>{initials}</span>
+        <span className={cx(styles, "ws-user-text")}>
+          <span className={cx(styles, "ws-user-name")}>{user?.username ?? 'Пользователь'}</span>
+          <span className={cx(styles, "ws-user-role")}>{roleLabel}</span>
         </span>
-        <ChevronDownIcon className="ws-user-chevron" />
+        <ChevronDownIcon className={cx(styles, "ws-user-chevron")} />
       </button>
 
       {open && (
-        <div className="ws-user-menu">
-          <div className="ws-user-menu-head">
+        <div className={cx(styles, "ws-user-menu")}>
+          <div className={cx(styles, "ws-user-menu-head")}>
             <span>{user?.username ?? 'Пользователь'}</span>
             <span>{roleLabel}</span>
           </div>
           <button
-            className="ws-user-menu-item ws-user-menu-item--profile"
+            className={cx(styles, "ws-user-menu-item ws-user-menu-item--profile")}
             type="button"
             onClick={() => {
               setOpen(false);
@@ -72,7 +78,7 @@ export default function UserMenu() {
           </button>
           {user?.role === 'admin' && (
             <button
-              className="ws-user-menu-item"
+              className={cx(styles, "ws-user-menu-item")}
               type="button"
               onClick={() => {
                 setOpen(false);
@@ -83,7 +89,7 @@ export default function UserMenu() {
               Администрирование
             </button>
           )}
-          <button className="ws-user-menu-item" type="button" onClick={handleLogout}>
+          <button className={cx(styles, "ws-user-menu-item")} type="button" onClick={handleLogout}>
             <LogoutIcon />
             Выйти
           </button>

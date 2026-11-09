@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 
-import './SnakeLoader.css';
+import { cx } from '@utils/cx';
+
+import snakeStyles from './SnakeLoader.module.css';
+
+const styles = snakeStyles;
 
 interface SnakeLoaderProps {
   message?: string;
@@ -301,21 +305,21 @@ export default function SnakeLoader({
   }, []);
 
   return (
-    <div className="snake-loader" role="status" aria-live="polite">
-      <div className="snake-loader-stage">
-        <div className="snake-loader-grid" aria-hidden="true" />
+    <div className={cx(styles, "snake-loader")} role="status" aria-live="polite">
+      <div className={cx(styles, "snake-loader-stage")}>
+        <div className={cx(styles, "snake-loader-grid")} aria-hidden="true" />
         <canvas
           ref={canvasRef}
-          className="snake-canvas"
+          className={cx(styles, "snake-canvas")}
           width={COLS * CELL}
           height={ROWS * CELL}
           aria-label="Мини-игра Змейка"
         />
       </div>
-      <div className="snake-loader-copy">
+      <div className={cx(styles, "snake-loader-copy")}>
         <strong>{message}</strong>
         {hint && <span>{hint}</span>}
-        <span className="snake-score">
+        <span className={cx(styles, "snake-score")}>
           Счёт: {score} ·{' '}
           {autoPlaying ? 'Автоигра · нажмите стрелку, чтобы управлять' : 'Стрелки — управление'}
         </span>

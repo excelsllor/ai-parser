@@ -15,10 +15,14 @@ import {
   LockIcon,
   MailIcon,
   SparklesIcon,
-} from '@components/ui/icons';
-import AppHeader from '@components/layout/AppHeader';
+} from '@components/ui';
+import { AppHeader } from '@components';
 
-import './AuthPage.css';
+import { cx } from '@utils/cx';
+
+import authStyles from './AuthPage.module.css';
+
+const styles = authStyles;
 
 type Tab = 'login' | 'register';
 type OAuthProvider = 'yandex' | 'vk';
@@ -200,28 +204,28 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-page">
+    <div className={cx(styles, "auth-page")}>
       <AppHeader />
 
-      <main className="auth-main">
-        <div className="auth-wrap">
-          <section className="auth-card" aria-labelledby="auth-title">
-            <div className="auth-card-head">
-              <div className="auth-logo">
+      <main className={cx(styles, "auth-main")}>
+        <div className={cx(styles, "auth-wrap")}>
+          <section className={cx(styles, "auth-card")} aria-labelledby="auth-title">
+            <div className={cx(styles, "auth-card-head")}>
+              <div className={cx(styles, "auth-logo")}>
                 <img src="/icons/logo.svg" alt="" />
               </div>
-              <h1 className="auth-title" id="auth-title">
+              <h1 className={cx(styles, "auth-title")} id="auth-title">
                 CyberBug
               </h1>
-              <span className="auth-badge">
+              <span className={cx(styles, "auth-badge")}>
                 <SparklesIcon />
                 Платформа ИИ-мониторинга угроз
               </span>
             </div>
 
-            <div className="auth-tabs" role="tablist" aria-label="Авторизация">
+            <div className={cx(styles, "auth-tabs")} role="tablist" aria-label="Авторизация">
               <button
-                className={`auth-tab${tab === 'login' ? ' auth-tab--active' : ''}`}
+                className={cx(styles, `auth-tab${tab === 'login' ? ' auth-tab--active' : ''}`)}
                 type="button"
                 role="tab"
                 aria-selected={tab === 'login'}
@@ -230,7 +234,7 @@ export default function AuthPage() {
                 Вход
               </button>
               <button
-                className={`auth-tab${tab === 'register' ? ' auth-tab--active' : ''}`}
+                className={cx(styles, `auth-tab${tab === 'register' ? ' auth-tab--active' : ''}`)}
                 type="button"
                 role="tab"
                 aria-selected={tab === 'register'}
@@ -241,32 +245,32 @@ export default function AuthPage() {
             </div>
 
             {error && (
-              <div className="auth-alert auth-alert--error" role="alert">
+              <div className={cx(styles, "auth-alert auth-alert--error")} role="alert">
                 <AlertCircleIcon />
                 <span>{error}</span>
               </div>
             )}
 
             {notice && (
-              <div className="auth-alert auth-alert--info" role="status">
+              <div className={cx(styles, "auth-alert auth-alert--info")} role="status">
                 <InfoIcon />
                 <span>{notice}</span>
               </div>
             )}
 
-            <div className="auth-panel" ref={authPanelRef}>
+            <div className={cx(styles, "auth-panel")} ref={authPanelRef}>
               {tab === 'login' ? (
-                <form className="auth-form" onSubmit={handleLogin} noValidate>
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="login-username">
+                <form className={cx(styles, "auth-form")} onSubmit={handleLogin} noValidate>
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="login-username">
                     Email или логин
                   </label>
-                  <div className="auth-control">
-                    <span className="auth-control-icon">
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
                       <MailIcon />
                     </span>
                     <input
-                      className="auth-input"
+                      className={cx(styles, "auth-input")}
                       id="login-username"
                       name="username"
                       type="text"
@@ -278,16 +282,16 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="login-password">
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="login-password">
                     Пароль
                   </label>
-                  <div className="auth-control">
-                    <span className="auth-control-icon">
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
                       <LockIcon />
                     </span>
                     <input
-                      className="auth-input auth-input--password"
+                      className={cx(styles, "auth-input auth-input--password")}
                       id="login-password"
                       name="password"
                       type={showLoginPassword ? 'text' : 'password'}
@@ -297,7 +301,7 @@ export default function AuthPage() {
                       onChange={(event) => setPassword(event.target.value)}
                     />
                     <button
-                      className="auth-password-toggle"
+                      className={cx(styles, "auth-password-toggle")}
                       type="button"
                       aria-label={showLoginPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowLoginPassword((value) => !value)}
@@ -307,10 +311,10 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <div className="auth-options">
-                  <label className="auth-checkbox-label">
+                <div className={cx(styles, "auth-options")}>
+                  <label className={cx(styles, "auth-checkbox-label")}>
                     <input
-                      className="auth-checkbox"
+                      className={cx(styles, "auth-checkbox")}
                       type="checkbox"
                       checked={remember}
                       onChange={(event) => setRemember(event.target.checked)}
@@ -318,7 +322,7 @@ export default function AuthPage() {
                     Запомнить меня
                   </label>
                   <button
-                    className="auth-link"
+                    className={cx(styles, "auth-link")}
                     type="button"
                     onClick={() => setNotice('Восстановление пароля пока не подключено. Обратитесь к администратору.')}
                   >
@@ -326,23 +330,23 @@ export default function AuthPage() {
                   </button>
                 </div>
 
-                <button className="auth-submit" type="submit" disabled={loading}>
+                <button className={cx(styles, "auth-submit")} type="submit" disabled={loading}>
                   <span>{loading ? 'Входим…' : 'Войти в систему'}</span>
-                  <ArrowRightIcon className="auth-submit-icon" />
+                  <ArrowRightIcon className={cx(styles, "auth-submit-icon")} />
                 </button>
               </form>
             ) : (
-              <form className="auth-form" onSubmit={handleRegister} noValidate>
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="register-username">
+              <form className={cx(styles, "auth-form")} onSubmit={handleRegister} noValidate>
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="register-username">
                     Имя пользователя
                   </label>
-                  <div className="auth-control">
-                    <span className="auth-control-icon">
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
                       <MailIcon />
                     </span>
                     <input
-                      className="auth-input"
+                      className={cx(styles, "auth-input")}
                       id="register-username"
                       name="username"
                       type="text"
@@ -354,16 +358,16 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="register-password">
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="register-password">
                     Пароль
                   </label>
-                  <div className="auth-control">
-                    <span className="auth-control-icon">
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
                       <LockIcon />
                     </span>
                     <input
-                      className="auth-input auth-input--password"
+                      className={cx(styles, "auth-input auth-input--password")}
                       id="register-password"
                       name="new-password"
                       type={showRegisterPassword ? 'text' : 'password'}
@@ -373,7 +377,7 @@ export default function AuthPage() {
                       onChange={(event) => setPassword(event.target.value)}
                     />
                     <button
-                      className="auth-password-toggle"
+                      className={cx(styles, "auth-password-toggle")}
                       type="button"
                       aria-label={showRegisterPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowRegisterPassword((value) => !value)}
@@ -383,16 +387,16 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <div className="auth-field">
-                  <label className="auth-label" htmlFor="register-confirm">
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="register-confirm">
                     Подтверждение пароля
                   </label>
-                  <div className="auth-control">
-                    <span className="auth-control-icon">
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
                       <LockIcon />
                     </span>
                     <input
-                      className="auth-input auth-input--password"
+                      className={cx(styles, "auth-input auth-input--password")}
                       id="register-confirm"
                       name="confirm-password"
                       type={showConfirmPassword ? 'text' : 'password'}
@@ -402,7 +406,7 @@ export default function AuthPage() {
                       onChange={(event) => setConfirmPassword(event.target.value)}
                     />
                     <button
-                      className="auth-password-toggle"
+                      className={cx(styles, "auth-password-toggle")}
                       type="button"
                       aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowConfirmPassword((value) => !value)}
@@ -412,10 +416,10 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                <div className="auth-terms">
-                  <label className="auth-checkbox-label auth-checkbox-label--terms">
+                <div className={cx(styles, "auth-terms")}>
+                  <label className={cx(styles, "auth-checkbox-label auth-checkbox-label--terms")}>
                     <input
-                      className="auth-checkbox"
+                      className={cx(styles, "auth-checkbox")}
                       type="checkbox"
                       checked={termsAccepted}
                       onChange={(event) => setTermsAccepted(event.target.checked)}
@@ -423,7 +427,7 @@ export default function AuthPage() {
                     <span>
                       Я согласен с{' '}
                       <button
-                        className="auth-link"
+                        className={cx(styles, "auth-link")}
                         type="button"
                         onClick={(event) => {
                           event.preventDefault();
@@ -435,7 +439,7 @@ export default function AuthPage() {
                       </button>{' '}
                       и{' '}
                       <button
-                        className="auth-link"
+                        className={cx(styles, "auth-link")}
                         type="button"
                         onClick={(event) => {
                           event.preventDefault();
@@ -449,25 +453,25 @@ export default function AuthPage() {
                   </label>
                 </div>
 
-                <button className="auth-submit" type="submit" disabled={loading}>
+                <button className={cx(styles, "auth-submit")} type="submit" disabled={loading}>
                   <span>{loading ? 'Создаём…' : 'Создать аккаунт'}</span>
-                  <ArrowRightIcon className="auth-submit-icon" />
+                  <ArrowRightIcon className={cx(styles, "auth-submit-icon")} />
                 </button>
                 </form>
               )}
             </div>
 
-            <div className="auth-divider">
+            <div className={cx(styles, "auth-divider")}>
               <span>
                 {tab === 'login' ? 'Или войти с помощью' : 'Или зарегистрироваться через'}
               </span>
             </div>
 
-            <div className="auth-sso">
+            <div className={cx(styles, "auth-sso")}>
               {providers?.yandex && (
-                <div className="auth-yandex">
+                <div className={cx(styles, "auth-yandex")}>
                   <button
-                    className="auth-yandex-official"
+                    className={cx(styles, "auth-yandex-official")}
                     type="button"
                     onClick={() => void handleOAuth('yandex')}
                     disabled={oauthLoading !== null}
@@ -479,21 +483,21 @@ export default function AuthPage() {
               )}
 
               {providers?.vk && (
-                <div className="auth-vk">
+                <div className={cx(styles, "auth-vk")}>
                   <button
-                    className="auth-sso-button auth-vk-fallback"
+                    className={cx(styles, "auth-sso-button auth-vk-fallback")}
                     type="button"
                     onClick={() => void handleOAuth('vk')}
                     disabled={oauthLoading !== null}
                   >
-                    <img className="auth-sso-logo" src={vkLogo} alt="" />
+                    <img className={cx(styles, "auth-sso-logo")} src={vkLogo} alt="" />
                     <span>{oauthLoading === 'vk' ? 'Переход в VK ID…' : 'VK ID'}</span>
                   </button>
                 </div>
               )}
 
               {providers && !providers.yandex && !providers.vk && (
-                <p className="auth-sso-unavailable">
+                <p className={cx(styles, "auth-sso-unavailable")}>
                   Вход через внешние сервисы не настроен.
                 </p>
               )}

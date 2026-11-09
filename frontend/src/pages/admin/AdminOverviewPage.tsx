@@ -18,7 +18,12 @@ import {
   ListNumberedIcon,
   RefreshIcon,
   ScheduleIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import adminStyles from '@components/admin/Admin.module.css';
+
+const styles = adminStyles;
 
 import { downloadFile, formatDateTime, formatTime, formatUptime } from './utils';
 
@@ -166,24 +171,24 @@ export default function AdminOverviewPage() {
 
   return (
     <>
-      <header className="admin-head">
+      <header className={cx(styles, "admin-head")}>
         <div>
-          <span className="admin-eyebrow">
-            <span className="admin-live-dot" />
+          <span className={cx(styles, "admin-eyebrow")}>
+            <span className={cx(styles, "admin-live-dot")} />
             Ковейер активен · обновлено {formatTime(updatedAt)}
           </span>
-          <h1 className="admin-title">Обзор платформы и телеметрия</h1>
-          <p className="admin-sub">
+          <h1 className={cx(styles, "admin-title")}>Обзор платформы и телеметрия</h1>
+          <p className={cx(styles, "admin-sub")}>
             Метрики сбора, фильтрации и генерации за последние 24 часа. Данные из
             запусков, LLM-вызовов и журнала аудита.
           </p>
         </div>
-        <div className="admin-actions">
-          <button className="admin-button" type="button" onClick={() => void load()}>
+        <div className={cx(styles, "admin-actions")}>
+          <button className={cx(styles, "admin-button")} type="button" onClick={() => void load()}>
             <RefreshIcon />
             Обновить
           </button>
-          <button className="admin-button admin-button--primary" type="button" onClick={exportReport}>
+          <button className={cx(styles, "admin-button admin-button--primary")} type="button" onClick={exportReport}>
             <DownloadIcon />
             Экспорт отчёта
           </button>
@@ -191,118 +196,118 @@ export default function AdminOverviewPage() {
       </header>
 
       {error && (
-        <div className="admin-error" role="alert">
+        <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
         </div>
       )}
 
       {loading && runs.length === 0 ? (
-        <p className="admin-empty">Загружаем метрики…</p>
+        <p className={cx(styles, "admin-empty")}>Загружаем метрики…</p>
       ) : (
         <>
-          <div className="admin-stats">
-            <article className="admin-stat">
-              <span className="admin-stat-label">
+          <div className={cx(styles, "admin-stats")}>
+            <article className={cx(styles, "admin-stat")}>
+              <span className={cx(styles, "admin-stat-label")}>
                 Запусков за 24ч
                 <ListNumberedIcon />
               </span>
-              <strong className="admin-stat-value">{metrics.recent.length}</strong>
-              <span className="admin-stat-hint">
+              <strong className={cx(styles, "admin-stat-value")}>{metrics.recent.length}</strong>
+              <span className={cx(styles, "admin-stat-hint")}>
                 {metrics.completed.length} завершено · {metrics.failed.length} с ошибкой
               </span>
             </article>
-            <article className="admin-stat">
-              <span className="admin-stat-label">
+            <article className={cx(styles, "admin-stat")}>
+              <span className={cx(styles, "admin-stat-label")}>
                 Успешность
                 <CheckCircleIcon />
               </span>
-              <strong className="admin-stat-value">
+              <strong className={cx(styles, "admin-stat-value")}>
                 {metrics.successRate === null ? '—' : `${metrics.successRate}%`}
               </strong>
-              <span className="admin-stat-hint">Доля успешных запусков</span>
+              <span className={cx(styles, "admin-stat-hint")}>Доля успешных запусков</span>
             </article>
-            <article className="admin-stat">
-              <span className="admin-stat-label">
+            <article className={cx(styles, "admin-stat")}>
+              <span className={cx(styles, "admin-stat-label")}>
                 Расход токенов
                 <BotIcon />
               </span>
-              <strong className="admin-stat-value">
+              <strong className={cx(styles, "admin-stat-value")}>
                 {metrics.tokens.toLocaleString('ru-RU')}
               </strong>
-              <span className="admin-stat-hint">
+              <span className={cx(styles, "admin-stat-hint")}>
                 Стоимость ${metrics.cost.toFixed(4)}
               </span>
             </article>
-            <article className="admin-stat">
-              <span className="admin-stat-label">
+            <article className={cx(styles, "admin-stat")}>
+              <span className={cx(styles, "admin-stat-label")}>
                 Среднее время
                 <ScheduleIcon />
               </span>
-              <strong className="admin-stat-value">
+              <strong className={cx(styles, "admin-stat-value")}>
                 {metrics.avgDuration === null ? '—' : metrics.avgDuration}
                 {metrics.avgDuration !== null && <small> сек</small>}
               </strong>
-              <span className="admin-stat-hint">Полный цикл пайплайна</span>
+              <span className={cx(styles, "admin-stat-hint")}>Полный цикл пайплайна</span>
             </article>
           </div>
 
-          <div className="admin-grid">
-            <section className="admin-card">
-              <div className="admin-card-head">
+          <div className={cx(styles, "admin-grid")}>
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">Пропускная способность</h2>
-                  <p className="admin-card-sub">Запусков по часам за последние 12 часов</p>
+                  <h2 className={cx(styles, "admin-card-title")}>Пропускная способность</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Запусков по часам за последние 12 часов</p>
                 </div>
-                <span className="admin-badge admin-badge--blue">
+                <span className={cx(styles, "admin-badge admin-badge--blue")}>
                   <BoltIcon />
                   {runs.length} всего
                 </span>
               </div>
-              <div className="admin-chart">
+              <div className={cx(styles, "admin-chart")}>
                 {chart.map((item) => (
-                  <div className="admin-chart-col" key={item.label}>
+                  <div className={cx(styles, "admin-chart-col")} key={item.label}>
                     <div
-                      className={`admin-chart-bar ${barHeightClass(item.count, maxChart)}`}
+                      className={cx(styles, `admin-chart-bar ${barHeightClass(item.count, maxChart)}`)}
                       title={`${item.label} — ${item.count}`}
                     />
-                    <span className="admin-chart-label">{item.label}</span>
+                    <span className={cx(styles, "admin-chart-label")}>{item.label}</span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="admin-card">
-              <div className="admin-card-head">
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">Статусы запусков</h2>
-                  <p className="admin-card-sub">Распределение по последним {runs.length} запускам</p>
+                  <h2 className={cx(styles, "admin-card-title")}>Статусы запусков</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Распределение по последним {runs.length} запускам</p>
                 </div>
               </div>
               {distribution.map((item) => (
-                <div className="admin-dist-row" key={item.status}>
-                  <span className="admin-dist-name">{STATUS_LABELS[item.status]}</span>
-                  <span className="admin-dist-bar">
+                <div className={cx(styles, "admin-dist-row")} key={item.status}>
+                  <span className={cx(styles, "admin-dist-name")}>{STATUS_LABELS[item.status]}</span>
+                  <span className={cx(styles, "admin-dist-bar")}>
                     <span
-                      className={`admin-dist-fill admin-dist-fill--${statusClass(item.status)} ${distWidthClass(item.percent)}`}
+                      className={cx(styles, `admin-dist-fill admin-dist-fill--${statusClass(item.status)} ${distWidthClass(item.percent)}`)}
                     />
                   </span>
-                  <span className="admin-dist-value">{item.count}</span>
+                  <span className={cx(styles, "admin-dist-value")}>{item.count}</span>
                 </div>
               ))}
             </section>
           </div>
 
-          <div className="admin-grid">
-            <section className="admin-card">
-              <div className="admin-card-head">
+          <div className={cx(styles, "admin-grid")}>
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">Журнал системных событий</h2>
-                  <p className="admin-card-sub">Последние действия в платформе</p>
+                  <h2 className={cx(styles, "admin-card-title")}>Журнал системных событий</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Последние действия в платформе</p>
                 </div>
               </div>
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className={cx(styles, "admin-table-wrap")}>
+                <table className={cx(styles, "admin-table")}>
                   <thead>
                     <tr>
                       <th>Время</th>
@@ -314,36 +319,36 @@ export default function AdminOverviewPage() {
                   <tbody>
                     {audit.map((entry) => (
                       <tr key={entry.id}>
-                        <td className="admin-mono">{formatTime(entry.created_at)}</td>
+                        <td className={cx(styles, "admin-mono")}>{formatTime(entry.created_at)}</td>
                         <td>
-                          <span className="admin-badge admin-badge--blue">{entry.action}</span>
+                          <span className={cx(styles, "admin-badge admin-badge--blue")}>{entry.action}</span>
                         </td>
                         <td>{entry.actor_username || '—'}</td>
-                        <td className="admin-mono">{entry.resource}</td>
+                        <td className={cx(styles, "admin-mono")}>{entry.resource}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {audit.length === 0 && <p className="admin-empty">Событий пока нет.</p>}
+                {audit.length === 0 && <p className={cx(styles, "admin-empty")}>Событий пока нет.</p>}
               </div>
             </section>
 
-            <section className="admin-card">
-              <div className="admin-card-head">
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">Состояние контура</h2>
-                  <p className="admin-card-sub">Сервисы и зависимости</p>
+                  <h2 className={cx(styles, "admin-card-title")}>Состояние контура</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Сервисы и зависимости</p>
                 </div>
-                <span className="admin-badge admin-badge--green">
+                <span className={cx(styles, "admin-badge admin-badge--green")}>
                   {registryAlive}/{registryTotal} alive
                 </span>
               </div>
-              <div className="admin-kv">
-                <div className="admin-kv-item">
+              <div className={cx(styles, "admin-kv")}>
+                <div className={cx(styles, "admin-kv-item")}>
                   <span>PostgreSQL</span>
                   <strong>{services?.database.ok ? 'OK' : 'Ошибка'}</strong>
                 </div>
-                <div className="admin-kv-item">
+                <div className={cx(styles, "admin-kv-item")}>
                   <span>Redis</span>
                   <strong>
                     {services?.redis.ok
@@ -351,70 +356,70 @@ export default function AdminOverviewPage() {
                       : 'Ошибка'}
                   </strong>
                 </div>
-                <div className="admin-kv-item">
+                <div className={cx(styles, "admin-kv-item")}>
                   <span>Kafka</span>
                   <strong>{services?.kafka.ok ? 'OK' : 'Ошибка'}</strong>
                 </div>
-                <div className="admin-kv-item">
+                <div className={cx(styles, "admin-kv-item")}>
                   <span>LLM</span>
                   <strong>{services?.llm.ok ? 'OK' : 'Недоступен'}</strong>
                 </div>
               </div>
-              <p className="admin-note admin-mt-12">
+              <p className={cx(styles, "admin-note admin-mt-12")}>
                 Окружение {services?.env ?? '—'} · версия {services?.version ?? '—'} ·{' '}
                 {formatDateTime(updatedAt)}
               </p>
             </section>
           </div>
 
-          <section className="admin-card">
-            <div className="admin-card-head">
+          <section className={cx(styles, "admin-card")}>
+            <div className={cx(styles, "admin-card-head")}>
               <div>
-                <h2 className="admin-card-title">Реестр компонентов кластера</h2>
-                <p className="admin-card-sub">Heartbeat из общего registry-файла</p>
+                <h2 className={cx(styles, "admin-card-title")}>Реестр компонентов кластера</h2>
+                <p className={cx(styles, "admin-card-sub")}>Heartbeat из общего registry-файла</p>
               </div>
-              <span className="admin-badge admin-badge--green">
+              <span className={cx(styles, "admin-badge admin-badge--green")}>
                 <CheckCircleIcon />
                 {registryAlive}/{registryTotal} healthy
               </span>
             </div>
-            <div className="admin-service-grid">
+            <div className={cx(styles, "admin-service-grid")}>
               {(services?.registry ?? []).map((service) => (
-                <article className="admin-service" key={service.name}>
-                  <div className="admin-service-head">
-                    <span className="admin-service-name">{service.name}</span>
+                <article className={cx(styles, "admin-service")} key={service.name}>
+                  <div className={cx(styles, "admin-service-head")}>
+                    <span className={cx(styles, "admin-service-name")}>{service.name}</span>
                     <span
-                      className={`admin-badge ${
+                      className={cx(styles, `admin-badge ${
                         service.alive ? 'admin-badge--green' : 'admin-badge--red'
-                      }`}
+                      }`)}
                     >
                       {service.alive ? 'Healthy' : 'Down'}
                     </span>
                   </div>
-                  <span className="admin-service-meta">
+                  <span className={cx(styles, "admin-service-meta")}>
                     PID {service.pid} · uptime {formatUptime(service.started)}
                   </span>
-                  <span className="admin-service-meta admin-mono">
+                  <span className={cx(styles, "admin-service-meta admin-mono")}>
                     last_seen {formatDateTime(new Date(service.last_seen * 1000).toISOString())}
                   </span>
                 </article>
               ))}
               {registryTotal === 0 && (
-                <p className="admin-empty">Реестр сервисов пуст.</p>
+                <p className={cx(styles, "admin-empty")}>Реестр сервисов пуст.</p>
               )}
             </div>
           </section>
 
-          <div className="admin-grid">
-            <section className="admin-card">
-              <div className="admin-card-head">
+          <div className={cx(styles, "admin-grid")}>
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">Инфраструктурные зависимости</h2>
-                  <p className="admin-card-sub">Проверка подключений на момент запроса</p>
+                  <h2 className={cx(styles, "admin-card-title")}>Инфраструктурные зависимости</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Проверка подключений на момент запроса</p>
                 </div>
               </div>
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className={cx(styles, "admin-table-wrap")}>
+                <table className={cx(styles, "admin-table")}>
                   <thead>
                     <tr>
                       <th>Компонент</th>
@@ -424,26 +429,26 @@ export default function AdminOverviewPage() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="admin-cell-strong">PostgreSQL</td>
+                      <td className={cx(styles, "admin-cell-strong")}>PostgreSQL</td>
                       <td>Основное хранилище</td>
                       <td>
                         <span
-                          className={`admin-badge ${
+                          className={cx(styles, `admin-badge ${
                             services?.database.ok ? 'admin-badge--green' : 'admin-badge--red'
-                          }`}
+                          }`)}
                         >
                           {services?.database.ok ? 'OK' : 'Ошибка'}
                         </span>
                       </td>
                     </tr>
                     <tr>
-                      <td className="admin-cell-strong">Redis</td>
+                      <td className={cx(styles, "admin-cell-strong")}>Redis</td>
                       <td>Кэш и блокировки</td>
                       <td>
                         <span
-                          className={`admin-badge ${
+                          className={cx(styles, `admin-badge ${
                             services?.redis.ok ? 'admin-badge--green' : 'admin-badge--red'
-                          }`}
+                          }`)}
                         >
                           {services?.redis.ok
                             ? `${services.redis.latency_ms ?? 0} мс`
@@ -452,26 +457,26 @@ export default function AdminOverviewPage() {
                       </td>
                     </tr>
                     <tr>
-                      <td className="admin-cell-strong">Kafka</td>
-                      <td className="admin-mono">{services?.kafka.brokers ?? '—'}</td>
+                      <td className={cx(styles, "admin-cell-strong")}>Kafka</td>
+                      <td className={cx(styles, "admin-mono")}>{services?.kafka.brokers ?? '—'}</td>
                       <td>
                         <span
-                          className={`admin-badge ${
+                          className={cx(styles, `admin-badge ${
                             services?.kafka.ok ? 'admin-badge--green' : 'admin-badge--red'
-                          }`}
+                          }`)}
                         >
                           {services?.kafka.ok ? 'OK' : 'Ошибка'}
                         </span>
                       </td>
                     </tr>
                     <tr>
-                      <td className="admin-cell-strong">LLM</td>
-                      <td className="admin-mono">{services?.llm.base_url ?? '—'}</td>
+                      <td className={cx(styles, "admin-cell-strong")}>LLM</td>
+                      <td className={cx(styles, "admin-mono")}>{services?.llm.base_url ?? '—'}</td>
                       <td>
                         <span
-                          className={`admin-badge ${
+                          className={cx(styles, `admin-badge ${
                             services?.llm.ok ? 'admin-badge--green' : 'admin-badge--amber'
-                          }`}
+                          }`)}
                         >
                           {services?.llm.ok ? 'OK' : 'Недоступен'}
                         </span>
@@ -482,19 +487,19 @@ export default function AdminOverviewPage() {
               </div>
             </section>
 
-            <section className="admin-card">
-              <div className="admin-card-head">
+            <section className={cx(styles, "admin-card")}>
+              <div className={cx(styles, "admin-card-head")}>
                 <div>
-                  <h2 className="admin-card-title">История проверок</h2>
-                  <p className="admin-card-sub">Снимки каждые 60 секунд, 7 дней</p>
+                  <h2 className={cx(styles, "admin-card-title")}>История проверок</h2>
+                  <p className={cx(styles, "admin-card-sub")}>Снимки каждые 60 секунд, 7 дней</p>
                 </div>
-                <span className="admin-badge">
+                <span className={cx(styles, "admin-badge")}>
                   <ScheduleIcon />
                   {history.length}
                 </span>
               </div>
-              <div className="admin-table-wrap">
-                <table className="admin-table">
+              <div className={cx(styles, "admin-table-wrap")}>
+                <table className={cx(styles, "admin-table")}>
                   <thead>
                     <tr>
                       <th>Проверка</th>
@@ -508,7 +513,7 @@ export default function AdminOverviewPage() {
                   <tbody>
                     {history.slice(0, 10).map((snapshot) => (
                       <tr key={snapshot.id}>
-                        <td className="admin-mono">{formatDateTime(snapshot.checked_at)}</td>
+                        <td className={cx(styles, "admin-mono")}>{formatDateTime(snapshot.checked_at)}</td>
                         <td>{snapshot.database_ok ? 'OK' : 'Ошибка'}</td>
                         <td>{snapshot.redis_ok ? 'OK' : 'Ошибка'}</td>
                         <td>{snapshot.kafka_ok ? 'OK' : 'Ошибка'}</td>
@@ -521,7 +526,7 @@ export default function AdminOverviewPage() {
                   </tbody>
                 </table>
                 {history.length === 0 && (
-                  <p className="admin-empty">История появится после первого снимка.</p>
+                  <p className={cx(styles, "admin-empty")}>История появится после первого снимка.</p>
                 )}
               </div>
             </section>

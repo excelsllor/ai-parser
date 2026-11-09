@@ -5,10 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { getAccessToken } from '@api/auth';
 import AppNav from '@components/layout/AppNav';
 import UserMenu from '@components/layout/UserMenu';
-import { MoonIcon, SunIcon } from '@components/ui/icons';
+import { MoonIcon, SunIcon } from '@components/ui';
 import { useTheme } from '@hooks/useTheme';
+import { cx } from '@utils/cx';
 
-import './AppHeader.css';
+import appStyles from './AppHeader.module.css';
+
+const styles = appStyles;
 
 interface AppHeaderProps {
   left?: ReactNode;
@@ -51,15 +54,15 @@ export default function AppHeader({
 
   const brand = (
     <>
-      <span className="app-brand-mark">
+      <span className={cx(styles, "app-brand-mark")}>
         <img src="/icons/logo.svg" alt="" />
       </span>
-      <span className="app-brand-text">
-        <span className="app-brand-title">
+      <span className={cx(styles, "app-brand-text")}>
+        <span className={cx(styles, "app-brand-title")}>
           CyberBug
-          {badge && <span className="app-brand-badge">{badge}</span>}
+          {badge && <span className={cx(styles, "app-brand-badge")}>{badge}</span>}
         </span>
-        {sub && <span className="app-brand-sub">{sub}</span>}
+        {sub && <span className={cx(styles, "app-brand-sub")}>{sub}</span>}
       </span>
     </>
   );
@@ -68,27 +71,27 @@ export default function AppHeader({
     onBrandClick ?? (() => navigate(authenticated ? '/' : '/login'));
 
   return (
-    <header className="app-header">
-      <div className="app-header-left">
+    <header className={cx(styles, "app-header")}>
+      <div className={cx(styles, "app-header-left")}>
         {left}
-        <button className="app-brand" type="button" onClick={handleBrandClick}>
+        <button className={cx(styles, "app-brand")} type="button" onClick={handleBrandClick}>
           {brand}
         </button>
       </div>
 
-      <div className="app-header-center">
+      <div className={cx(styles, "app-header-center")}>
         {nav ?? (authenticated ? <AppNav /> : undefined)}
       </div>
 
-      <div className="app-header-right">
+      <div className={cx(styles, "app-header-right")}>
         <button
-          className="app-header-icon"
+          className={cx(styles, "app-header-icon")}
           type="button"
           title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
           aria-label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
           onClick={handleThemeToggle}
         >
-          <span className="app-theme-icon" ref={themeIconRef}>
+          <span className={cx(styles, "app-theme-icon")} ref={themeIconRef}>
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </span>
         </button>

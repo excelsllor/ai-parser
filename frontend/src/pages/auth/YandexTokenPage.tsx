@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { completeOAuth, saveSession } from '@api/auth';
-import AppHeader from '@components/layout/AppHeader';
+import { AppHeader } from '@components';
 
-import './AuthPage.css';
+import { cx } from '@utils/cx';
+
+import authStyles from './AuthPage.module.css';
+
+const styles = authStyles;
 
 export default function YandexTokenPage() {
   const navigate = useNavigate();
@@ -48,18 +52,18 @@ export default function YandexTokenPage() {
   }, [navigate, params]);
 
   return (
-    <div className="auth-page">
+    <div className={cx(styles, "auth-page")}>
       <AppHeader />
-      <main className="auth-main">
-        <div className="auth-wrap">
-          <section className="auth-card auth-token-card">
-            <div className="auth-logo">
+      <main className={cx(styles, "auth-main")}>
+        <div className={cx(styles, "auth-wrap")}>
+          <section className={cx(styles, "auth-card auth-token-card")}>
+            <div className={cx(styles, "auth-logo")}>
               <img src="/icons/logo.svg" alt="" />
             </div>
-            <h1 className="auth-title">Яндекс ID</h1>
-            <p className="auth-token-status">{status}</p>
-            <p className="auth-token-footer">
-              <Link className="auth-link" to="/login">
+            <h1 className={cx(styles, "auth-title")}>Яндекс ID</h1>
+            <p className={cx(styles, "auth-token-status")}>{status}</p>
+            <p className={cx(styles, "auth-token-footer")}>
+              <Link className={cx(styles, "auth-link")} to="/login">
                 Вернуться ко входу
               </Link>
             </p>

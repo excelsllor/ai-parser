@@ -7,7 +7,7 @@ import {
 } from 'react-router-dom';
 
 import { getAccessToken, getCurrentUser } from '@api/auth';
-import AdminLayout from '@components/admin/AdminLayout';
+import { AdminLayout } from '@components';
 import AdminLlmPage from '@pages/admin/AdminLlmPage';
 import AdminOverviewPage from '@pages/admin/AdminOverviewPage';
 import AdminSourcesPage from '@pages/admin/AdminSourcesPage';

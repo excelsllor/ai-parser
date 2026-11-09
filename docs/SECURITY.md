@@ -33,7 +33,7 @@
 
 ## 3. Транспорт и заголовки
 
-Пример TLS 1.3 reverse proxy: `deploy/Caddyfile.example`.
+Пример TLS 1.3 reverse proxy: `Caddyfile.public` (домен) или `Caddyfile.internal` (IP).
 
 - Внешний контур: TLS 1.3 на reverse proxy (Caddy/nginx), HTTP/2, HSTS.
 - Gateway отдаёт: CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options: DENY`,

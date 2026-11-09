@@ -726,3 +726,190 @@
 [data-theme='dark'] .auth-yandex-official {
   border: 1px solid #262626;
 }
+
+
+/* Material You theme */
+body .auth-page {
+  --ws-primary: var(--md-primary);
+  --ws-primary-hover: var(--md-primary-hover);
+  --ws-button-bg: var(--md-primary);
+  --ws-button-hover: var(--md-primary-hover);
+  --ws-button-text: var(--md-on-primary);
+  --ws-button-shadow: transparent;
+  --ws-text: var(--md-on-surface);
+  --ws-text-strong: var(--md-on-surface);
+  --ws-muted: var(--md-on-surface-variant);
+  --ws-soft: var(--md-outline);
+  --ws-border: var(--md-outline-variant);
+  --ws-border-strong: var(--md-outline);
+  --ws-bg: var(--md-background);
+  --ws-paper: var(--md-surface-container-low);
+  background: var(--md-background);
+  color: var(--md-on-surface);
+}
+
+body .auth-page {
+  --auth-primary: var(--md-primary);
+  --auth-primary-hover: var(--md-primary-hover);
+  --auth-primary-active: var(--md-primary-container);
+  --auth-button-bg: var(--md-primary);
+  --auth-button-hover: var(--md-primary-hover);
+  --auth-button-active: var(--md-primary-hover);
+  --auth-button-text: var(--md-on-primary);
+  --auth-button-shadow: transparent;
+  --auth-bg: var(--md-background);
+  --auth-text: var(--md-on-surface);
+  --auth-muted: var(--md-on-surface-variant);
+  --auth-soft: var(--md-outline);
+  --auth-border: var(--md-outline);
+  --auth-border-soft: var(--md-outline-variant);
+}
+
+body .auth-tab {
+  border-radius: 999px;
+}
+
+body .auth-card {
+  border-color: var(--md-outline-variant);
+  border-radius: 28px;
+  background: var(--md-surface-container-low);
+  box-shadow: var(--panel-shadow);
+}
+
+body .auth-badge {
+  border-radius: 999px;
+}
+
+body .auth-badge {
+  border-color: var(--md-outline-variant);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .auth-tabs {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface);
+}
+
+body .auth-tab {
+  color: var(--md-on-surface-variant);
+}
+
+body .auth-tab--active {
+  border-color: var(--md-primary);
+  color: var(--md-primary);
+}
+
+body .auth-submit {
+  border-radius: 999px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+body .auth-submit:hover {
+  background: var(--md-primary-hover);
+}
+
+body .auth-input,
+body .auth-control {
+  border-color: var(--md-outline);
+  border-radius: 16px;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+}
+
+body .auth-input:focus {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+body .auth-control-icon {
+  color: var(--md-on-surface-variant);
+}
+
+body .auth-alert {
+  border-radius: 16px;
+}
+
+body .auth-alert--error {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .auth-alert--info {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+body .auth-checkbox {
+  accent-color: var(--md-primary);
+}
+
+
+/* Motion */
+.auth-card {
+  animation: motion-scale-in var(--motion-slow) var(--motion-ease) both;
+}
+
+.auth-page .auth-card {
+  will-change: transform, opacity;
+}
+
+.auth-tab {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.auth-tab:hover {
+  transform: translateY(-1px);
+}
+
+.auth-tab--active {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.auth-card,
+.auth-sso-button,
+.auth-submit {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.auth-submit:hover {
+  transform: translateY(-1px);
+}
+
+.auth-submit:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.auth-alert {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.auth-logo {
+  transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) ease;
+}
+
+.auth-logo:hover {
+  transform: scale(1.04);
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-scale-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}

@@ -6,10 +6,13 @@ import {
   DashboardIcon,
   GroupIcon,
   RssIcon,
-} from '@components/ui/icons';
-import '@components/workspace/workspace.css';
+} from '@components/ui';
+import { cx } from '@utils/cx';
 
-import './Admin.css';
+import adminStyles from './Admin.module.css';
+import workspaceStyles from '@components/workspace/workspace.module.css';
+
+const styles = { ...workspaceStyles, ...adminStyles };
 
 const TABS = [
   { to: '/admin', label: 'Обзор и метрики', icon: DashboardIcon, end: true },
@@ -20,16 +23,16 @@ const TABS = [
 
 export default function AdminLayout() {
   return (
-    <div className="ws-page admin-page">
+    <div className={cx(styles, "ws-page admin-page")}>
       <AppHeader badge="Admin" />
 
-      <nav className="admin-tabs" aria-label="Разделы администрирования">
+      <nav className={cx(styles, "admin-tabs")} aria-label="Разделы администрирования">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <NavLink
               className={({ isActive }) =>
-                `admin-tab${isActive ? ' admin-tab--active' : ''}`
+                cx(styles, `admin-tab${isActive ? ' admin-tab--active' : ''}`)
               }
               end={tab.end}
               key={tab.to}
@@ -42,7 +45,7 @@ export default function AdminLayout() {
         })}
       </nav>
 
-      <main className="admin-main">
+      <main className={cx(styles, "admin-main")}>
         <Outlet />
       </main>
     </div>

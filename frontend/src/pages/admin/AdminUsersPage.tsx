@@ -18,7 +18,12 @@ import {
   RefreshIcon,
   UserIcon,
   VerifiedUserIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import adminStyles from '@components/admin/Admin.module.css';
+
+const styles = adminStyles;
 
 import { formatDateTime, initials } from './utils';
 
@@ -134,25 +139,25 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <header className="admin-head">
+      <header className={cx(styles, "admin-head")}>
         <div>
-          <span className="admin-eyebrow">
+          <span className={cx(styles, "admin-eyebrow")}>
             <GroupIcon />
             RBAC & identity core
           </span>
-          <h1 className="admin-title">Пользователи и права доступа</h1>
-          <p className="admin-sub">
+          <h1 className={cx(styles, "admin-title")}>Пользователи и права доступа</h1>
+          <p className={cx(styles, "admin-sub")}>
             Управление учётными записями и ролевой моделью: администратор, аналитик,
             наблюдатель.
           </p>
         </div>
-        <div className="admin-actions">
-          <button className="admin-button" type="button" onClick={() => void load()}>
+        <div className={cx(styles, "admin-actions")}>
+          <button className={cx(styles, "admin-button")} type="button" onClick={() => void load()}>
             <RefreshIcon />
             Обновить
           </button>
           <button
-            className="admin-button admin-button--primary"
+            className={cx(styles, "admin-button admin-button--primary")}
             type="button"
             onClick={() => setAddOpen((value) => !value)}
           >
@@ -163,70 +168,70 @@ export default function AdminUsersPage() {
       </header>
 
       {error && (
-        <div className="admin-error" role="alert">
+        <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
         </div>
       )}
       {notice && (
-        <div className="admin-notice" role="status">
+        <div className={cx(styles, "admin-notice")} role="status">
           <CheckCircleIcon />
           <span>{notice}</span>
         </div>
       )}
 
-      <div className="admin-stats">
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+      <div className={cx(styles, "admin-stats")}>
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Всего пользователей
             <GroupIcon />
           </span>
-          <strong className="admin-stat-value">{stats.total}</strong>
-          <span className="admin-stat-hint">{stats.active} активных</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.total}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>{stats.active} активных</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Администраторы
             <VerifiedUserIcon />
           </span>
-          <strong className="admin-stat-value">{stats.admins}</strong>
-          <span className="admin-stat-hint">Полный доступ</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.admins}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Полный доступ</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Аналитики
             <UserIcon />
           </span>
-          <strong className="admin-stat-value">{stats.analysts}</strong>
-          <span className="admin-stat-hint">Запуск и анализ дайджестов</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.analysts}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Запуск и анализ дайджестов</span>
         </article>
-        <article className="admin-stat">
-          <span className="admin-stat-label">
+        <article className={cx(styles, "admin-stat")}>
+          <span className={cx(styles, "admin-stat-label")}>
             Наблюдатели
             <UserIcon />
           </span>
-          <strong className="admin-stat-value">
+          <strong className={cx(styles, "admin-stat-value")}>
             {users.filter((user) => user.role === 'viewer').length}
           </strong>
-          <span className="admin-stat-hint">Только чтение</span>
+          <span className={cx(styles, "admin-stat-hint")}>Только чтение</span>
         </article>
       </div>
 
       {addOpen && (
-        <form className="admin-form" onSubmit={handleCreate}>
-          <label className="admin-field">
+        <form className={cx(styles, "admin-form")} onSubmit={handleCreate}>
+          <label className={cx(styles, "admin-field")}>
             <span>Логин</span>
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               required
               value={username}
               onChange={(event) => setUsername(event.target.value)}
             />
           </label>
-          <label className="admin-field">
+          <label className={cx(styles, "admin-field")}>
             <span>Пароль (мин. 8 символов)</span>
             <input
-              className="admin-input"
+              className={cx(styles, "admin-input")}
               minLength={8}
               required
               type="password"
@@ -234,10 +239,10 @@ export default function AdminUsersPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
-          <label className="admin-field">
+          <label className={cx(styles, "admin-field")}>
             <span>Роль</span>
             <select
-              className="admin-select"
+              className={cx(styles, "admin-select")}
               value={role}
               onChange={(event) => setRole(event.target.value)}
             >
@@ -246,9 +251,9 @@ export default function AdminUsersPage() {
               <option value="viewer">Наблюдатель</option>
             </select>
           </label>
-          <div className="admin-form-actions">
+          <div className={cx(styles, "admin-form-actions")}>
             <button
-              className="admin-button admin-button--primary"
+              className={cx(styles, "admin-button admin-button--primary")}
               type="submit"
               disabled={submitting}
             >
@@ -258,9 +263,9 @@ export default function AdminUsersPage() {
         </form>
       )}
 
-      <section className="admin-card">
-        <div className="admin-table-wrap">
-          <table className="admin-table">
+      <section className={cx(styles, "admin-card")}>
+        <div className={cx(styles, "admin-table-wrap")}>
+          <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
                 <th>Пользователь</th>
@@ -276,14 +281,14 @@ export default function AdminUsersPage() {
                 return (
                   <tr key={user.id}>
                     <td>
-                      <div className="admin-user-cell">
-                        <span className="admin-avatar">{initials(user.username)}</span>
+                      <div className={cx(styles, "admin-user-cell")}>
+                        <span className={cx(styles, "admin-avatar")}>{initials(user.username)}</span>
                         <span>
-                          <span className="admin-cell-strong">
+                          <span className={cx(styles, "admin-cell-strong")}>
                             {user.display_name || user.username}
-                            {isSelf && <span className="admin-note"> · это вы</span>}
+                            {isSelf && <span className={cx(styles, "admin-note")}> · это вы</span>}
                           </span>
-                          <span className="admin-cell-sub">
+                          <span className={cx(styles, "admin-cell-sub")}>
                             @{user.username}
                             {user.department ? ` · ${user.department}` : ''}
                           </span>
@@ -292,7 +297,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td>
                       <select
-                        className="admin-select"
+                        className={cx(styles, "admin-select")}
                         disabled={busyId === user.id}
                         value={user.role}
                         onChange={(event) => void handleRole(user, event.target.value)}
@@ -304,18 +309,18 @@ export default function AdminUsersPage() {
                     </td>
                     <td>
                       <span
-                        className={`admin-badge ${
+                        className={cx(styles, `admin-badge ${
                           user.is_active ? 'admin-badge--green' : 'admin-badge--amber'
-                        }`}
+                        }`)}
                       >
                         {user.is_active ? 'Активен' : 'Отключён'}
                       </span>
                     </td>
                     <td>{formatDateTime(user.created_at)}</td>
                     <td>
-                      <div className="admin-row-actions">
+                      <div className={cx(styles, "admin-row-actions")}>
                         <button
-                          className="admin-button admin-button--small"
+                          className={cx(styles, "admin-button admin-button--small")}
                           disabled={busyId === user.id || isSelf}
                           type="button"
                           onClick={() => void handleToggleActive(user)}
@@ -325,7 +330,7 @@ export default function AdminUsersPage() {
                         {user.is_active && (
                           <button
                             aria-label={`Деактивировать ${user.username}`}
-                            className="admin-button admin-button--danger admin-button--small"
+                            className={cx(styles, "admin-button admin-button--danger admin-button--small")}
                             disabled={busyId === user.id || isSelf}
                             type="button"
                             onClick={() => void handleDelete(user)}
@@ -341,11 +346,11 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
           {!loading && users.length === 0 && (
-            <p className="admin-empty">Пользователей пока нет.</p>
+            <p className={cx(styles, "admin-empty")}>Пользователей пока нет.</p>
           )}
-          {loading && <p className="admin-empty">Загружаем пользователей…</p>}
+          {loading && <p className={cx(styles, "admin-empty")}>Загружаем пользователей…</p>}
         </div>
-        <p className="admin-note admin-mt-10">
+        <p className={cx(styles, "admin-note admin-mt-10")}>
           Роли: администратор — полный доступ, аналитик — запуски и дайджесты,
           наблюдатель — только чтение.
         </p>

@@ -105,4 +105,4 @@ CI/CD: `.github/workflows/ci.yml` — fmt, clippy, tests, frontend lint/build,
 - `docs/SOURCES.md` — все 28 источников и способы подключения.
 - `docs/RUNBOOK.md` — контрольный прогон и диагностика.
 - `docs/CI_CD.md` — пайплайн и секреты.
-- `deploy/Caddyfile.example` — TLS 1.3 reverse proxy.
+- `Caddyfile.public` / `Caddyfile.internal` — TLS reverse proxy для домена/IP.

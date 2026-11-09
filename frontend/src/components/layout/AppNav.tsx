@@ -5,7 +5,12 @@ import {
   DashboardIcon,
   MonitorHeartIcon,
   UserIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
+import { cx } from '@utils/cx';
+
+import appStyles from '@components/layout/AppHeader.module.css';
+
+const styles = appStyles;
 
 const ITEMS = [
   {
@@ -34,20 +39,20 @@ export default function AppNav() {
   const isAdmin = getCurrentUser()?.role === 'admin';
 
   return (
-    <nav className="app-nav" aria-label="Основное меню">
+    <nav className={cx(styles, "app-nav")} aria-label="Основное меню">
       {ITEMS.filter((item) => !item.admin || isAdmin).map((item) => {
         const Icon = item.icon;
         const active = item.match(pathname);
         return (
           <Link
-            className={`app-nav-item${active ? ' app-nav-item--active' : ''}`}
+            className={cx(styles, `app-nav-item${active ? ' app-nav-item--active' : ''}`)}
             key={item.to}
             to={item.to}
             aria-current={active ? 'page' : undefined}
             title={item.label}
           >
             <Icon />
-            <span className="app-nav-label">{item.label}</span>
+            <span className={cx(styles, "app-nav-label")}>{item.label}</span>
           </Link>
         );
       })}

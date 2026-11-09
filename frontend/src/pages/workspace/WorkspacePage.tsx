@@ -15,8 +15,13 @@ import {
   RssIcon,
   ScheduleIcon,
   TuneIcon,
-} from '@components/ui/icons';
-import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
+} from '@components/ui';
+import { WorkspaceLayout } from '@components';
+import { cx } from '@utils/cx';
+
+import workspaceStyles from '@components/workspace/workspace.module.css';
+
+const styles = workspaceStyles;
 
 const INTERVALS = [
   { hours: 12, label: '12 часов' },
@@ -193,48 +198,48 @@ export default function WorkspacePage() {
       onDeleteRun={handleDeleteRun}
       onNewQuery={resetForm}
     >
-      <form className="ws-card" onSubmit={handleSubmit}>
-        <div className="ws-card-head">
-          <div className="ws-card-icon">
+      <form className={cx(styles, "ws-card")} onSubmit={handleSubmit}>
+        <div className={cx(styles, "ws-card-head")}>
+          <div className={cx(styles, "ws-card-icon")}>
             <TuneIcon />
           </div>
           <div>
-            <h1 className="ws-card-title">Параметры сбора и анализа новостей</h1>
-            <p className="ws-card-sub">
+            <h1 className={cx(styles, "ws-card-title")}>Параметры сбора и анализа новостей</h1>
+            <p className={cx(styles, "ws-card-sub")}>
               Настройте окно мониторинга, количество материалов и источники.
             </p>
           </div>
         </div>
 
         {dataError && (
-          <div className="ws-alert ws-alert--error" role="alert">
+          <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
             <AlertCircleIcon />
             <span>{dataError}</span>
           </div>
         )}
 
         {sessionNotice && (
-          <div className="ws-alert ws-alert--info" role="status">
+          <div className={cx(styles, "ws-alert ws-alert--info")} role="status">
             <InfoIcon />
             <span>{sessionNotice}</span>
           </div>
         )}
 
-        <div className="ws-params">
-          <section className="ws-param ws-param--5">
-            <div className="ws-param-head">
-              <span className="ws-param-title">
+        <div className={cx(styles, "ws-params")}>
+          <section className={cx(styles, "ws-param ws-param--5")}>
+            <div className={cx(styles, "ws-param-head")}>
+              <span className={cx(styles, "ws-param-title")}>
                 <ScheduleIcon />
                 Временной интервал
               </span>
-              <span className="ws-param-hint">За последние {intervalHours} ч</span>
+              <span className={cx(styles, "ws-param-hint")}>За последние {intervalHours} ч</span>
             </div>
-            <div className="ws-pills">
+            <div className={cx(styles, "ws-pills")}>
               {INTERVALS.map((item) => (
                 <button
-                  className={`ws-pill${
+                  className={cx(styles, `ws-pill${
                     intervalHours === item.hours ? ' ws-pill--active' : ''
-                  }`}
+                  }`)}
                   key={item.hours}
                   type="button"
                   onClick={() => setIntervalHours(item.hours)}
@@ -246,20 +251,20 @@ export default function WorkspacePage() {
             </div>
           </section>
 
-          <section className="ws-param ws-param--7">
-            <div className="ws-param-head">
-              <span className="ws-param-title">
+          <section className={cx(styles, "ws-param ws-param--7")}>
+            <div className={cx(styles, "ws-param-head")}>
+              <span className={cx(styles, "ws-param-title")}>
                 <ListNumberedIcon />
                 Количество новостей в дайджесте
               </span>
-              <span className="ws-param-badge">Оптимум для дежурной смены</span>
+              <span className={cx(styles, "ws-param-badge")}>Оптимум для дежурной смены</span>
             </div>
-            <div className="ws-pills">
+            <div className={cx(styles, "ws-pills")}>
               {NEWS_COUNTS.map((item) => (
                 <button
-                  className={`ws-pill${
+                  className={cx(styles, `ws-pill${
                     newsCount === item.value ? ' ws-pill--active' : ''
-                  }`}
+                  }`)}
                   key={item.value}
                   type="button"
                   onClick={() => setNewsCount(item.value)}
@@ -271,44 +276,44 @@ export default function WorkspacePage() {
             </div>
           </section>
 
-          <section className="ws-param ws-param--12">
-            <div className="ws-param-head">
-              <span className="ws-param-title">
+          <section className={cx(styles, "ws-param ws-param--12")}>
+            <div className={cx(styles, "ws-param-head")}>
+              <span className={cx(styles, "ws-param-title")}>
                 <RssIcon />
                 Источники мониторинга
-                <span className="ws-param-badge">
+                <span className={cx(styles, "ws-param-badge")}>
                   {selectedCount} из {enabledCount} активно
                 </span>
               </span>
-              <span className="ws-sources-actions">
-                <button className="ws-link-button" type="button" onClick={selectAllSources}>
+              <span className={cx(styles, "ws-sources-actions")}>
+                <button className={cx(styles, "ws-link-button")} type="button" onClick={selectAllSources}>
                   Выбрать все
                 </button>
-                <span className="ws-muted-dot">•</span>
-                <button className="ws-link-button ws-link-button--muted" type="button" onClick={resetSources}>
+                <span className={cx(styles, "ws-muted-dot")}>•</span>
+                <button className={cx(styles, "ws-link-button ws-link-button--muted")} type="button" onClick={resetSources}>
                   Сбросить
                 </button>
               </span>
             </div>
 
-            <div className="ws-sources">
-              {loadingSources && <span className="ws-sidebar-note">Загружаем источники…</span>}
+            <div className={cx(styles, "ws-sources")}>
+              {loadingSources && <span className={cx(styles, "ws-sidebar-note")}>Загружаем источники…</span>}
               {!loadingSources && sources.length === 0 && (
-                <span className="ws-sidebar-note">Источники не найдены.</span>
+                <span className={cx(styles, "ws-sidebar-note")}>Источники не найдены.</span>
               )}
               {sources.map((source) => {
                 const selected = selectedSources.has(source.id);
                 return (
                   <button
-                    className={`ws-source${selected ? ' ws-source--selected' : ''}`}
+                    className={cx(styles, `ws-source${selected ? ' ws-source--selected' : ''}`)}
                     key={source.id}
                     type="button"
                     title={source.url}
                     onClick={() => toggleSource(source.id)}
                   >
-                    <span className="ws-source-dot" />
+                    <span className={cx(styles, "ws-source-dot")} />
                     <span>{source.name}</span>
-                    <span className="ws-source-badge">{source.trust}</span>
+                    <span className={cx(styles, "ws-source-badge")}>{source.trust}</span>
                   </button>
                 );
               })}
@@ -316,16 +321,16 @@ export default function WorkspacePage() {
           </section>
         </div>
 
-        <div className="ws-card-footer">
-          <div className="ws-submit-block">
-            <span className="ws-estimate">
+        <div className={cx(styles, "ws-card-footer")}>
+          <div className={cx(styles, "ws-submit-block")}>
+            <span className={cx(styles, "ws-estimate")}>
               Примерное время:{' '}
               <strong>
                 {selectedCount === 0 ? 'выберите источники' : formatEstimate(estimatedSeconds)}
               </strong>
             </span>
             <button
-              className="ws-submit"
+              className={cx(styles, "ws-submit")}
               type="submit"
               disabled={!canSubmit}
               title={
@@ -341,7 +346,7 @@ export default function WorkspacePage() {
         </div>
 
         {submitError && (
-          <div className="ws-alert ws-alert--error" role="alert">
+          <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
             <AlertCircleIcon />
             <span>{submitError}</span>
           </div>

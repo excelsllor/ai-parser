@@ -1020,3 +1020,194 @@
     padding: 16px;
   }
 }
+
+
+/* Material You theme */
+body .pf-header {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  box-shadow: var(--header-shadow);
+}
+
+body .pf-nav-item {
+  border-radius: 999px;
+}
+
+body .pf-nav-item--active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  box-shadow: none;
+}
+
+body .pf-card {
+  border-color: var(--md-outline-variant);
+  border-radius: 28px;
+  background: var(--md-surface-container-low);
+  box-shadow: var(--panel-shadow);
+}
+
+body .pf-session-badge {
+  border-radius: 999px;
+}
+
+body .pf-session-badge {
+  border-color: var(--md-outline-variant);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .pf-button--primary {
+  border-radius: 999px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+body .pf-button--primary:hover {
+  background: var(--md-primary-hover);
+}
+
+body .pf-button {
+  border-color: var(--md-outline);
+  border-radius: 999px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .pf-button--danger {
+  border-radius: 999px;
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .pf-input-wrap {
+  border-color: var(--md-outline);
+  border-radius: 16px;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+}
+
+body .pf-input-wrap:focus-within {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+body .pf-input-icon {
+  color: var(--md-on-surface-variant);
+}
+
+body .pf-notice {
+  border-radius: 16px;
+}
+
+body .pf-profile-strip {
+  border-color: var(--md-outline-variant);
+  border-radius: 24px;
+  background: var(--md-surface-container);
+}
+
+body .pf-avatar {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  box-shadow: none;
+}
+
+
+/* Motion */
+.pf-main > * {
+  animation: motion-fade-up var(--motion-slow) var(--motion-ease) both;
+}
+
+.pf-page .pf-main > * {
+  will-change: transform, opacity;
+}
+
+.pf-cards > * {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.pf-cards > *:nth-child(2) { animation-delay: 40ms; }
+
+.pf-cards > *:nth-child(3) { animation-delay: 80ms; }
+
+.pf-cards > *:nth-child(4) { animation-delay: 120ms; }
+
+.pf-cards > *:nth-child(5) { animation-delay: 160ms; }
+
+.pf-cards > *:nth-child(n + 6) { animation-delay: 200ms; }
+
+.pf-nav-item {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.pf-nav-item:hover {
+  transform: translateY(-1px);
+}
+
+.pf-nav-item--active {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.pf-card {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.pf-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--panel-shadow-hover);
+}
+
+[data-theme='dark'] .pf-card:hover {
+  box-shadow: var(--panel-shadow-hover);
+}
+
+.pf-button:hover {
+  transform: translateY(-1px);
+}
+
+.pf-button:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.pf-notice {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.pf-online {
+  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+}
+
+.pf-avatar {
+  transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) ease;
+}
+
+.pf-avatar:hover {
+  transform: scale(1.04);
+}
+
+@media (prefers-reduced-motion: reduce) {
+.pf-card:hover {
+    transform: none;
+  }
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}

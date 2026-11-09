@@ -14,7 +14,7 @@ import {
   verifyCurrentEmail,
 } from '@api/auth';
 import type { CurrentUser, ProfileSession } from '@api/auth';
-import AppHeader from '@components/layout/AppHeader';
+import { AppHeader } from '@components';
 import {
   AlternateEmailIcon,
   BadgeIcon,
@@ -32,10 +32,14 @@ import {
   SaveIcon,
   UserIcon,
   VerifiedUserIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
 
-import '@components/workspace/workspace.css';
-import './ProfilePage.css';
+import { cx } from '@utils/cx';
+
+import workspaceStyles from '@components/workspace/workspace.module.css';
+import profileStyles from './ProfilePage.module.css';
+
+const styles = { ...workspaceStyles, ...profileStyles };
 
 const roleLabel = (role: string | undefined): string => {
   if (role === 'admin') {
@@ -374,33 +378,33 @@ export default function ProfilePage() {
     navigate('/login', { replace: true });
   }
 
-  return (    <div className="ws-page pf-page">
+  return (    <div className={cx(styles, "ws-page pf-page")}>
       <AppHeader sub="Security Ops" />
 
-      <main className="pf-main">
-        <div className="pf-breadcrumbs">
+      <main className={cx(styles, "pf-main")}>
+        <div className={cx(styles, "pf-breadcrumbs")}>
           <span>CyberBug</span>
           <span>/</span>
           <span>Настройки учетной записи</span>
         </div>
-        <h1 className="pf-title">Профиль пользователя</h1>
-        <p className="pf-subtitle">
+        <h1 className={cx(styles, "pf-title")}>Профиль пользователя</h1>
+        <p className={cx(styles, "pf-subtitle")}>
           Управление персональными данными, контактным email, паролем и текущими сессиями
           в системе.
         </p>
 
         {notice && (
-          <div className="pf-notice" role="status">
+          <div className={cx(styles, "pf-notice")} role="status">
             <CheckCircleIcon />
             <span>{notice}</span>
           </div>
         )}
 
-        <div className="pf-cards">
-          <details className="pf-card" open>
-            <summary className="pf-card-head">
-              <span className="pf-card-head-left">
-                <span className="pf-card-icon">
+        <div className={cx(styles, "pf-cards")}>
+          <details className={cx(styles, "pf-card")} open>
+            <summary className={cx(styles, "pf-card-head")}>
+              <span className={cx(styles, "pf-card-head-left")}>
+                <span className={cx(styles, "pf-card-icon")}>
                   <BadgeIcon />
                 </span>
                 <span>
@@ -408,41 +412,41 @@ export default function ProfilePage() {
                   <small>Личные данные и служебная информация аккаунта</small>
                 </span>
               </span>
-              <ChevronDownIcon className="pf-chevron" />
+              <ChevronDownIcon className={cx(styles, "pf-chevron")} />
             </summary>
 
-            <div className="pf-card-body">
-              <div className="pf-profile-strip">
-                <div className="pf-profile-main">
-                  <span className="pf-avatar">{initials}</span>
+            <div className={cx(styles, "pf-card-body")}>
+              <div className={cx(styles, "pf-profile-strip")}>
+                <div className={cx(styles, "pf-profile-main")}>
+                  <span className={cx(styles, "pf-avatar")}>{initials}</span>
                   <div>
-                    <div className="pf-profile-name-row">
+                    <div className={cx(styles, "pf-profile-name-row")}>
                       <strong>{me?.display_name || me?.username || 'Пользователь'}</strong>
-                      <span className="pf-mono">@{me?.username ?? 'user'}</span>
+                      <span className={cx(styles, "pf-mono")}>@{me?.username ?? 'user'}</span>
                     </div>
-                    <p className="pf-profile-role">
+                    <p className={cx(styles, "pf-profile-role")}>
                       <VerifiedUserIcon />
                       {accessLabel(me?.role)}
                       {me?.department ? ` · ${me.department}` : ''}
                     </p>
                   </div>
                 </div>
-                <div className="pf-registered">
+                <div className={cx(styles, "pf-registered")}>
                   <span>Дата регистрации:</span>
                   <strong>{formatDate(me?.created_at)}</strong>
                 </div>
               </div>
 
-              <form className="pf-form" onSubmit={handleProfileSubmit}>
-                <div className="pf-fields">
+              <form className={cx(styles, "pf-form")} onSubmit={handleProfileSubmit}>
+                <div className={cx(styles, "pf-fields")}>
                   <label
-                    className={`pf-field${
+                    className={cx(styles, `pf-field${
                       fieldErrors.profile_name ? ' pf-field--invalid' : ''
-                    }`}
+                    }`)}
                   >
                     <span>Отображаемое имя</span>
-                    <div className="pf-input-wrap">
-                      <UserIcon className="pf-input-icon" />
+                    <div className={cx(styles, "pf-input-wrap")}>
+                      <UserIcon className={cx(styles, "pf-input-icon")} />
                       <input
                         placeholder="Александр Смирнов"
                         value={displayName}
@@ -451,19 +455,19 @@ export default function ProfilePage() {
                       />
                     </div>
                     {fieldErrors.profile_name && (
-                      <span className="pf-field-error" role="alert">
+                      <span className={cx(styles, "pf-field-error")} role="alert">
                         {fieldErrors.profile_name}
                       </span>
                     )}
                   </label>
                   <label
-                    className={`pf-field${
+                    className={cx(styles, `pf-field${
                       fieldErrors.profile_department ? ' pf-field--invalid' : ''
-                    }`}
+                    }`)}
                   >
                     <span>Подразделение</span>
-                    <div className="pf-input-wrap">
-                      <BadgeIcon className="pf-input-icon" />
+                    <div className={cx(styles, "pf-input-wrap")}>
+                      <BadgeIcon className={cx(styles, "pf-input-icon")} />
                       <input
                         placeholder="SOC Monitoring & Ops"
                         value={department}
@@ -472,37 +476,37 @@ export default function ProfilePage() {
                       />
                     </div>
                     {fieldErrors.profile_department && (
-                      <span className="pf-field-error" role="alert">
+                      <span className={cx(styles, "pf-field-error")} role="alert">
                         {fieldErrors.profile_department}
                       </span>
                     )}
                   </label>
-                  <label className="pf-field">
+                  <label className={cx(styles, "pf-field")}>
                     <span>Логин</span>
                     <input value={me?.username ?? ''} readOnly disabled />
                   </label>
-                  <label className="pf-field">
+                  <label className={cx(styles, "pf-field")}>
                     <span>Роль</span>
                     <input value={roleLabel(me?.role)} readOnly disabled />
                   </label>
-                  <label className="pf-field">
+                  <label className={cx(styles, "pf-field")}>
                     <span>Статус аккаунта</span>
                     <input value={me?.is_active ? 'Активен' : 'Отключён'} readOnly disabled />
                   </label>
-                  <label className="pf-field">
+                  <label className={cx(styles, "pf-field")}>
                     <span>Идентификатор</span>
                     <input value={me?.id || '—'} readOnly disabled />
                   </label>
                 </div>
 
-                <div className="pf-form-actions">
-                  <span className="pf-readonly-note">
+                <div className={cx(styles, "pf-form-actions")}>
+                  <span className={cx(styles, "pf-readonly-note")}>
                     {loading
                       ? 'Загрузка данных…'
                       : 'Логин, роль и идентификатор доступны только для чтения.'}
                   </span>
                   <button
-                    className="pf-button pf-button--primary"
+                    className={cx(styles, "pf-button pf-button--primary")}
                     type="submit"
                     disabled={profileSaving || loading}
                   >
@@ -514,10 +518,10 @@ export default function ProfilePage() {
             </div>
           </details>
 
-          <details className="pf-card">
-            <summary className="pf-card-head">
-              <span className="pf-card-head-left">
-                <span className="pf-card-icon">
+          <details className={cx(styles, "pf-card")}>
+            <summary className={cx(styles, "pf-card-head")}>
+              <span className={cx(styles, "pf-card-head-left")}>
+                <span className={cx(styles, "pf-card-icon")}>
                   <EmailReadIcon />
                 </span>
                 <span>
@@ -525,15 +529,15 @@ export default function ProfilePage() {
                   <small>Обновление основного контактного адреса профиля</small>
                 </span>
               </span>
-              <ChevronDownIcon className="pf-chevron" />
+              <ChevronDownIcon className={cx(styles, "pf-chevron")} />
             </summary>
 
-            <div className="pf-card-body">
-              <div className="pf-fields">
-                <label className="pf-field">
+            <div className={cx(styles, "pf-card-body")}>
+              <div className={cx(styles, "pf-fields")}>
+                <label className={cx(styles, "pf-field")}>
                   <span>Текущий адрес эл. почты</span>
-                  <div className="pf-input-wrap">
-                    <LockIcon className="pf-input-icon" />
+                  <div className={cx(styles, "pf-input-wrap")}>
+                    <LockIcon className={cx(styles, "pf-input-icon")} />
                     <input value={maskEmail(me?.email)} readOnly disabled />
                   </div>
                   <small>
@@ -545,15 +549,15 @@ export default function ProfilePage() {
               </div>
 
               {!emailVerified ? (
-                <form className="pf-form" onSubmit={handleEmailVerify}>
+                <form className={cx(styles, "pf-form")} onSubmit={handleEmailVerify}>
                   <label
-                    className={`pf-field${
+                    className={cx(styles, `pf-field${
                       fieldErrors.email_current ? ' pf-field--invalid' : ''
-                    }`}
+                    }`)}
                   >
                     <span>Подтвердите текущую почту</span>
-                    <div className="pf-input-wrap">
-                      <MailIcon className="pf-input-icon" />
+                    <div className={cx(styles, "pf-input-wrap")}>
+                      <MailIcon className={cx(styles, "pf-input-icon")} />
                       <input
                         type="email"
                         placeholder="Введите текущий адрес полностью"
@@ -563,14 +567,14 @@ export default function ProfilePage() {
                       />
                     </div>
                     {fieldErrors.email_current && (
-                      <span className="pf-field-error" role="alert">
+                      <span className={cx(styles, "pf-field-error")} role="alert">
                         {fieldErrors.email_current}
                       </span>
                     )}
                   </label>
-                  <div className="pf-form-actions">
+                  <div className={cx(styles, "pf-form-actions")}>
                     <button
-                      className="pf-button pf-button--primary"
+                      className={cx(styles, "pf-button pf-button--primary")}
                       type="submit"
                       disabled={emailVerifying}
                     >
@@ -580,16 +584,16 @@ export default function ProfilePage() {
                   </div>
                 </form>
               ) : (
-                <form className="pf-form" onSubmit={handleEmailSubmit}>
-                  <div className="pf-fields">
+                <form className={cx(styles, "pf-form")} onSubmit={handleEmailSubmit}>
+                  <div className={cx(styles, "pf-fields")}>
                     <label
-                      className={`pf-field${
+                      className={cx(styles, `pf-field${
                         fieldErrors.email_new ? ' pf-field--invalid' : ''
-                      }`}
+                      }`)}
                     >
                       <span>Новый адрес эл. почты</span>
-                      <div className="pf-input-wrap">
-                        <AlternateEmailIcon className="pf-input-icon" />
+                      <div className={cx(styles, "pf-input-wrap")}>
+                        <AlternateEmailIcon className={cx(styles, "pf-input-icon")} />
                         <input
                           type="email"
                           placeholder="analyst.new@enterprise.sec"
@@ -599,19 +603,19 @@ export default function ProfilePage() {
                         />
                       </div>
                       {fieldErrors.email_new && (
-                        <span className="pf-field-error" role="alert">
+                        <span className={cx(styles, "pf-field-error")} role="alert">
                           {fieldErrors.email_new}
                         </span>
                       )}
                     </label>
                     <label
-                      className={`pf-field${
+                      className={cx(styles, `pf-field${
                         fieldErrors.email_confirm ? ' pf-field--invalid' : ''
-                      }`}
+                      }`)}
                     >
                       <span>Повторите новый email</span>
-                      <div className="pf-input-wrap">
-                        <MailIcon className="pf-input-icon" />
+                      <div className={cx(styles, "pf-input-wrap")}>
+                        <MailIcon className={cx(styles, "pf-input-icon")} />
                         <input
                           type="email"
                           placeholder="analyst.new@enterprise.sec"
@@ -621,23 +625,23 @@ export default function ProfilePage() {
                         />
                       </div>
                       {fieldErrors.email_confirm && (
-                        <span className="pf-field-error" role="alert">
+                        <span className={cx(styles, "pf-field-error")} role="alert">
                           {fieldErrors.email_confirm}
                         </span>
                       )}
                     </label>
                   </div>
 
-                  <div className="pf-form-actions">
+                  <div className={cx(styles, "pf-form-actions")}>
                     <button
-                      className="pf-button pf-button--ghost"
+                      className={cx(styles, "pf-button pf-button--ghost")}
                       type="button"
                       onClick={cancelEmailChange}
                     >
                       Отмена
                     </button>
                     <button
-                      className="pf-button pf-button--primary"
+                      className={cx(styles, "pf-button pf-button--primary")}
                       type="submit"
                       disabled={emailSaving}
                     >
@@ -650,10 +654,10 @@ export default function ProfilePage() {
             </div>
           </details>
 
-          <details className="pf-card">
-            <summary className="pf-card-head">
-              <span className="pf-card-head-left">
-                <span className="pf-card-icon">
+          <details className={cx(styles, "pf-card")}>
+            <summary className={cx(styles, "pf-card-head")}>
+              <span className={cx(styles, "pf-card-head-left")}>
+                <span className={cx(styles, "pf-card-icon")}>
                   <PasswordIcon />
                 </span>
                 <span>
@@ -661,23 +665,23 @@ export default function ProfilePage() {
                   <small>Регулярная смена пароля повышает безопасность аккаунта</small>
                 </span>
               </span>
-              <ChevronDownIcon className="pf-chevron" />
+              <ChevronDownIcon className={cx(styles, "pf-chevron")} />
             </summary>
 
-            <div className="pf-card-body">
-              <form className="pf-form" onSubmit={handlePasswordSubmit}>
+            <div className={cx(styles, "pf-card-body")}>
+              <form className={cx(styles, "pf-form")} onSubmit={handlePasswordSubmit}>
                 <label
-                  className={`pf-field${
+                  className={cx(styles, `pf-field${
                     fieldErrors.password_current ? ' pf-field--invalid' : ''
-                  }`}
+                  }`)}
                 >
-                  <span className="pf-label-row">
+                  <span className={cx(styles, "pf-label-row")}>
                     Текущий пароль
-                    <button className="pf-link" type="button" onClick={() => setNotice('Восстановление пароля пока не подключено.')}>
+                    <button className={cx(styles, "pf-link")} type="button" onClick={() => setNotice('Восстановление пароля пока не подключено.')}>
                       Забыли пароль?
                     </button>
                   </span>
-                  <div className="pf-input-wrap">
+                  <div className={cx(styles, "pf-input-wrap")}>
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
                       placeholder="Введите текущий пароль"
@@ -686,7 +690,7 @@ export default function ProfilePage() {
                       onChange={(event) => setCurrentPassword(event.target.value)}
                     />
                     <button
-                      className="pf-eye"
+                      className={cx(styles, "pf-eye")}
                       type="button"
                       aria-label={showCurrentPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowCurrentPassword((value) => !value)}
@@ -695,20 +699,20 @@ export default function ProfilePage() {
                     </button>
                   </div>
                   {fieldErrors.password_current && (
-                    <span className="pf-field-error" role="alert">
+                    <span className={cx(styles, "pf-field-error")} role="alert">
                       {fieldErrors.password_current}
                     </span>
                   )}
                 </label>
 
                 <label
-                  className={`pf-field${
+                  className={cx(styles, `pf-field${
                     fieldErrors.password_new ? ' pf-field--invalid' : ''
-                  }`}
+                  }`)}
                 >
                   <span>Новый пароль</span>
-                  <div className="pf-input-wrap">
-                    <KeyIcon className="pf-input-icon" />
+                  <div className={cx(styles, "pf-input-wrap")}>
+                    <KeyIcon className={cx(styles, "pf-input-icon")} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
                       placeholder="Минимум 8 символов"
@@ -717,7 +721,7 @@ export default function ProfilePage() {
                       onChange={(event) => setNewPassword(event.target.value)}
                     />
                     <button
-                      className="pf-eye"
+                      className={cx(styles, "pf-eye")}
                       type="button"
                       aria-label={showNewPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowNewPassword((value) => !value)}
@@ -726,35 +730,35 @@ export default function ProfilePage() {
                     </button>
                   </div>
                   {fieldErrors.password_new && (
-                    <span className="pf-field-error" role="alert">
+                    <span className={cx(styles, "pf-field-error")} role="alert">
                       {fieldErrors.password_new}
                     </span>
                   )}
                 </label>
 
-                <div className="pf-strength">
-                  <div className="pf-strength-head">
+                <div className={cx(styles, "pf-strength")}>
+                  <div className={cx(styles, "pf-strength-head")}>
                     <span>Сложность пароля</span>
                     <strong>{passwordStrength === 3 ? 'Надёжный' : passwordStrength === 2 ? 'Средний' : 'Слабый'}</strong>
                   </div>
-                  <div className="pf-strength-bar">
+                  <div className={cx(styles, "pf-strength-bar")}>
                     {[0, 1, 2].map((index) => (
                       <span
-                        className={index < passwordStrength ? 'pf-strength-segment pf-strength-segment--on' : 'pf-strength-segment'}
+                        className={cx(styles, index < passwordStrength ? 'pf-strength-segment pf-strength-segment--on' : 'pf-strength-segment')}
                         key={index}
                       />
                     ))}
                   </div>
-                  <div className="pf-strength-hints">
-                    <span className={newPassword.length >= 8 ? 'pf-hint pf-hint--ok' : 'pf-hint'}>
+                  <div className={cx(styles, "pf-strength-hints")}>
+                    <span className={cx(styles, newPassword.length >= 8 ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
                       Минимум 8 символов
                     </span>
-                    <span className={/[A-ZА-Я]/.test(newPassword) && /[a-zа-я]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint'}>
+                    <span className={cx(styles, /[A-ZА-Я]/.test(newPassword) && /[a-zа-я]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
                       Заглавные и строчные буквы
                     </span>
-                    <span className={/\d/.test(newPassword) && /[^A-Za-zА-Яа-я0-9]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint'}>
+                    <span className={cx(styles, /\d/.test(newPassword) && /[^A-Za-zА-Яа-я0-9]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
                       Цифры и спецсимволы (!@#$)
                     </span>
@@ -762,13 +766,13 @@ export default function ProfilePage() {
                 </div>
 
                 <label
-                  className={`pf-field${
+                  className={cx(styles, `pf-field${
                     fieldErrors.password_repeat ? ' pf-field--invalid' : ''
-                  }`}
+                  }`)}
                 >
                   <span>Повторите новый пароль</span>
-                  <div className="pf-input-wrap">
-                    <KeyIcon className="pf-input-icon" />
+                  <div className={cx(styles, "pf-input-wrap")}>
+                    <KeyIcon className={cx(styles, "pf-input-icon")} />
                     <input
                       type={showRepeatPassword ? 'text' : 'password'}
                       placeholder="Повторите новый пароль"
@@ -777,7 +781,7 @@ export default function ProfilePage() {
                       onChange={(event) => setRepeatPassword(event.target.value)}
                     />
                     <button
-                      className="pf-eye"
+                      className={cx(styles, "pf-eye")}
                       type="button"
                       aria-label={showRepeatPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       onClick={() => setShowRepeatPassword((value) => !value)}
@@ -786,23 +790,23 @@ export default function ProfilePage() {
                     </button>
                   </div>
                   {fieldErrors.password_repeat && (
-                    <span className="pf-field-error" role="alert">
+                    <span className={cx(styles, "pf-field-error")} role="alert">
                       {fieldErrors.password_repeat}
                     </span>
                   )}
                   {!fieldErrors.password_repeat &&
                     repeatPassword &&
                     repeatPassword === newPassword && (
-                      <small className="pf-match">
+                      <small className={cx(styles, "pf-match")}>
                         <CheckCircleIcon />
                         Пароли совпадают
                       </small>
                     )}
                 </label>
 
-                <div className="pf-form-actions">
+                <div className={cx(styles, "pf-form-actions")}>
                   <button
-                    className="pf-button pf-button--ghost"
+                    className={cx(styles, "pf-button pf-button--ghost")}
                     type="button"
                     onClick={() => {
                       setCurrentPassword('');
@@ -815,7 +819,7 @@ export default function ProfilePage() {
                     Отмена
                   </button>
                   <button
-                    className="pf-button pf-button--primary"
+                    className={cx(styles, "pf-button pf-button--primary")}
                     type="submit"
                     disabled={passwordSaving}
                   >
@@ -827,41 +831,41 @@ export default function ProfilePage() {
             </div>
           </details>
 
-          <details className="pf-card">
-            <summary className="pf-card-head">
-              <span className="pf-card-head-left">
-                <span className="pf-card-icon">
+          <details className={cx(styles, "pf-card")}>
+            <summary className={cx(styles, "pf-card-head")}>
+              <span className={cx(styles, "pf-card-head-left")}>
+                <span className={cx(styles, "pf-card-icon")}>
                   <DevicesIcon />
                 </span>
                 <span>
                   <strong>
                     Активные сессии
-                    <span className="pf-count">{sessions.length}</span>
+                    <span className={cx(styles, "pf-count")}>{sessions.length}</span>
                   </strong>
                   <small>Устройства, с которых выполнен вход в ваш аккаунт</small>
                 </span>
               </span>
-              <ChevronDownIcon className="pf-chevron" />
+              <ChevronDownIcon className={cx(styles, "pf-chevron")} />
             </summary>
 
-            <div className="pf-card-body">
+            <div className={cx(styles, "pf-card-body")}>
               {sessions.map((session, index) => (
-                <div className="pf-session" key={session.id}>
-                  <div className="pf-session-main">
-                    <span className="pf-session-icon">
+                <div className={cx(styles, "pf-session")} key={session.id}>
+                  <div className={cx(styles, "pf-session-main")}>
+                    <span className={cx(styles, "pf-session-icon")}>
                       <DevicesIcon />
                     </span>
                     <div>
-                      <div className="pf-session-title">
+                      <div className={cx(styles, "pf-session-title")}>
                         Сессия от {formatDate(session.created_at)}
                         {index === 0 && (
-                          <span className="pf-session-badge">Текущая</span>
+                          <span className={cx(styles, "pf-session-badge")}>Текущая</span>
                         )}
                       </div>
-                      <div className="pf-session-meta">
+                      <div className={cx(styles, "pf-session-meta")}>
                         <span>Действует до {formatDate(session.expires_at)}</span>
                         <span>•</span>
-                        <span className="pf-online">
+                        <span className={cx(styles, "pf-online")}>
                           {index === 0 ? 'Онлайн сейчас' : 'Активна'}
                         </span>
                       </div>
@@ -869,7 +873,7 @@ export default function ProfilePage() {
                   </div>
                   {index === 0 ? (
                     <button
-                      className="pf-button pf-button--danger"
+                      className={cx(styles, "pf-button pf-button--danger")}
                       type="button"
                       onClick={handleLogout}
                     >
@@ -878,7 +882,7 @@ export default function ProfilePage() {
                     </button>
                   ) : (
                     <button
-                      className="pf-button pf-button--ghost"
+                      className={cx(styles, "pf-button pf-button--ghost")}
                       type="button"
                       onClick={() => void handleRevokeSession(session)}
                     >
@@ -888,15 +892,15 @@ export default function ProfilePage() {
                 </div>
               ))}
               {sessions.length === 0 && (
-                <p className="pf-readonly-note">Активных сессий не найдено.</p>
+                <p className={cx(styles, "pf-readonly-note")}>Активных сессий не найдено.</p>
               )}
 
-              <div className="pf-form-actions pf-form-actions--between">
-                <span className="pf-readonly-note">
+              <div className={cx(styles, "pf-form-actions pf-form-actions--between")}>
+                <span className={cx(styles, "pf-readonly-note")}>
                   Завершение других сессий отзывает refresh-токены.
                 </span>
                 <button
-                  className="pf-button pf-button--ghost"
+                  className={cx(styles, "pf-button pf-button--ghost")}
                   type="button"
                   onClick={() => void handleRevokeOthers()}
                 >
@@ -908,7 +912,7 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      <footer className="pf-footer">
+      <footer className={cx(styles, "pf-footer")}>
         <span>
           <strong>CyberBug</strong> · Центр мониторинга и реагирования на инциденты
         </span>

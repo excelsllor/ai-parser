@@ -911,3 +911,300 @@
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+
+
+/* Material You theme */
+body .admin-tab {
+  border-radius: 999px;
+}
+
+body .admin-tab--active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  box-shadow: none;
+}
+
+body .admin-card,
+body .admin-stat,
+body .admin-service {
+  border-color: var(--md-outline-variant);
+  border-radius: 28px;
+  background: var(--md-surface-container-low);
+  box-shadow: var(--panel-shadow);
+}
+
+body .admin-stat,
+body .admin-service {
+  border-color: var(--md-outline-variant);
+  border-radius: 20px;
+  background: var(--md-surface-container);
+}
+
+body .admin-badge {
+  border-radius: 999px;
+}
+
+body .admin-badge {
+  border-color: var(--md-outline-variant);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .admin-tabs {
+  border-color: var(--md-outline-variant);
+  background: var(--md-surface);
+}
+
+body .admin-tab {
+  color: var(--md-on-surface-variant);
+}
+
+body .admin-tab:hover {
+  background: var(--md-surface-container-high);
+}
+
+body .admin-button--primary {
+  border-radius: 999px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+body .admin-button--primary:hover {
+  background: var(--md-primary-hover);
+}
+
+body .admin-button {
+  border-color: var(--md-outline);
+  border-radius: 999px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .admin-button--danger {
+  border-radius: 999px;
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .admin-input,
+body .admin-select {
+  border-color: var(--md-outline);
+  border-radius: 16px;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+}
+
+body .admin-input:focus,
+body .admin-select:focus {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+body .admin-search svg {
+  color: var(--md-on-surface-variant);
+}
+
+body .admin-error,
+body .admin-notice {
+  border-radius: 16px;
+}
+
+body .admin-error {
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .admin-notice {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+}
+
+body .admin-table th {
+  background: var(--md-surface-container);
+  color: var(--md-on-surface-variant);
+}
+
+body .admin-table tr:hover td {
+  background: var(--md-surface-container);
+}
+
+body .admin-table td {
+  border-color: var(--md-outline-variant);
+}
+
+body .admin-avatar {
+  background: var(--md-primary-container);
+  color: var(--md-on-primary-container);
+  box-shadow: none;
+}
+
+body .admin-chart-bar {
+  background: var(--md-primary);
+}
+
+body .admin-dist-fill {
+  background: var(--md-primary);
+}
+
+
+/* Motion */
+.admin-main > * {
+  animation: motion-fade-up var(--motion-slow) var(--motion-ease) both;
+}
+
+.admin-page .admin-main > * {
+  will-change: transform, opacity;
+}
+
+.admin-stats > *,
+.admin-service-grid > *,
+.admin-table tbody tr {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.admin-stats > *:nth-child(2),
+.admin-service-grid > *:nth-child(2),
+.admin-table tbody tr:nth-child(2) { animation-delay: 40ms; }
+
+.admin-stats > *:nth-child(3),
+.admin-service-grid > *:nth-child(3),
+.admin-table tbody tr:nth-child(3) { animation-delay: 80ms; }
+
+.admin-stats > *:nth-child(4),
+.admin-service-grid > *:nth-child(4),
+.admin-table tbody tr:nth-child(4) { animation-delay: 120ms; }
+
+.admin-stats > *:nth-child(5),
+.admin-service-grid > *:nth-child(5),
+.admin-table tbody tr:nth-child(5) { animation-delay: 160ms; }
+
+.admin-stats > *:nth-child(n + 6),
+.admin-service-grid > *:nth-child(n + 6),
+.admin-table tbody tr:nth-child(n + 6) { animation-delay: 200ms; }
+
+.admin-table tbody tr {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.admin-tab {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.admin-tab:hover {
+  transform: translateY(-1px);
+}
+
+.admin-tab--active {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.admin-card,
+.admin-stat,
+.admin-service {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.admin-card:hover,
+.admin-stat:hover,
+.admin-service:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--panel-shadow-hover);
+}
+
+[data-theme='dark'] .admin-card:hover,
+[data-theme='dark'] .admin-stat:hover,
+[data-theme='dark'] .admin-service:hover {
+  box-shadow: var(--panel-shadow-hover);
+}
+
+.admin-button:hover {
+  transform: translateY(-1px);
+}
+
+.admin-button:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.admin-error,
+.admin-notice {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.admin-chart-bar {
+  transform-origin: bottom;
+  animation: motion-bar-grow 520ms var(--motion-ease-soft) both;
+  transition: height var(--motion-base) var(--motion-ease);
+}
+
+.admin-chart-col:nth-child(2n) .admin-chart-bar { animation-delay: 40ms; }
+
+.admin-chart-col:nth-child(3n) .admin-chart-bar { animation-delay: 80ms; }
+
+.admin-dist-fill {
+  transform-origin: left center;
+  animation: motion-fill-grow 620ms var(--motion-ease-soft) both;
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+.admin-live-dot {
+  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+}
+
+.admin-avatar {
+  transition: transform var(--motion-base) var(--motion-ease), box-shadow var(--motion-base) ease;
+}
+
+.admin-avatar:hover {
+  transform: scale(1.04);
+}
+
+.admin-live-dot {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+.admin-card:hover,
+.admin-stat:hover,
+.admin-service:hover {
+    transform: none;
+  }
+}
+
+/* Keyframes used by this module */
+@keyframes motion-bar-grow {
+  from { transform: scaleY(0.05); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-fill-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}

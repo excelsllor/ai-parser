@@ -11,11 +11,8 @@
   padding: 24px;
 }
 
-.rp-generating .ws-alert {
-  width: min(620px, 100%);
-}
-
-.rp-generating .snake-loader {
+.rp-generating-alert,
+.rp-generating-loader {
   width: min(620px, 100%);
 }
 
@@ -1180,6 +1177,23 @@
 }
 
 @media (max-width: 520px) {
+  .rp-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .rp-params-head {
+    align-items: stretch;
+  }
+
+  .rp-params-actions,
+  .rp-tab-actions {
+    flex-wrap: wrap;
+  }
+
+  .rp-params-actions button {
+    width: 100%;
+  }
+
   .rp-tg-head {
     padding: 12px;
   }
@@ -1899,14 +1913,6 @@
   max-height: 160px;
 }
 
-.rp-modal-policies {
-  gap: 12px;
-}
-
-.rp-modal-policies .ws-switch-label {
-  font-size: 11px;
-}
-
 .rp-link--muted {
   color: var(--ws-soft);
 }
@@ -2052,4 +2058,206 @@
   .rp-modal-actions .rp-secondary-button {
     width: 100%;
   }
+}
+
+
+/* Material You theme */
+body .rp-tg-card,
+body .rp-modal {
+  border-color: var(--md-outline-variant);
+  border-radius: 28px;
+  background: var(--md-surface-container-low);
+  box-shadow: var(--panel-shadow);
+}
+
+body .rp-check,
+body .rp-article {
+  border-color: var(--md-outline-variant);
+  border-radius: 20px;
+  background: var(--md-surface-container);
+}
+
+body .rp-modal {
+  background: var(--md-surface-container-high);
+}
+
+body .rp-modal-backdrop {
+  background: rgba(0, 0, 0, 0.42);
+}
+
+body .rp-chip {
+  border-radius: 999px;
+}
+
+body .rp-chip {
+  border-color: var(--md-outline-variant);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .rp-primary-button {
+  border-radius: 999px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+body .rp-primary-button:hover {
+  background: var(--md-primary-hover);
+}
+
+body .rp-secondary-button {
+  border-color: var(--md-outline);
+  border-radius: 999px;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+}
+
+body .rp-danger-button {
+  border-radius: 999px;
+  background: var(--md-error-container);
+  color: var(--md-on-error-container);
+}
+
+body .rp-modal-input-wrap,
+body .rp-modal-tz,
+body .rp-search {
+  border-color: var(--md-outline);
+  border-radius: 16px;
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface);
+}
+
+body .rp-modal-input-wrap:focus-within {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+body .rp-modal-input-wrap > svg {
+  color: var(--md-on-surface-variant);
+}
+
+body .rp-modal-note {
+  border-radius: 16px;
+}
+
+body .rp-journal-table td,
+body .rp-journal-table th {
+  border-color: var(--md-outline-variant);
+}
+
+body .rp-digest,
+body .rp-article {
+  border-color: var(--md-outline-variant);
+  border-radius: 24px;
+  background: var(--md-surface-container);
+}
+
+
+/* Motion */
+.rp-checks-grid > *,
+.rp-journal-table tbody tr {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.rp-checks-grid > *:nth-child(2),
+.rp-journal-table tbody tr:nth-child(2) { animation-delay: 40ms; }
+
+.rp-checks-grid > *:nth-child(3),
+.rp-journal-table tbody tr:nth-child(3) { animation-delay: 80ms; }
+
+.rp-checks-grid > *:nth-child(4),
+.rp-journal-table tbody tr:nth-child(4) { animation-delay: 120ms; }
+
+.rp-checks-grid > *:nth-child(5),
+.rp-journal-table tbody tr:nth-child(5) { animation-delay: 160ms; }
+
+.rp-checks-grid > *:nth-child(n + 6),
+.rp-journal-table tbody tr:nth-child(n + 6) { animation-delay: 200ms; }
+
+.rp-journal-table tbody tr {
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.rp-check,
+.rp-tg-card,
+.rp-modal {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.rp-check:hover,
+.rp-tg-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--panel-shadow-hover);
+}
+
+[data-theme='dark'] .rp-check:hover,
+[data-theme='dark'] .rp-tg-card:hover {
+  box-shadow: var(--panel-shadow-hover);
+}
+
+.rp-primary-button:hover {
+  transform: translateY(-1px);
+}
+
+.rp-primary-button:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.rp-modal-note {
+  animation: motion-fade-up var(--motion-base) var(--motion-ease) both;
+}
+
+.rp-modal-backdrop {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+.rp-modal {
+  animation: motion-scale-in var(--motion-base) var(--motion-ease) both;
+}
+
+.rp-modal-backdrop {
+  backdrop-filter: blur(2px);
+}
+
+.rp-footer-dot {
+  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+}
+
+.rp-loading {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+.rp-check:hover {
+    transform: none;
+  }
+}
+
+/* Keyframes used by this module */
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes motion-fade-up {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes motion-scale-in {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes motion-soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }

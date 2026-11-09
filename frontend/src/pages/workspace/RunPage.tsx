@@ -16,8 +16,7 @@ import {
   sendTestEmail,
 } from '@api/runs';
 import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
-import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
-import SnakeLoader from '@components/ui/SnakeLoader';
+import { SnakeLoader, WorkspaceLayout } from '@components';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
@@ -43,9 +42,14 @@ import {
   SparklesIcon,
   TableIcon,
   TuneIcon,
-} from '@components/ui/icons';
+} from '@components/ui';
 
-import './RunPage.css';
+import { cx } from '@utils/cx';
+
+import runStyles from './RunPage.module.css';
+import workspaceStyles from '@components/workspace/workspace.module.css';
+
+const styles = { ...workspaceStyles, ...runStyles };
 
 interface VulnerabilityRow {
   item_title: string;
@@ -750,7 +754,7 @@ export default function RunPage() {
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
       >
-        <section className="ws-card rp-loading">Загружаем запуск…</section>
+        <section className={cx(styles, "ws-card rp-loading")}>Загружаем запуск…</section>
       </WorkspaceLayout>
     );
   }
@@ -767,12 +771,12 @@ export default function RunPage() {
         onDeleteRun={handleDeleteRun}
         onNewQuery={() => navigate('/')}
       >
-        <section className="ws-card">
-          <div className="ws-alert ws-alert--error" role="alert">
+        <section className={cx(styles, "ws-card")}>
+          <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
             <AlertCircleIcon />
             <span>{error ?? 'Запуск не найден.'}</span>
           </div>
-          <button className="rp-secondary-button" type="button" onClick={() => navigate('/')}>
+          <button className={cx(styles, "rp-secondary-button")} type="button" onClick={() => navigate('/')}>
             Вернуться к созданию запроса
           </button>
         </section>
@@ -800,21 +804,21 @@ export default function RunPage() {
       onDeleteRun={handleDeleteRun}
       onNewQuery={() => navigate('/')}
     >
-      <section className="ws-card rp-params">
-        <div className="rp-params-head">
-          <div className="rp-params-title">
-            <span className="rp-params-icon">
+      <section className={cx(styles, "ws-card rp-params")}>
+        <div className={cx(styles, "rp-params-head")}>
+          <div className={cx(styles, "rp-params-title")}>
+            <span className={cx(styles, "rp-params-icon")}>
               <SparklesIcon />
             </span>
-            <span className="rp-params-name">Параметры текущей выборки</span>
-            <span className={`ws-status ws-status--${statusClass(run.status)}`}>
+            <span className={cx(styles, "rp-params-name")}>Параметры текущей выборки</span>
+            <span className={cx(styles, `ws-status ws-status--${statusClass(run.status)}`)}>
               {RUN_STATUS_LABELS[run.status] ?? run.status}
             </span>
           </div>
-          <div className="rp-params-actions">
+          <div className={cx(styles, "rp-params-actions")}>
             {isGenerating ? (
               <button
-                className="rp-danger-button"
+                className={cx(styles, "rp-danger-button")}
                 type="button"
                 onClick={handleCancelRun}
                 disabled={cancelling}
@@ -824,7 +828,7 @@ export default function RunPage() {
               </button>
             ) : (
               <button
-                className="rp-primary-button"
+                className={cx(styles, "rp-primary-button")}
                 type="button"
                 onClick={openRegenModal}
                 disabled={regenLoadingSources}
@@ -834,7 +838,7 @@ export default function RunPage() {
               </button>
             )}
             <button
-              className="rp-danger-button"
+              className={cx(styles, "rp-danger-button")}
               type="button"
               onClick={() => handleDeleteRun(run)}
             >
@@ -844,69 +848,71 @@ export default function RunPage() {
           </div>
         </div>
 
-        <div className="rp-chips">
-          <span className="rp-chip rp-chip--mono">{formatDate(run.control_time)}</span>
-          <span className="rp-chip">{run.interval_hours} часов</span>
-          <span className="rp-chip">Лимит: {run.max_items} событий</span>
-          <span className="rp-chip">{sourceCount} источников</span>
-          <span className="rp-chip rp-chip--green">Анти-инъекции: Вкл</span>
-          <span className="rp-chip rp-chip--blue">Дедупликация: Вкл</span>
-          <span className="rp-chip">Без оценок</span>
+        <div className={cx(styles, "rp-chips")}>
+          <span className={cx(styles, "rp-chip rp-chip--mono")}>{formatDate(run.control_time)}</span>
+          <span className={cx(styles, "rp-chip")}>{run.interval_hours} часов</span>
+          <span className={cx(styles, "rp-chip")}>Лимит: {run.max_items} событий</span>
+          <span className={cx(styles, "rp-chip")}>{sourceCount} источников</span>
+          <span className={cx(styles, "rp-chip rp-chip--green")}>Анти-инъекции: Вкл</span>
+          <span className={cx(styles, "rp-chip rp-chip--blue")}>Дедупликация: Вкл</span>
+          <span className={cx(styles, "rp-chip")}>Без оценок</span>
         </div>
 
-        <div className="rp-stats">
-          <div className="rp-stat">
-            <span className="rp-stat-label">Период выборки</span>
+        <div className={cx(styles, "rp-stats")}>
+          <div className={cx(styles, "rp-stat")}>
+            <span className={cx(styles, "rp-stat-label")}>Период выборки</span>
             <strong>{formatShortDate(run.period_start)} — {formatShortDate(run.period_end)}</strong>
-            <span className="rp-stat-hint">Окно {run.interval_hours} часов</span>
+            <span className={cx(styles, "rp-stat-hint")}>Окно {run.interval_hours} часов</span>
           </div>
-          <div className="rp-stat">
-            <span className="rp-stat-label">Материалы</span>
+          <div className={cx(styles, "rp-stat")}>
+            <span className={cx(styles, "rp-stat-label")}>Материалы</span>
             <strong>{readNumber(stats, 'items') ?? detail?.journal.length ?? 0} публикаций</strong>
-            <span className="rp-stat-hint">{detail?.journal.length ?? 0} строк журнала</span>
+            <span className={cx(styles, "rp-stat-hint")}>{detail?.journal.length ?? 0} строк журнала</span>
           </div>
-          <div className="rp-stat rp-stat--blue">
-            <span className="rp-stat-label">Отобрано событий</span>
+          <div className={cx(styles, "rp-stat rp-stat--blue")}>
+            <span className={cx(styles, "rp-stat-label")}>Отобрано событий</span>
             <strong>{detail?.events.length ?? 0} событий</strong>
-            <span className="rp-stat-hint">Финальный дайджест</span>
+            <span className={cx(styles, "rp-stat-hint")}>Финальный дайджест</span>
           </div>
-          <div className="rp-stat rp-stat--green">
-            <span className="rp-stat-label">Проверки</span>
+          <div className={cx(styles, "rp-stat rp-stat--green")}>
+            <span className={cx(styles, "rp-stat-label")}>Проверки</span>
             <strong>{passedChecks} из {checks.length}</strong>
-            <span className="rp-stat-hint">Регламентные проверки</span>
+            <span className={cx(styles, "rp-stat-hint")}>Регламентные проверки</span>
           </div>
-          <div className="rp-stat rp-stat--blue">
-            <span className="rp-stat-label">Дедупликация</span>
+          <div className={cx(styles, "rp-stat rp-stat--blue")}>
+            <span className={cx(styles, "rp-stat-label")}>Дедупликация</span>
             <strong>{mergedCount} объединено</strong>
-            <span className="rp-stat-hint">Семантические кластеры</span>
+            <span className={cx(styles, "rp-stat-hint")}>Семантические кластеры</span>
           </div>
-          <div className="rp-stat rp-stat--green">
-            <span className="rp-stat-label">Время обработки</span>
+          <div className={cx(styles, "rp-stat rp-stat--green")}>
+            <span className={cx(styles, "rp-stat-label")}>Время обработки</span>
             <strong>{readNumber(stats, 'duration_secs') ?? '—'} с</strong>
-            <span className="rp-stat-hint">Полный цикл пайплайна</span>
+            <span className={cx(styles, "rp-stat-hint")}>Полный цикл пайплайна</span>
           </div>
         </div>
       </section>
 
       {isGenerating ? (
-        <section className="ws-card rp-generating">
-          <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
+        <section className={cx(styles, "ws-card rp-generating")}>
+          <div className={cx(styles, "rp-generating-loader")}>
+            <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
+          </div>
           {actionError && (
-            <div className="ws-alert ws-alert--error" role="alert">
+            <div className={cx(styles, "ws-alert ws-alert--error rp-generating-alert")} role="alert">
               <AlertCircleIcon />
               <span>{actionError}</span>
             </div>
           )}
         </section>
       ) : (
-        <section className="ws-card rp-results">
-        <div className="rp-tabs">
-          <div className="rp-tab-list" role="tablist">
+        <section className={cx(styles, "ws-card rp-results")}>
+        <div className={cx(styles, "rp-tabs")}>
+          <div className={cx(styles, "rp-tab-list")} role="tablist">
             {TABS.map((item) => {
               const Icon = item.icon;
               return (
                 <button
-                  className={`rp-tab${tab === item.id ? ' rp-tab--active' : ''}`}
+                  className={cx(styles, `rp-tab${tab === item.id ? ' rp-tab--active' : ''}`)}
                   key={item.id}
                   type="button"
                   role="tab"
@@ -920,11 +926,11 @@ export default function RunPage() {
             })}
           </div>
 
-          <div className="rp-tab-actions">
+          <div className={cx(styles, "rp-tab-actions")}>
             {tab === 'digest' && (
               <>
                 <button
-                  className="rp-icon-button"
+                  className={cx(styles, "rp-icon-button")}
                   type="button"
                   title="Скопировать Markdown"
                   onClick={() => handleCopy(digestText, 'Markdown')}
@@ -932,7 +938,7 @@ export default function RunPage() {
                   <CopyIcon />
                 </button>
                 <button
-                  className="rp-secondary-button rp-secondary-button--small"
+                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                   type="button"
                   onClick={() => handleDownload('journal.csv')}
                 >
@@ -940,7 +946,7 @@ export default function RunPage() {
                   journal.csv
                 </button>
                 <button
-                  className="rp-primary-button rp-primary-button--small"
+                  className={cx(styles, "rp-primary-button rp-primary-button--small")}
                   type="button"
                   onClick={() => handleDownload('digest.md')}
                 >
@@ -952,7 +958,7 @@ export default function RunPage() {
             {tab === 'post' && (
               <>
                 <button
-                  className="rp-secondary-button rp-secondary-button--small"
+                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                   type="button"
                   onClick={() => handleCopy(postText, 'Пост')}
                 >
@@ -960,7 +966,7 @@ export default function RunPage() {
                   Копировать
                 </button>
                 <button
-                  className="rp-primary-button rp-primary-button--small"
+                  className={cx(styles, "rp-primary-button rp-primary-button--small")}
                   type="button"
                   onClick={() => handleDownload('post.md')}
                 >
@@ -971,7 +977,7 @@ export default function RunPage() {
             )}
             {tab === 'email' && (
               <button
-                className="rp-secondary-button rp-secondary-button--small"
+                className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                 type="button"
                 onClick={() => handleDownload('email.html')}
               >
@@ -983,38 +989,38 @@ export default function RunPage() {
         </div>
 
         {(actionError || notice) && (
-          <div className={`ws-alert ${actionError ? 'ws-alert--error' : 'ws-alert--info'}`} role="status">
+          <div className={cx(styles, `ws-alert ${actionError ? 'ws-alert--error' : 'ws-alert--info'}`)} role="status">
             {actionError ? <AlertCircleIcon /> : <InfoIcon />}
             <span>{actionError ?? notice}</span>
           </div>
         )}
 
-        <div className="rp-content">
+        <div className={cx(styles, "rp-content")}>
           {tab === 'digest' && (
             digestPending ? (
               <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
             ) : (
-              <div className="rp-digest">
+              <div className={cx(styles, "rp-digest")}>
                 {headerForDigest(parsedDigest.intro)}
                 {!digestText && (
-                  <p className="rp-muted">{missingArtifact(run.status, 'digest.md')}</p>
+                  <p className={cx(styles, "rp-muted")}>{missingArtifact(run.status, 'digest.md')}</p>
                 )}
                 {parsedDigest.sections.map((section, index) => {
                   const event = detail?.events[index];
                   const level = severity(event?.score);
                   return (
-                    <article className="rp-article" key={`${section.title}-${index}`}>
-                      <div className="rp-article-head">
-                        <div className="rp-article-tags">
-                          {level && <span className={`rp-level rp-level--${level.className}`}>{level.label}</span>}
-                          <span className="rp-article-index">Событие {index + 1}</span>
+                    <article className={cx(styles, "rp-article")} key={`${section.title}-${index}`}>
+                      <div className={cx(styles, "rp-article-head")}>
+                        <div className={cx(styles, "rp-article-tags")}>
+                          {level && <span className={cx(styles, `rp-level rp-level--${level.className}`)}>{level.label}</span>}
+                          <span className={cx(styles, "rp-article-index")}>Событие {index + 1}</span>
                         </div>
                         {event && (
-                          <span className="rp-article-key">{event.event_key}</span>
+                          <span className={cx(styles, "rp-article-key")}>{event.event_key}</span>
                         )}
                       </div>
                       <h3>{section.title}</h3>
-                      <div className="rp-article-body">
+                      <div className={cx(styles, "rp-article-body")}>
                         {section.paragraphs.map((paragraph, paragraphIndex) => {
                           const separator = paragraph.indexOf(':');
                           const label =
@@ -1025,7 +1031,7 @@ export default function RunPage() {
                           const isSources = label === 'Источники';
                           return (
                             <p
-                              className={isSources ? 'rp-article-sources' : undefined}
+                              className={cx(styles, isSources ? 'rp-article-sources' : undefined)}
                               key={`${section.title}-${paragraphIndex}`}
                             >
                               {label && <strong>{label}:</strong>}
@@ -1045,39 +1051,39 @@ export default function RunPage() {
             postPending ? (
               <SnakeLoader message="Готовим пост…" hint={generationHint} />
             ) : (
-              <div className="rp-post">
+              <div className={cx(styles, "rp-post")}>
               {!postText && (
-                <p className="rp-muted">{missingArtifact(run.status, 'post.md')}</p>
+                <p className={cx(styles, "rp-muted")}>{missingArtifact(run.status, 'post.md')}</p>
               )}
               {postText && (
                 <>
-                  <div className="rp-tg-shell">
-                    <article className="rp-tg-card">
-                      <header className="rp-tg-head">
-                        <div className="rp-tg-avatar">CT</div>
-                        <div className="rp-tg-channel">
-                          <span className="rp-tg-name">
+                  <div className={cx(styles, "rp-tg-shell")}>
+                    <article className={cx(styles, "rp-tg-card")}>
+                      <header className={cx(styles, "rp-tg-head")}>
+                        <div className={cx(styles, "rp-tg-avatar")}>CT</div>
+                        <div className={cx(styles, "rp-tg-channel")}>
+                          <span className={cx(styles, "rp-tg-name")}>
                             CyberBug AI
-                            <span className="rp-tg-verified">
+                            <span className={cx(styles, "rp-tg-verified")}>
                               <CheckIcon />
                             </span>
                           </span>
-                          <span className="rp-tg-sub">канал · ИБ-дайджест</span>
+                          <span className={cx(styles, "rp-tg-sub")}>канал · ИБ-дайджест</span>
                         </div>
-                        <span className="rp-tg-time">{formatShortDate(run.control_time)}</span>
+                        <span className={cx(styles, "rp-tg-time")}>{formatShortDate(run.control_time)}</span>
                       </header>
 
-                      <div className="rp-tg-body">
-                        <h3 className="rp-tg-title">
-                          <ShieldHeartIcon className="rp-tg-shield" />
+                      <div className={cx(styles, "rp-tg-body")}>
+                        <h3 className={cx(styles, "rp-tg-title")}>
+                          <ShieldHeartIcon className={cx(styles, "rp-tg-shield")} />
                           {parsedPost.title}
                         </h3>
                         {parsedPost.period && (
-                          <p className="rp-tg-period">
+                          <p className={cx(styles, "rp-tg-period")}>
                             <em>Период: {parsedPost.period}</em>
                           </p>
                         )}
-                        <p className="rp-tg-lead">
+                        <p className={cx(styles, "rp-tg-lead")}>
                           <em>
                             Краткая сводка критических угроз и изменений инфраструктуры
                             за прошедшие сутки:
@@ -1085,20 +1091,20 @@ export default function RunPage() {
                         </p>
 
                         {parsedPost.items.map((item) => (
-                          <section className="rp-tg-item" key={`${item.number}-${item.title}`}>
-                            <p className="rp-tg-item-title">
+                          <section className={cx(styles, "rp-tg-item")} key={`${item.number}-${item.title}`}>
+                            <p className={cx(styles, "rp-tg-item-title")}>
                               <strong>
                                 {item.number}. {item.title}
                               </strong>
                             </p>
-                            {item.summary && <p className="rp-tg-summary">{item.summary}</p>}
+                            {item.summary && <p className={cx(styles, "rp-tg-summary")}>{item.summary}</p>}
                             {item.sources.length > 0 && (
-                              <p className="rp-tg-sources">
-                                <span className="rp-tg-sources-label">Источники: </span>
+                              <p className={cx(styles, "rp-tg-sources")}>
+                                <span className={cx(styles, "rp-tg-sources-label")}>Источники: </span>
                                 {item.sources.map((source, index) => (
                                   <span key={source}>
                                     <a
-                                      className="rp-tg-source"
+                                      className={cx(styles, "rp-tg-source")}
                                       href={source}
                                       rel="noreferrer"
                                       target="_blank"
@@ -1114,21 +1120,21 @@ export default function RunPage() {
                         ))}
 
                         {parsedPost.items.length === 0 && (
-                          <p className="rp-muted">Не удалось разобрать структуру поста.</p>
+                          <p className={cx(styles, "rp-muted")}>Не удалось разобрать структуру поста.</p>
                         )}
                       </div>
 
-                      <footer className="rp-tg-footer">
-                        <div className="rp-tg-footer-row">
-                          <span className="rp-tg-views">
+                      <footer className={cx(styles, "rp-tg-footer")}>
+                        <div className={cx(styles, "rp-tg-footer-row")}>
+                          <span className={cx(styles, "rp-tg-views")}>
                             <EyeIcon />
                             {tgMeta.views.toLocaleString('ru-RU')}
                           </span>
-                          <span className="rp-tg-date">{formatDate(run.created_at)}</span>
+                          <span className={cx(styles, "rp-tg-date")}>{formatDate(run.created_at)}</span>
                         </div>
-                        <div className="rp-tg-reactions">
+                        <div className={cx(styles, "rp-tg-reactions")}>
                           {tgMeta.reactions.map((reaction) => (
-                            <span className="rp-tg-reaction" key={reaction.emoji}>
+                            <span className={cx(styles, "rp-tg-reaction")} key={reaction.emoji}>
                               <span>{reaction.emoji}</span>
                               {reaction.count}
                             </span>
@@ -1147,8 +1153,8 @@ export default function RunPage() {
             emailPending ? (
               <SnakeLoader message="Готовим письмо…" hint={generationHint} />
             ) : (
-            <div className="rp-email">
-              <div className="rp-email-meta">
+            <div className={cx(styles, "rp-email")}>
+              <div className={cx(styles, "rp-email-meta")}>
                 <label>
                   Тема письма
                   <span>{emailSubject || 'Загружаем тему…'}</span>
@@ -1157,9 +1163,9 @@ export default function RunPage() {
                   Период
                   <span>{formatShortDate(run.period_start)} — {formatShortDate(run.period_end)}</span>
                 </label>
-                <div className="rp-email-actions">
+                <div className={cx(styles, "rp-email-actions")}>
                   <button
-                    className="rp-primary-button rp-primary-button--small"
+                    className={cx(styles, "rp-primary-button rp-primary-button--small")}
                     type="button"
                     onClick={handleSendEmail}
                     disabled={sending}
@@ -1171,18 +1177,18 @@ export default function RunPage() {
               </div>
 
               {!emailHtml && (
-                <p className="rp-muted">{missingArtifact(run.status, 'email.html')}</p>
+                <p className={cx(styles, "rp-muted")}>{missingArtifact(run.status, 'email.html')}</p>
               )}
               {emailHtml && (
-                <div className="rp-email-canvas">
-                  <div className="rp-email-browser">
-                    <span className="rp-browser-dot rp-browser-dot--red" />
-                    <span className="rp-browser-dot rp-browser-dot--yellow" />
-                    <span className="rp-browser-dot rp-browser-dot--green" />
+                <div className={cx(styles, "rp-email-canvas")}>
+                  <div className={cx(styles, "rp-email-browser")}>
+                    <span className={cx(styles, "rp-browser-dot rp-browser-dot--red")} />
+                    <span className={cx(styles, "rp-browser-dot rp-browser-dot--yellow")} />
+                    <span className={cx(styles, "rp-browser-dot rp-browser-dot--green")} />
                     <span>HTML Rendering Preview · UTF-8</span>
                   </div>
                   <iframe
-                    className="rp-email-frame"
+                    className={cx(styles, "rp-email-frame")}
                     title="Предпросмотр письма"
                     sandbox=""
                     srcDoc={emailHtml}
@@ -1194,9 +1200,9 @@ export default function RunPage() {
           )}
 
           {tab === 'journal' && (
-            <div className="rp-journal">
-              <div className="rp-journal-toolbar">
-                <div className="rp-search">
+            <div className={cx(styles, "rp-journal")}>
+              <div className={cx(styles, "rp-journal-toolbar")}>
+                <div className={cx(styles, "rp-search")}>
                   <SearchIcon />
                   <input
                     value={journalFilter}
@@ -1205,13 +1211,13 @@ export default function RunPage() {
                     aria-label="Фильтр журнала"
                   />
                 </div>
-                <span className="rp-muted">
+                <span className={cx(styles, "rp-muted")}>
                   Показано {filteredJournal.length} из {detail?.journal.length ?? 0} материалов
                 </span>
               </div>
 
-              <div className="rp-journal-table-wrap">
-                <table className="rp-journal-table">
+              <div className={cx(styles, "rp-journal-table-wrap")}>
+                <table className={cx(styles, "rp-journal-table")}>
                   <thead>
                     <tr>
                       <th>Источник и URL</th>
@@ -1224,44 +1230,44 @@ export default function RunPage() {
                     {filteredJournal.map((row) => (
                       <tr key={row.id}>
                         <td>
-                          <span className="rp-journal-source">{hostOf(row.external_id)}</span>
-                          <span className="rp-journal-url">{row.external_id}</span>
+                          <span className={cx(styles, "rp-journal-source")}>{hostOf(row.external_id)}</span>
+                          <span className={cx(styles, "rp-journal-url")}>{row.external_id}</span>
                         </td>
                         <td>
-                          <span className="rp-journal-group">{row.group_key ?? '—'}</span>
+                          <span className={cx(styles, "rp-journal-group")}>{row.group_key ?? '—'}</span>
                         </td>
                         <td>
-                          <span className={`rp-journal-status rp-journal-status--${journalStatusClass(row.status)}`}>
+                          <span className={cx(styles, `rp-journal-status rp-journal-status--${journalStatusClass(row.status)}`)}>
                             {row.status}
                           </span>
                         </td>
                         <td>
-                          <span className="rp-journal-reason">{row.reason}</span>
-                          {row.error && <span className="rp-journal-error">{row.error}</span>}
+                          <span className={cx(styles, "rp-journal-reason")}>{row.reason}</span>
+                          {row.error && <span className={cx(styles, "rp-journal-error")}>{row.error}</span>}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {filteredJournal.length === 0 && (
-                  <p className="rp-muted rp-journal-empty">Ничего не найдено.</p>
+                  <p className={cx(styles, "rp-muted rp-journal-empty")}>Ничего не найдено.</p>
                 )}
               </div>
             </div>
           )}
 
           {tab === 'vulns' && (
-            <div className="rp-journal">
-              <div className="rp-journal-toolbar">
-                <span className="rp-muted">
+            <div className={cx(styles, "rp-journal")}>
+              <div className={cx(styles, "rp-journal-toolbar")}>
+                <span className={cx(styles, "rp-muted")}>
                   Обогащение BDU / NVD / CMDB по найденным идентификаторам
                 </span>
-                <span className="rp-muted">
+                <span className={cx(styles, "rp-muted")}>
                   {vulnerabilities.length} записей
                 </span>
               </div>
-              <div className="rp-journal-table-wrap">
-                <table className="rp-journal-table">
+              <div className={cx(styles, "rp-journal-table-wrap")}>
+                <table className={cx(styles, "rp-journal-table")}>
                   <thead>
                     <tr>
                       <th>Уязвимость</th>
@@ -1276,16 +1282,16 @@ export default function RunPage() {
                     {vulnerabilities.map((vuln, index) => (
                       <tr key={`${vuln.cve_id || vuln.bdu_id}-${index}`}>
                         <td>
-                          <span className="rp-journal-group">
+                          <span className={cx(styles, "rp-journal-group")}>
                             {vuln.cve_id || vuln.bdu_id}
                           </span>
                           {vuln.bdu_id && vuln.cve_id && (
-                            <span className="rp-journal-url">{vuln.bdu_id}</span>
+                            <span className={cx(styles, "rp-journal-url")}>{vuln.bdu_id}</span>
                           )}
                         </td>
                         <td>{vuln.software || '—'}</td>
                         <td>
-                          <span className="rp-chip">
+                          <span className={cx(styles, "rp-chip")}>
                             {vuln.severity}
                             {vuln.cvss_score !== null ? ` · ${vuln.cvss_score}` : ''}
                           </span>
@@ -1304,7 +1310,7 @@ export default function RunPage() {
                   </tbody>
                 </table>
                 {vulnerabilities.length === 0 && (
-                  <p className="rp-muted rp-journal-empty">
+                  <p className={cx(styles, "rp-muted rp-journal-empty")}>
                     В этом запуске CVE/BDU не найдены или обогащение ещё не завершено.
                   </p>
                 )}
@@ -1313,27 +1319,27 @@ export default function RunPage() {
           )}
 
           {tab === 'checks' && (
-            <div className="rp-checks">
-              <div className="rp-checks-head">
+            <div className={cx(styles, "rp-checks")}>
+              <div className={cx(styles, "rp-checks-head")}>
                 <div>
                   <h2>Регламентные проверки</h2>
                   <p>Все алгоритмические критерии формирования подтверждены.</p>
                 </div>
-                <span className="rp-checks-summary">
+                <span className={cx(styles, "rp-checks-summary")}>
                   {passedChecks} из {checks.length} пройдено
                 </span>
               </div>
 
               {checks.length === 0 && (
-                <p className="rp-muted">Проверки ещё не сформированы.</p>
+                <p className={cx(styles, "rp-muted")}>Проверки ещё не сформированы.</p>
               )}
 
-              <div className="rp-checks-grid">
+              <div className={cx(styles, "rp-checks-grid")}>
                 {checks.map((check, index) => (
-                  <article className="rp-check" key={check.id}>
-                    <div className="rp-check-head">
+                  <article className={cx(styles, "rp-check")} key={check.id}>
+                    <div className={cx(styles, "rp-check-head")}>
                       <span>{CHECK_LABELS[check.scenario] ?? check.scenario}</span>
-                      <span className={`rp-check-badge rp-check-badge--${check.passed ? 'passed' : 'failed'}`}>
+                      <span className={cx(styles, `rp-check-badge rp-check-badge--${check.passed ? 'passed' : 'failed'}`)}>
                         {check.passed ? 'Пройдена' : 'Ошибка'}
                       </span>
                     </div>
@@ -1345,10 +1351,10 @@ export default function RunPage() {
           )}
         </div>
 
-        <div className="rp-footer">
-          <span className="rp-versions">
+        <div className={cx(styles, "rp-footer")}>
+          <span className={cx(styles, "rp-versions")}>
             <button
-              className="rp-version-button"
+              className={cx(styles, "rp-version-button")}
               type="button"
               aria-label="Предыдущая версия"
               disabled={versionIndex <= 0}
@@ -1360,7 +1366,7 @@ export default function RunPage() {
               Версия {versionIndex + 1} из {versions.length}
             </span>
             <button
-              className="rp-version-button"
+              className={cx(styles, "rp-version-button")}
               type="button"
               aria-label="Следующая версия"
               disabled={versionIndex >= versions.length - 1}
@@ -1369,12 +1375,12 @@ export default function RunPage() {
               <ChevronRightIcon />
             </button>
           </span>
-          <span className="rp-footer-dot" />
+          <span className={cx(styles, "rp-footer-dot")} />
           <span>{formatDate(run.created_at)}</span>
-          <span className="rp-footer-dot" />
+          <span className={cx(styles, "rp-footer-dot")} />
           <span>{run.model}</span>
-          <span className="rp-footer-spacer" />
-          <button className="rp-link" type="button" onClick={() => selectTab('journal')}>
+          <span className={cx(styles, "rp-footer-spacer")} />
+          <button className={cx(styles, "rp-link")} type="button" onClick={() => selectTab('journal')}>
             Открыть журнал
           </button>
         </div>
@@ -1383,7 +1389,7 @@ export default function RunPage() {
 
       {regenOpen && (
         <div
-          className="rp-modal-backdrop"
+          className={cx(styles, "rp-modal-backdrop")}
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -1392,15 +1398,15 @@ export default function RunPage() {
           }}
         >
           <form
-            className="rp-modal"
+            className={cx(styles, "rp-modal")}
             role="dialog"
             aria-modal="true"
             aria-labelledby="regen-title"
             onSubmit={handleRegenerate}
           >
-            <header className="rp-modal-head">
-              <div className="rp-modal-head-title">
-                <span className="rp-modal-icon">
+            <header className={cx(styles, "rp-modal-head")}>
+              <div className={cx(styles, "rp-modal-head-title")}>
+                <span className={cx(styles, "rp-modal-icon")}>
                   <TuneIcon />
                 </span>
                 <div>
@@ -1409,7 +1415,7 @@ export default function RunPage() {
                 </div>
               </div>
               <button
-                className="rp-modal-close"
+                className={cx(styles, "rp-modal-close")}
                 type="button"
                 aria-label="Закрыть окно"
                 onClick={() => setRegenOpen(false)}
@@ -1418,17 +1424,17 @@ export default function RunPage() {
               </button>
             </header>
 
-            <div className="rp-modal-body">
+            <div className={cx(styles, "rp-modal-body")}>
               {regenError && (
-                <div className="ws-alert ws-alert--error" role="alert">
+                <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
                   <AlertCircleIcon />
                   <span>{regenError}</span>
                 </div>
               )}
 
-              <label className="rp-modal-field">
-                <span className="rp-modal-label">Контрольное время среза *</span>
-                <div className="rp-modal-input-wrap">
+              <label className={cx(styles, "rp-modal-field")}>
+                <span className={cx(styles, "rp-modal-label")}>Контрольное время среза *</span>
+                <div className={cx(styles, "rp-modal-input-wrap")}>
                   <ScheduleIcon />
                   <input
                     type="datetime-local"
@@ -1436,24 +1442,24 @@ export default function RunPage() {
                     onChange={(event) => setRegenControlTime(event.target.value)}
                     required
                   />
-                  <span className="rp-modal-tz">
+                  <span className={cx(styles, "rp-modal-tz")}>
                     <LockIcon />
                     Пояс SOC
                   </span>
                 </div>
               </label>
 
-              <div className="rp-modal-field">
-                <div className="rp-modal-field-head">
-                  <span className="rp-modal-label">Временное окно отсечки</span>
+              <div className={cx(styles, "rp-modal-field")}>
+                <div className={cx(styles, "rp-modal-field-head")}>
+                  <span className={cx(styles, "rp-modal-label")}>Временное окно отсечки</span>
                   <span>Глубина ретроспективного анализа</span>
                 </div>
-                <div className="ws-pills">
+                <div className={cx(styles, "ws-pills")}>
                   {[12, 24, 48].map((hours) => (
                     <button
-                      className={`ws-pill${
+                      className={cx(styles, `ws-pill${
                         regenInterval === hours ? ' ws-pill--active' : ''
-                      }`}
+                      }`)}
                       key={hours}
                       type="button"
                       onClick={() => setRegenInterval(hours)}
@@ -1465,16 +1471,16 @@ export default function RunPage() {
                 </div>
               </div>
 
-              <div className="rp-modal-field">
-                <div className="rp-modal-field-head">
-                  <span className="rp-modal-label">Лимит отобранных событий</span>
+              <div className={cx(styles, "rp-modal-field")}>
+                <div className={cx(styles, "rp-modal-field-head")}>
+                  <span className={cx(styles, "rp-modal-label")}>Лимит отобранных событий</span>
                 </div>
-                <div className="ws-pills">
+                <div className={cx(styles, "ws-pills")}>
                   {[3, 5, 7].map((value) => (
                     <button
-                      className={`ws-pill${
+                      className={cx(styles, `ws-pill${
                         regenLimit === value ? ' ws-pill--active' : ''
-                      }`}
+                      }`)}
                       key={value}
                       type="button"
                       onClick={() => setRegenLimit(value)}
@@ -1486,40 +1492,40 @@ export default function RunPage() {
                 </div>
               </div>
 
-              <div className="rp-modal-field">
-                <div className="rp-modal-field-head">
-                  <span className="rp-modal-label">Источники мониторинга</span>
+              <div className={cx(styles, "rp-modal-field")}>
+                <div className={cx(styles, "rp-modal-field-head")}>
+                  <span className={cx(styles, "rp-modal-label")}>Источники мониторинга</span>
                   <span>
                     Выбрано: {regenSelected.size} из {regenSources.length}
                   </span>
                 </div>
                 {regenLoadingSources ? (
-                  <p className="rp-muted">Загружаем источники…</p>
+                  <p className={cx(styles, "rp-muted")}>Загружаем источники…</p>
                 ) : (
-                  <div className="ws-sources rp-modal-source-list">
+                  <div className={cx(styles, "ws-sources rp-modal-source-list")}>
                     {regenSources.map((source) => {
                       const selected = regenSelected.has(source.id);
                       return (
                         <button
-                          className={`ws-source${
+                          className={cx(styles, `ws-source${
                             selected ? ' ws-source--selected' : ''
-                          }`}
+                          }`)}
                           key={source.id}
                           type="button"
                           title={source.url}
                           onClick={() => toggleRegenSource(source.id)}
                         >
-                          <span className="ws-source-dot" />
+                          <span className={cx(styles, "ws-source-dot")} />
                           <span>{source.name}</span>
-                          <span className="ws-source-badge">{source.trust}</span>
+                          <span className={cx(styles, "ws-source-badge")}>{source.trust}</span>
                         </button>
                       );
                     })}
                   </div>
                 )}
-                <div className="rp-modal-source-actions">
+                <div className={cx(styles, "rp-modal-source-actions")}>
                   <button
-                    className="ws-link-button"
+                    className={cx(styles, "ws-link-button")}
                     type="button"
                     onClick={() =>
                       setRegenSelected(
@@ -1534,7 +1540,7 @@ export default function RunPage() {
                     Выбрать все
                   </button>
                   <button
-                    className="ws-link-button ws-link-button--muted"
+                    className={cx(styles, "ws-link-button ws-link-button--muted")}
                     type="button"
                     onClick={() => setRegenSelected(new Set())}
                   >
@@ -1544,15 +1550,15 @@ export default function RunPage() {
               </div>
 
               {detail?.run.mode === 'file' && (
-                <p className="rp-modal-note">
+                <p className={cx(styles, "rp-modal-note")}>
                   Для файлового запуска параметры источников и времени не применяются —
                   будет создан новый запуск с теми же файлами.
                 </p>
               )}
             </div>
 
-            <footer className="rp-modal-footer">
-              <span className="rp-modal-estimate">
+            <footer className={cx(styles, "rp-modal-footer")}>
+              <span className={cx(styles, "rp-modal-estimate")}>
                 <ScheduleIcon />
                 Оценка генерации:{' '}
                 {formatEstimate(
@@ -1566,16 +1572,16 @@ export default function RunPage() {
                       ),
                 )}
               </span>
-              <div className="rp-modal-actions">
+              <div className={cx(styles, "rp-modal-actions")}>
                 <button
-                  className="rp-secondary-button"
+                  className={cx(styles, "rp-secondary-button")}
                   type="button"
                   onClick={() => setRegenOpen(false)}
                 >
                   Отмена
                 </button>
                 <button
-                  className="rp-primary-button"
+                  className={cx(styles, "rp-primary-button")}
                   type="submit"
                   disabled={!canRegenerate}
                   title={
@@ -1602,7 +1608,7 @@ function headerForDigest(intro: string[]) {
   }
 
   return (
-    <div className="rp-digest-intro">
+    <div className={cx(styles, "rp-digest-intro")}>
       <h2>{intro[0]}</h2>
       {intro.slice(1).map((line) => (
         <p key={line}>{line}</p>
