@@ -8,6 +8,7 @@ export interface CurrentUser {
   display_name: string;
   department: string;
   email: string | null;
+  email_verified_at: string | null;
   created_at: string;
 }
 
@@ -65,10 +66,44 @@ export function login(username: string, password: string): Promise<LoginResponse
   });
 }
 
-export function register(username: string, password: string): Promise<LoginResponse> {
+export function register(
+  username: string,
+  password: string,
+  email?: string,
+): Promise<LoginResponse> {
   return request<LoginResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, email }),
+  });
+}
+
+export function forgotPassword(email: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/password/forgot', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(
+  token: string,
+  password: string,
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/password/reset', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  });
+}
+
+export function confirmEmail(token: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/email/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function requestEmailVerification(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/email/request', {
+    method: 'POST',
   });
 }
 

@@ -91,6 +91,7 @@ pub struct User {
     pub display_name: String,
     pub department: String,
     pub email: Option<String>,
+    pub email_verified_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -184,6 +185,7 @@ pub struct Run {
     pub parent_run_id: Option<Uuid>,
     pub source_ids: Vec<Uuid>,
     pub policies: serde_json::Value,
+    pub share_token: Option<String>,
 }
 
 impl Run {
@@ -545,6 +547,7 @@ pub struct UserResponse {
     pub display_name: String,
     pub department: String,
     pub email: Option<String>,
+    pub email_verified_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -558,6 +561,7 @@ impl From<User> for UserResponse {
             display_name: value.display_name,
             department: value.department,
             email: value.email,
+            email_verified_at: value.email_verified_at,
             created_at: value.created_at,
         }
     }
@@ -575,6 +579,7 @@ pub struct RunSummary {
     pub prompt_version: String,
     pub error: Option<String>,
     pub parent_run_id: Option<Uuid>,
+    pub share_token: Option<String>,
 }
 
 impl From<Run> for RunSummary {
@@ -590,6 +595,7 @@ impl From<Run> for RunSummary {
             prompt_version: value.prompt_version,
             error: value.error,
             parent_run_id: value.parent_run_id,
+            share_token: value.share_token,
         }
     }
 }

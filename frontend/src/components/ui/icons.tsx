@@ -53,6 +53,8 @@ export {
   MdSmartToy as BotIcon,
   MdGroup as GroupIcon,
   MdMonitorHeart as MonitorHeartIcon,
+  MdMoreVert as MoreIcon,
+  MdUploadFile as UploadIcon,
 } from 'react-icons/md';
 
 export { TbPlayerStopFilled as StopIcon } from 'react-icons/tb';

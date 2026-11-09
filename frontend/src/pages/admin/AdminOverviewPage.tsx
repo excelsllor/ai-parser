@@ -18,8 +18,11 @@ import {
   ListNumberedIcon,
   RefreshIcon,
   ScheduleIcon,
+  SortHeader,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { sortRows } from '@utils/sort';
+import type { SortDirection } from '@utils/sort';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -61,6 +64,32 @@ export default function AdminOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [auditSortKey, setAuditSortKey] = useState<'time' | 'action' | 'actor'>('time');
+  const [auditSortDirection, setAuditSortDirection] = useState<SortDirection>('desc');
+
+  function toggleAuditSort(key: typeof auditSortKey) {
+    if (auditSortKey === key) {
+      setAuditSortDirection((value) => (value === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setAuditSortKey(key);
+      setAuditSortDirection('asc');
+    }
+  }
+
+  const sortedAudit = useMemo(
+    () =>
+      sortRows(audit, auditSortDirection, (entry) => {
+        switch (auditSortKey) {
+          case 'action':
+            return entry.action;
+          case 'actor':
+            return entry.actor_username;
+          default:
+            return entry.created_at;
+        }
+      }),
+    [audit, auditSortKey, auditSortDirection],
+  );
 
   async function load() {
     setLoading(true);
@@ -310,14 +339,29 @@ export default function AdminOverviewPage() {
                 <table className={cx(styles, "admin-table")}>
                   <thead>
                     <tr>
-                      <th>Время</th>
-                      <th>Событие</th>
-                      <th>Актор</th>
+                      <SortHeader
+                        label="Время"
+                        active={auditSortKey === 'time'}
+                        direction={auditSortDirection}
+                        onClick={() => toggleAuditSort('time')}
+                      />
+                      <SortHeader
+                        label="Событие"
+                        active={auditSortKey === 'action'}
+                        direction={auditSortDirection}
+                        onClick={() => toggleAuditSort('action')}
+                      />
+                      <SortHeader
+                        label="Актор"
+                        active={auditSortKey === 'actor'}
+                        direction={auditSortDirection}
+                        onClick={() => toggleAuditSort('actor')}
+                      />
                       <th>Ресурс</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {audit.map((entry) => (
+                    {sortedAudit.map((entry) => (
                       <tr key={entry.id}>
                         <td className={cx(styles, "admin-mono")}>{formatTime(entry.created_at)}</td>
                         <td>

@@ -16,10 +16,13 @@ import {
   DeleteIcon,
   GroupIcon,
   RefreshIcon,
+  SortHeader,
   UserIcon,
   VerifiedUserIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { sortRows } from '@utils/sort';
+import type { SortDirection } from '@utils/sort';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -34,6 +37,34 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<'username' | 'role' | 'active' | 'created'>('created');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  function toggleSort(key: typeof sortKey) {
+    if (sortKey === key) {
+      setSortDirection((value) => (value === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  }
+
+  const sortedUsers = useMemo(
+    () =>
+      sortRows(users, sortDirection, (user) => {
+        switch (sortKey) {
+          case 'username':
+            return user.username;
+          case 'role':
+            return user.role;
+          case 'active':
+            return user.is_active;
+          default:
+            return user.created_at;
+        }
+      }),
+    [users, sortKey, sortDirection],
+  );
 
   const [addOpen, setAddOpen] = useState(false);
   const [username, setUsername] = useState('');
@@ -268,15 +299,35 @@ export default function AdminUsersPage() {
           <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
-                <th>Пользователь</th>
-                <th>Роль</th>
-                <th>Статус</th>
-                <th>Создан</th>
+                <SortHeader
+                  label="Пользователь"
+                  active={sortKey === 'username'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('username')}
+                />
+                <SortHeader
+                  label="Роль"
+                  active={sortKey === 'role'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('role')}
+                />
+                <SortHeader
+                  label="Статус"
+                  active={sortKey === 'active'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('active')}
+                />
+                <SortHeader
+                  label="Создан"
+                  active={sortKey === 'created'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('created')}
+                />
                 <th>Действия</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => {
+              {sortedUsers.map((user) => {
                 const isSelf = user.username === currentUser?.username;
                 return (
                   <tr key={user.id}>

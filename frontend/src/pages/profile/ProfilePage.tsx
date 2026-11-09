@@ -147,6 +147,7 @@ export default function ProfilePage() {
             display_name: '',
             department: '',
             email: null,
+            email_verified_at: null,
             created_at: '',
           });
         }

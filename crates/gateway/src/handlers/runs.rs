@@ -1,3 +1,5 @@
+use std::io::{Cursor, Write};
+
 use axum::body::Body;
 use axum::extract::{Extension, Multipart, Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
@@ -27,6 +29,18 @@ pub struct Pagination {
     pub limit: Option<i64>,
     #[serde(default)]
     pub offset: Option<i64>,
+}
+
+fn can_access_run(user: &AuthUser, run: &Run) -> bool {
+    user.role == Role::Admin || run.created_by == Some(user.id)
+}
+
+async fn get_run_for_user(state: &AppState, user: &AuthUser, run_id: Uuid) -> AppResult<Run> {
+    let run = db::get_run(&state.pool, run_id).await?;
+    if !can_access_run(user, &run) {
+        return Err(AppError::NotFound("run not found".into()));
+    }
+    Ok(run)
 }
 
 pub async fn create(
@@ -339,11 +353,17 @@ pub async fn create(
 
 pub async fn list(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Query(pagination): Query<Pagination>,
 ) -> AppResult<Json<Vec<RunSummary>>> {
+    let owner = if user.role == Role::Admin {
+        None
+    } else {
+        Some(user.id)
+    };
     let runs = db::list_runs(
         &state.pool,
+        owner,
         pagination.limit.unwrap_or(50),
         pagination.offset.unwrap_or(0),
     )
@@ -353,10 +373,10 @@ pub async fn list(
 
 pub async fn detail(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Json<RunDetail>> {
-    let run = db::get_run(&state.pool, run_id).await?;
+    let run = get_run_for_user(&state, &user, run_id).await?;
     let stages = db::get_stages(&state.pool, run_id).await?;
     let artifacts = db::get_artifacts(&state.pool, run_id).await?;
     let journal = db::get_journal(&state.pool, run_id).await?;
@@ -372,10 +392,10 @@ pub async fn detail(
 
 pub async fn status(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Json<serde_json::Value>> {
-    let run = db::get_run(&state.pool, run_id).await?;
+    let run = get_run_for_user(&state, &user, run_id).await?;
     let stages = db::get_stages(&state.pool, run_id).await?;
     let stats = db::run_stats(&state.pool, run_id).await?;
     Ok(Json(json!({
@@ -392,6 +412,7 @@ pub async fn cancel(
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Json<serde_json::Value>> {
     user.require_write()?;
+    get_run_for_user(&state, &user, run_id).await?;
     db::set_run_status(&state.pool, run_id, "cancelled", Some("cancelled by user")).await?;
     let _ = write_audit(
         &state.pool,
@@ -415,7 +436,7 @@ pub async fn delete(
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Json<serde_json::Value>> {
     user.require_write()?;
-    let run = db::get_run(&state.pool, run_id).await?;
+    let run = get_run_for_user(&state, &user, run_id).await?;
     if run.status == "queued" || run.status == "running" {
         db::set_run_status(&state.pool, run_id, "cancelled", Some("deleted by user")).await?;
     }
@@ -454,7 +475,7 @@ pub async fn rerun(
     Path(run_id): Path<Uuid>,
 ) -> AppResult<(StatusCode, Json<Run>)> {
     user.require_write()?;
-    let old = db::get_run(&state.pool, run_id).await?;
+    let old = get_run_for_user(&state, &user, run_id).await?;
 
     let run = db::create_run(
         &state.pool,
@@ -553,14 +574,18 @@ fn safe_artifact_path(state: &AppState, path: &str) -> AppResult<std::path::Path
 
 pub async fn artifact(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path((run_id, name)): Path<(Uuid, String)>,
     headers: HeaderMap,
 ) -> AppResult<Response> {
+    get_run_for_user(&state, &user, run_id).await?;
     let artifact = db::get_artifact(&state.pool, run_id, &name).await?;
     let canonical = safe_artifact_path(&state, &artifact.path)?;
     let bytes = fs::read(&canonical).await?;
+    Ok(artifact_response(&artifact, bytes, &headers))
+}
 
+fn artifact_response(artifact: &Artifact, bytes: Vec<u8>, headers: &HeaderMap) -> Response {
     let download = headers
         .get(header::ACCEPT)
         .and_then(|v| v.to_str().ok())
@@ -590,14 +615,15 @@ pub async fn artifact(
         HeaderValue::from_str(&disposition)
             .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
     );
-    Ok(response)
+    response
 }
 
 pub async fn journal_csv(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Response> {
+    get_run_for_user(&state, &user, run_id).await?;
     if let Ok(artifact) = db::get_artifact(&state.pool, run_id, "journal.csv").await {
         if let Ok(path) = safe_artifact_path(&state, &artifact.path) {
             if let Ok(bytes) = fs::read(&path).await {
@@ -654,7 +680,7 @@ pub async fn add_item(
     Json(payload): Json<AddItemRequest>,
 ) -> AppResult<(StatusCode, Json<serde_json::Value>)> {
     user.require_write()?;
-    let run = db::get_run(&state.pool, run_id).await?;
+    let run = get_run_for_user(&state, &user, run_id).await?;
 
     if payload.title.trim().is_empty() || payload.text.trim().is_empty() {
         return Err(AppError::BadRequest("title and text are required".into()));
@@ -737,10 +763,10 @@ pub async fn add_item(
 
 pub async fn checks(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Json<serde_json::Value>> {
-    db::get_run(&state.pool, run_id).await?;
+    get_run_for_user(&state, &user, run_id).await?;
     let checks = db::get_check_results(&state.pool, run_id).await?;
     Ok(Json(json!(checks)))
 }
@@ -755,9 +781,10 @@ pub async fn sources_list(
 
 pub async fn email_preview(
     State(state): State<AppState>,
-    _user: AuthUser,
+    user: AuthUser,
     Path(run_id): Path<Uuid>,
 ) -> AppResult<Response> {
+    get_run_for_user(&state, &user, run_id).await?;
     let artifact = db::get_artifact(&state.pool, run_id, "email.html").await?;
     let path = safe_artifact_path(&state, &artifact.path)?;
     let bytes = fs::read(&path).await?;
@@ -783,6 +810,7 @@ pub async fn email_send(
     body: Option<Json<EmailPreviewRequest>>,
 ) -> AppResult<Json<serde_json::Value>> {
     user.require_write()?;
+    get_run_for_user(&state, &user, run_id).await?;
     let artifact = db::get_artifact(&state.pool, run_id, "email.html").await?;
     let path = safe_artifact_path(&state, &artifact.path)?;
     let html = fs::read_to_string(&path).await?;
@@ -829,6 +857,151 @@ pub async fn email_send(
     .await;
 
     Ok(Json(json!({"sent": true, "to": recipient})))
+}
+
+pub async fn share_run(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(run_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    let run = get_run_for_user(&state, &user, run_id).await?;
+    let token = match run.share_token {
+        Some(token) => token,
+        None => {
+            let token = Uuid::new_v4().simple().to_string();
+            db::set_run_share_token(&state.pool, run_id, &token).await?;
+            token
+        }
+    };
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "run.share",
+            format!("run:{run_id}"),
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"token": token})))
+}
+
+pub async fn unshare_run(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(run_id): Path<Uuid>,
+) -> AppResult<Json<serde_json::Value>> {
+    get_run_for_user(&state, &user, run_id).await?;
+    db::clear_run_share_token(&state.pool, run_id).await?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn build_archive(state: &AppState, run_id: Uuid) -> AppResult<Vec<u8>> {
+    let artifacts = db::get_artifacts(&state.pool, run_id).await?;
+    let mut cursor = Cursor::new(Vec::new());
+    {
+        let mut archive = zip::ZipWriter::new(&mut cursor);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for artifact in artifacts {
+            let path = safe_artifact_path(state, &artifact.path)?;
+            let bytes = fs::read(&path).await?;
+            archive
+                .start_file(&artifact.name, options)
+                .map_err(|e| AppError::internal(format!("failed to add {}: {e}", artifact.name)))?;
+            archive.write_all(&bytes).map_err(|e| {
+                AppError::internal(format!("failed to write {}: {e}", artifact.name))
+            })?;
+        }
+        archive
+            .finish()
+            .map_err(|e| AppError::internal(format!("failed to finish archive: {e}")))?;
+    }
+    Ok(cursor.into_inner())
+}
+
+fn archive_response(bytes: Vec<u8>, run_id: Uuid) -> Response {
+    let mut response = Response::new(Body::from(bytes));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/zip"),
+    );
+    response.headers_mut().insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&format!(
+            "attachment; filename=\"run-{}.zip\"",
+            &run_id.to_string()[..8]
+        ))
+        .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
+    );
+    response
+}
+
+pub async fn archive(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(run_id): Path<Uuid>,
+) -> AppResult<Response> {
+    get_run_for_user(&state, &user, run_id).await?;
+    Ok(archive_response(
+        build_archive(&state, run_id).await?,
+        run_id,
+    ))
+}
+
+pub async fn public_detail(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+) -> AppResult<Json<RunDetail>> {
+    let mut run = db::get_run_by_share_token(&state.pool, &token).await?;
+    run.created_by = None;
+    run.share_token = None;
+    run.error = None;
+    let run_id = run.id;
+    let stages = db::get_stages(&state.pool, run_id).await?;
+    let artifacts = db::get_artifacts(&state.pool, run_id)
+        .await?
+        .into_iter()
+        .map(|mut artifact| {
+            artifact.path.clear();
+            artifact
+        })
+        .collect();
+    let journal = db::get_journal(&state.pool, run_id).await?;
+    let events = db::get_events(&state.pool, run_id).await?;
+    Ok(Json(RunDetail {
+        run,
+        stages,
+        artifacts,
+        journal,
+        events,
+    }))
+}
+
+pub async fn public_artifact(
+    State(state): State<AppState>,
+    Path((token, name)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> AppResult<Response> {
+    let run = db::get_run_by_share_token(&state.pool, &token).await?;
+    let artifact = db::get_artifact(&state.pool, run.id, &name).await?;
+    let canonical = safe_artifact_path(&state, &artifact.path)?;
+    let bytes = fs::read(&canonical).await?;
+    Ok(artifact_response(&artifact, bytes, &headers))
+}
+
+pub async fn public_archive(
+    State(state): State<AppState>,
+    Path(token): Path<String>,
+) -> AppResult<Response> {
+    let run = db::get_run_by_share_token(&state.pool, &token).await?;
+    Ok(archive_response(
+        build_archive(&state, run.id).await?,
+        run.id,
+    ))
 }
 
 fn csv_safe(value: &str) -> String {

@@ -961,6 +961,7 @@ mod tests {
             parent_run_id: None,
             source_ids: Vec::new(),
             policies: serde_json::json!({}),
+            share_token: None,
         }
     }
 

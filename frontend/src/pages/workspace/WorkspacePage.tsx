@@ -15,6 +15,7 @@ import {
   RssIcon,
   ScheduleIcon,
   TuneIcon,
+  UploadIcon,
 } from '@components/ui';
 import { WorkspaceLayout } from '@components';
 import { cx } from '@utils/cx';
@@ -66,6 +67,9 @@ export default function WorkspacePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [controlTime, setControlTime] = useState<string | undefined>();
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const enabledSources = useMemo(
     () => sources.filter((source) => source.enabled),
@@ -128,9 +132,37 @@ export default function WorkspacePage() {
     setSelectedSources(new Set());
     setIntervalHours(24);
     setNewsCount(5);
+    setFiles([]);
+    setControlTime(undefined);
+    setFileError(null);
     setSubmitError(null);
     setSessionNotice(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleFiles(list: FileList | null) {
+    const next = Array.from(list ?? []);
+    setFileError(null);
+    setFiles(next);
+    setControlTime(undefined);
+    const first = next.find((file) => /\.json$/i.test(file.name));
+    if (!first) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(await first.text()) as {
+        control_time?: unknown;
+        items?: unknown;
+      };
+      if (typeof parsed.control_time === 'string') {
+        setControlTime(parsed.control_time);
+      }
+      if (!Array.isArray(parsed.items)) {
+        setFileError('В JSON нет массива items.');
+      }
+    } catch {
+      setFileError('Не удалось прочитать JSON-файл.');
+    }
   }
 
   function openRun(run: RunSummary) {
@@ -154,16 +186,18 @@ export default function WorkspacePage() {
     event.preventDefault();
     setSubmitError(null);
 
-    if (selectedSources.size === 0) {
-      setSubmitError('Выберите хотя бы один источник мониторинга.');
+    if (selectedSources.size === 0 && files.length === 0) {
+      setSubmitError('Выберите источники или загрузите файлы датасета.');
       return;
     }
 
     setSubmitting(true);
     try {
       const run = await createRun({
-        mode: 'live',
-        sources: [...selectedSources],
+        mode: files.length > 0 ? 'file' : 'live',
+        sources: files.length > 0 ? [] : [...selectedSources],
+        files,
+        controlTime,
         intervalHours,
         maxItems: newsCount,
       });
@@ -181,7 +215,8 @@ export default function WorkspacePage() {
 
   const selectedCount = selectedSources.size;
   const enabledCount = enabledSources.length;
-  const canSubmit = selectedCount > 0 && !submitting && !loadingSources;
+  const canSubmit =
+    (selectedCount > 0 || files.length > 0) && !submitting && !loadingSources;
   const estimatedSeconds =
     selectedCount === 0
       ? 0
@@ -319,6 +354,61 @@ export default function WorkspacePage() {
               })}
             </div>
           </section>
+
+          <section className={cx(styles, "ws-param ws-param--12")}>
+            <div className={cx(styles, "ws-param-head")}>
+              <span className={cx(styles, "ws-param-title")}>
+                <UploadIcon />
+                Файлы датасета
+                <span className={cx(styles, "ws-param-badge")}>
+                  {files.length > 0 ? `${files.length} файлов` : 'необязательно'}
+                </span>
+              </span>
+              <span className={cx(styles, "ws-param-hint")}>
+                JSON, JSONL, CSV или ZIP
+              </span>
+            </div>
+            <label className={cx(styles, "ws-file-picker")}>
+              <input
+                type="file"
+                multiple
+                accept=".json,.jsonl,.ndjson,.csv,.zip,.txt,.md,.html"
+                onChange={(event) => void handleFiles(event.target.files)}
+              />
+              <UploadIcon />
+              <span>
+                <strong>Выбрать файлы</strong>
+                <small>или перетащите их в окно</small>
+              </span>
+            </label>
+            {fileError && <span className={cx(styles, "ws-file-error")}>{fileError}</span>}
+            {files.length > 0 && (
+              <div className={cx(styles, "ws-file-list")}>
+                {files.map((file) => (
+                  <span className={cx(styles, "ws-file-item")} key={`${file.name}-${file.size}`}>
+                    <span>{file.name}</span>
+                    <small>{Math.ceil(file.size / 1024)} КБ</small>
+                    <button
+                      type="button"
+                      aria-label={`Убрать ${file.name}`}
+                      onClick={() => {
+                        const next = files.filter((item) => item !== file);
+                        setFiles(next);
+                        setControlTime(undefined);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {controlTime && (
+              <span className={cx(styles, "ws-param-hint")}>
+                Контрольное время из датасета: {new Date(controlTime).toLocaleString('ru-RU')}
+              </span>
+            )}
+          </section>
         </div>
 
         <div className={cx(styles, "ws-card-footer")}>
@@ -326,7 +416,11 @@ export default function WorkspacePage() {
             <span className={cx(styles, "ws-estimate")}>
               Примерное время:{' '}
               <strong>
-                {selectedCount === 0 ? 'выберите источники' : formatEstimate(estimatedSeconds)}
+                {selectedCount === 0
+                  ? files.length > 0
+                    ? 'анализ по загруженным файлам'
+                    : 'выберите источники или файлы'
+                  : formatEstimate(estimatedSeconds)}
               </strong>
             </span>
             <button
@@ -334,8 +428,8 @@ export default function WorkspacePage() {
               type="submit"
               disabled={!canSubmit}
               title={
-                selectedCount === 0
-                  ? 'Выберите хотя бы один источник'
+                selectedCount === 0 && files.length === 0
+                  ? 'Выберите источник или загрузите файлы'
                   : undefined
               }
             >

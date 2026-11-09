@@ -85,8 +85,32 @@ fn build_router(state: AppState) -> Router {
         )
         .route("/api/auth/login", post(handlers::auth::login))
         .route("/api/auth/register", post(handlers::auth::register))
+        .route(
+            "/api/auth/password/forgot",
+            post(handlers::auth::forgot_password),
+        )
+        .route(
+            "/api/auth/password/reset",
+            post(handlers::auth::reset_password),
+        )
+        .route(
+            "/api/auth/email/confirm",
+            post(handlers::auth::confirm_email),
+        )
         .route("/api/auth/refresh", post(handlers::auth::refresh))
         .route("/api/auth/logout", post(handlers::auth::logout))
+        .route(
+            "/api/public/runs/{token}",
+            get(handlers::runs::public_detail),
+        )
+        .route(
+            "/api/public/runs/{token}/archive",
+            get(handlers::runs::public_archive),
+        )
+        .route(
+            "/api/public/runs/{token}/artifacts/{name}",
+            get(handlers::runs::public_artifact),
+        )
         .route("/metrics", get(handlers::health::metrics))
         .route("/api/ready", get(handlers::health::ready));
 
@@ -97,6 +121,10 @@ fn build_router(state: AppState) -> Router {
         )
         .route("/api/auth/password", post(handlers::auth::change_password))
         .route("/api/auth/email/verify", post(handlers::auth::verify_email))
+        .route(
+            "/api/auth/email/request",
+            post(handlers::auth::request_email_verification),
+        )
         .route("/api/auth/sessions", get(handlers::auth::list_sessions))
         .route(
             "/api/auth/sessions/revoke-others",
@@ -117,6 +145,11 @@ fn build_router(state: AppState) -> Router {
         .route("/api/runs/{id}/status", get(handlers::runs::status))
         .route("/api/runs/{id}/cancel", post(handlers::runs::cancel))
         .route("/api/runs/{id}/rerun", post(handlers::runs::rerun))
+        .route("/api/runs/{id}/archive", get(handlers::runs::archive))
+        .route(
+            "/api/runs/{id}/share",
+            post(handlers::runs::share_run).delete(handlers::runs::unshare_run),
+        )
         .route(
             "/api/runs/{id}/artifacts/{name}",
             get(handlers::runs::artifact),

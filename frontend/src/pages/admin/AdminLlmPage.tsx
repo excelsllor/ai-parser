@@ -11,9 +11,12 @@ import {
   RefreshIcon,
   SaveIcon,
   ScheduleIcon,
+  SortHeader,
   TuneIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { sortRows } from '@utils/sort';
+import type { SortDirection } from '@utils/sort';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -33,6 +36,17 @@ const WEIGHT_LABELS: Record<string, string> = {
 export default function AdminLlmPage() {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [calls, setCalls] = useState<LlmCall[]>([]);
+  const [sortKey, setSortKey] = useState<'time' | 'purpose' | 'model' | 'tokens' | 'latency' | 'status'>('time');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  function toggleSort(key: typeof sortKey) {
+    if (sortKey === key) {
+      setSortDirection((value) => (value === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  }
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
   const [models, setModels] = useState<string[]>([]);
@@ -112,6 +126,27 @@ export default function AdminLlmPage() {
       ok: calls.filter((call) => call.ok).length,
     };
   }, [calls]);
+
+  const sortedCalls = useMemo(
+    () =>
+      sortRows(calls.slice(0, 40), sortDirection, (call) => {
+        switch (sortKey) {
+          case 'purpose':
+            return call.purpose;
+          case 'model':
+            return call.model;
+          case 'tokens':
+            return call.input_tokens + call.output_tokens;
+          case 'latency':
+            return call.latency_ms;
+          case 'status':
+            return call.ok;
+          default:
+            return call.created_at;
+        }
+      }),
+    [calls, sortKey, sortDirection],
+  );
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -384,18 +419,48 @@ export default function AdminLlmPage() {
           <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
-                <th>Время</th>
-                <th>Назначение</th>
-                <th>Модель</th>
+                <SortHeader
+                  label="Время"
+                  active={sortKey === 'time'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('time')}
+                />
+                <SortHeader
+                  label="Назначение"
+                  active={sortKey === 'purpose'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('purpose')}
+                />
+                <SortHeader
+                  label="Модель"
+                  active={sortKey === 'model'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('model')}
+                />
                 <th>Вход</th>
                 <th>Выход</th>
-                <th>Итого</th>
-                <th>Задержка</th>
-                <th>Статус</th>
+                <SortHeader
+                  label="Итого"
+                  active={sortKey === 'tokens'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('tokens')}
+                />
+                <SortHeader
+                  label="Задержка"
+                  active={sortKey === 'latency'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('latency')}
+                />
+                <SortHeader
+                  label="Статус"
+                  active={sortKey === 'status'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('status')}
+                />
               </tr>
             </thead>
             <tbody>
-              {calls.slice(0, 40).map((call) => (
+              {sortedCalls.map((call) => (
                 <tr key={call.id}>
                   <td className={cx(styles, "admin-mono")}>{formatTime(call.created_at)}</td>
                   <td>

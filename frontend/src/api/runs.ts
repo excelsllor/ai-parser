@@ -30,6 +30,7 @@ export interface RunSummary {
   prompt_version: string;
   error: string | null;
   parent_run_id: string | null;
+  share_token: string | null;
 }
 
 export interface RunInfo extends RunSummary {
@@ -225,6 +226,40 @@ export function deleteRun(id: string): Promise<{ ok: boolean }> {
   });
 }
 
+export async function downloadRunArchive(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/runs/${id}/archive`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Не удалось скачать архив (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `run-${id.slice(0, 8)}.zip`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function shareRun(id: string): Promise<{ token: string }> {
+  return request<{ token: string }>(`/runs/${id}/share`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
+export function unshareRun(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/runs/${id}/share`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+}
+
 export function cancelRun(id: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/runs/${id}/cancel`, {
     method: 'POST',
@@ -264,6 +299,39 @@ export async function fetchArtifact(id: string, name: string): Promise<string> {
   }
 
   return response.text();
+}
+
+export function getSharedRun(token: string): Promise<RunDetail> {
+  return request<RunDetail>(`/public/runs/${token}`);
+}
+
+export async function fetchSharedArtifact(
+  token: string,
+  name: string,
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE_URL}/public/runs/${token}/artifacts/${encodeURIComponent(name)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Не удалось загрузить ${name} (${response.status})`);
+  }
+  return response.text();
+}
+
+export async function downloadSharedArchive(token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/public/runs/${token}/archive`);
+  if (!response.ok) {
+    throw new Error(`Не удалось скачать архив (${response.status})`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `run-${token.slice(0, 8)}.zip`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export async function downloadArtifact(id: string, name: string): Promise<void> {

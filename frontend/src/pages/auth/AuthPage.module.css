@@ -103,6 +103,13 @@
   height: 100%;
 }
 
+.auth-subtitle {
+  margin: 0 0 20px;
+  color: var(--auth-muted, #64748b);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .auth-title {
   margin: 0;
   font-size: 24px;
@@ -132,16 +139,23 @@
 }
 
 .auth-tabs {
+  position: relative;
   display: flex;
+  gap: 4px;
+  padding: 4px;
   margin-bottom: 24px;
-  border-bottom: 1px solid var(--auth-border-soft);
+  border: 1px solid var(--auth-border-soft);
+  border-radius: 999px;
+  background: var(--auth-surface, #f8fafc);
 }
 
 .auth-tab {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  padding: 0 0 12px;
+  padding: 10px 12px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 999px;
   background: transparent;
   color: #64748b;
   font-family: inherit;
@@ -150,9 +164,7 @@
   line-height: 1.4;
   text-align: center;
   cursor: pointer;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease;
+  transition: color 0.18s ease;
 }
 
 .auth-tab:hover {
@@ -160,14 +172,29 @@
 }
 
 .auth-tab--active {
-  border-bottom-color: var(--auth-primary);
-  color: var(--auth-primary);
+  color: var(--auth-button-text, #fff);
+}
+
+.auth-tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 6px);
+  border-radius: 999px;
+  background: var(--auth-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.24);
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.auth-tabs[data-tab='register'] .auth-tab-indicator {
+  transform: translateX(calc(100% + 4px));
 }
 
 .auth-tab:focus-visible {
   outline: 2px solid rgba(37, 99, 235, 0.35);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 999px;
 }
 
 .auth-panel {
@@ -644,8 +671,7 @@
 }
 
 [data-theme='dark'] .auth-tab--active {
-  border-bottom-color: #60a5fa;
-  color: #60a5fa;
+  color: var(--auth-button-text, #fff);
 }
 
 [data-theme='dark'] .auth-label,
@@ -796,8 +822,9 @@ body .auth-tab {
 }
 
 body .auth-tab--active {
-  border-color: var(--md-primary);
-  color: var(--md-primary);
+  border-color: transparent;
+  background: transparent;
+  color: var(--md-on-primary);
 }
 
 body .auth-submit {
@@ -869,8 +896,8 @@ body .auth-checkbox {
   transform: translateY(-1px);
 }
 
-.auth-tab--active {
-  box-shadow: inset 0 -2px 0 currentColor;
+.auth-tab-indicator {
+  will-change: transform;
 }
 
 .auth-card,

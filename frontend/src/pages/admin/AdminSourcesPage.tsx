@@ -19,8 +19,11 @@ import {
   RefreshIcon,
   RssIcon,
   SearchIcon,
+  SortHeader,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { sortRows } from '@utils/sort';
+import type { SortDirection } from '@utils/sort';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -61,6 +64,17 @@ export default function AdminSourcesPage() {
 
   const [keyword, setKeyword] = useState('');
   const [keywordSubmitting, setKeywordSubmitting] = useState(false);
+  const [sortKey, setSortKey] = useState<'name' | 'kind' | 'trust' | 'language' | 'synced'>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  function toggleSort(key: typeof sortKey) {
+    if (sortKey === key) {
+      setSortDirection((value) => (value === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -100,6 +114,25 @@ export default function AdminSourcesPage() {
       return matchesQuery && matchesKind && matchesStatus;
     });
   }, [sources, query, kind, status]);
+
+  const sortedFiltered = useMemo(
+    () =>
+      sortRows(filtered, sortDirection, (source) => {
+        switch (sortKey) {
+          case 'kind':
+            return source.kind;
+          case 'trust':
+            return source.trust;
+          case 'language':
+            return source.language;
+          case 'synced':
+            return source.last_synced_at;
+          default:
+            return source.name;
+        }
+      }),
+    [filtered, sortKey, sortDirection],
+  );
 
   const stats = useMemo(
     () => ({
@@ -360,16 +393,41 @@ export default function AdminSourcesPage() {
           <table className={cx(styles, "admin-table")}>
             <thead>
               <tr>
-                <th>Источник</th>
-                <th>Тип</th>
-                <th>Доверие</th>
-                <th>Язык</th>
-                <th>Синхронизация</th>
+                <SortHeader
+                  label="Источник"
+                  active={sortKey === 'name'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('name')}
+                />
+                <SortHeader
+                  label="Тип"
+                  active={sortKey === 'kind'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('kind')}
+                />
+                <SortHeader
+                  label="Доверие"
+                  active={sortKey === 'trust'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('trust')}
+                />
+                <SortHeader
+                  label="Язык"
+                  active={sortKey === 'language'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('language')}
+                />
+                <SortHeader
+                  label="Синхронизация"
+                  active={sortKey === 'synced'}
+                  direction={sortDirection}
+                  onClick={() => toggleSort('synced')}
+                />
                 <th>Действия</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((source) => (
+              {sortedFiltered.map((source) => (
                 <tr key={source.id}>
                   <td>
                     <div className={cx(styles, "admin-user-cell")}>

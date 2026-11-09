@@ -13,6 +13,10 @@ import AdminOverviewPage from '@pages/admin/AdminOverviewPage';
 import AdminSourcesPage from '@pages/admin/AdminSourcesPage';
 import AdminUsersPage from '@pages/admin/AdminUsersPage';
 import AuthPage from '@pages/auth/AuthPage';
+import ForgotPasswordPage from '@pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from '@pages/auth/ResetPasswordPage';
+import VerifyEmailPage from '@pages/auth/VerifyEmailPage';
+import SharedRunPage from '@pages/share/SharedRunPage';
 import VkCallbackPage from '@pages/auth/VkCallbackPage';
 import YandexTokenPage from '@pages/auth/YandexTokenPage';
 import ProfilePage from '@pages/profile/ProfilePage';
@@ -41,8 +45,12 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/login" element={<AuthPage />} />
         <Route path="/register" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/auth/yandex/token" element={<YandexTokenPage />} />
         <Route path="/auth/vk/callback" element={<VkCallbackPage />} />
+        <Route path="/share/:token" element={<SharedRunPage />} />
         <Route
           path="/"
           element={

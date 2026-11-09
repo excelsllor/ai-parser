@@ -8,6 +8,7 @@ import vkLogo from '@assets/providers/vk.svg';
 import yandexButton from '@assets/providers/yandex-button-content.svg';
 import {
   AlertCircleIcon,
+  AlternateEmailIcon,
   ArrowRightIcon,
   EyeIcon,
   EyeOffIcon,
@@ -38,6 +39,7 @@ export default function AuthPage() {
   const tab: Tab = location.pathname === '/register' ? 'register' : 'login';
 
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -167,7 +169,7 @@ export default function AuthPage() {
 
     setLoading(true);
     try {
-      const session = await register(username.trim(), password);
+      const session = await register(username.trim(), password, email.trim() || undefined);
       saveSession(session, remember);
       navigate('/', { replace: true });
     } catch (caught) {
@@ -223,7 +225,13 @@ export default function AuthPage() {
               </span>
             </div>
 
-            <div className={cx(styles, "auth-tabs")} role="tablist" aria-label="Авторизация">
+            <div
+              className={cx(styles, "auth-tabs")}
+              role="tablist"
+              aria-label="Авторизация"
+              data-tab={tab}
+            >
+              <span className={cx(styles, "auth-tab-indicator")} aria-hidden="true" />
               <button
                 className={cx(styles, `auth-tab${tab === 'login' ? ' auth-tab--active' : ''}`)}
                 type="button"
@@ -324,7 +332,7 @@ export default function AuthPage() {
                   <button
                     className={cx(styles, "auth-link")}
                     type="button"
-                    onClick={() => setNotice('Восстановление пароля пока не подключено. Обратитесь к администратору.')}
+                    onClick={() => navigate('/forgot-password')}
                   >
                     Забыли пароль?
                   </button>
@@ -354,6 +362,27 @@ export default function AuthPage() {
                       placeholder="username"
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className={cx(styles, "auth-field")}>
+                  <label className={cx(styles, "auth-label")} htmlFor="register-email">
+                    Email для восстановления пароля
+                  </label>
+                  <div className={cx(styles, "auth-control")}>
+                    <span className={cx(styles, "auth-control-icon")}>
+                      <AlternateEmailIcon />
+                    </span>
+                    <input
+                      className={cx(styles, "auth-input")}
+                      id="register-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
                     />
                   </div>
                 </div>

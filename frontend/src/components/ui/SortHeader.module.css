@@ -1,0 +1,23 @@
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sort-button:hover {
+  color: var(--ws-text-strong);
+}
+
+.sort-arrow {
+  color: var(--ws-soft);
+  font-size: 10px;
+}

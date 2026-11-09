@@ -428,14 +428,60 @@ pub async fn get_run(pool: &PgPool, run_id: Uuid) -> AppResult<Run> {
         .ok_or_else(|| AppError::NotFound("run not found".into()))
 }
 
-pub async fn list_runs(pool: &PgPool, limit: i64, offset: i64) -> AppResult<Vec<Run>> {
-    let rows =
-        sqlx::query_as::<_, Run>("SELECT * FROM runs ORDER BY created_at DESC LIMIT $1 OFFSET $2")
+pub async fn list_runs(
+    pool: &PgPool,
+    created_by: Option<Uuid>,
+    limit: i64,
+    offset: i64,
+) -> AppResult<Vec<Run>> {
+    let rows = match created_by {
+        Some(user_id) => {
+            sqlx::query_as::<_, Run>(
+                "SELECT * FROM runs WHERE created_by = $1
+                 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+            )
+            .bind(user_id)
             .bind(limit.clamp(1, 200))
             .bind(offset.max(0))
             .fetch_all(pool)
-            .await?;
+            .await?
+        }
+        None => {
+            sqlx::query_as::<_, Run>(
+                "SELECT * FROM runs ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            )
+            .bind(limit.clamp(1, 200))
+            .bind(offset.max(0))
+            .fetch_all(pool)
+            .await?
+        }
+    };
     Ok(rows)
+}
+
+pub async fn get_run_by_share_token(pool: &PgPool, token: &str) -> AppResult<Run> {
+    sqlx::query_as::<_, Run>("SELECT * FROM runs WHERE share_token = $1")
+        .bind(token)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("shared run not found".into()))
+}
+
+pub async fn set_run_share_token(pool: &PgPool, run_id: Uuid, token: &str) -> AppResult<()> {
+    sqlx::query("UPDATE runs SET share_token = $1 WHERE id = $2")
+        .bind(token)
+        .bind(run_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn clear_run_share_token(pool: &PgPool, run_id: Uuid) -> AppResult<()> {
+    sqlx::query("UPDATE runs SET share_token = NULL WHERE id = $1")
+        .bind(run_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 pub async fn add_stage(
@@ -820,6 +866,67 @@ pub async fn find_user_by_username(pool: &PgPool, username: &str) -> AppResult<O
     Ok(row)
 }
 
+pub async fn find_user_by_email(pool: &PgPool, email: &str) -> AppResult<Option<User>> {
+    sqlx::query_as::<_, User>("SELECT * FROM users WHERE lower(email) = lower($1)")
+        .bind(email)
+        .fetch_optional(pool)
+        .await
+        .map_err(AppError::from)
+}
+
+pub async fn create_email_token(
+    pool: &PgPool,
+    user_id: Uuid,
+    kind: &str,
+    token_hash: &str,
+    expires_at: chrono::DateTime<Utc>,
+) -> AppResult<()> {
+    sqlx::query(
+        "INSERT INTO email_tokens (user_id, kind, token_hash, expires_at)
+         VALUES ($1, $2, $3, $4)",
+    )
+    .bind(user_id)
+    .bind(kind)
+    .bind(token_hash)
+    .bind(expires_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn consume_email_token(
+    pool: &PgPool,
+    kind: &str,
+    token_hash: &str,
+) -> AppResult<Option<Uuid>> {
+    let row: Option<(Uuid,)> = sqlx::query_as(
+        "UPDATE email_tokens SET used_at = now()
+         WHERE kind = $1 AND token_hash = $2 AND used_at IS NULL AND expires_at > now()
+         RETURNING user_id",
+    )
+    .bind(kind)
+    .bind(token_hash)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|(user_id,)| user_id))
+}
+
+pub async fn mark_email_verified(pool: &PgPool, user_id: Uuid) -> AppResult<()> {
+    sqlx::query("UPDATE users SET email_verified_at = now(), updated_at = now() WHERE id = $1")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn revoke_all_user_sessions(pool: &PgPool, user_id: Uuid) -> AppResult<()> {
+    sqlx::query("UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = $1 AND revoked = FALSE")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn create_user(
     pool: &PgPool,
     username: &str,
@@ -958,7 +1065,9 @@ pub async fn update_user_profile(
     email: Option<&str>,
 ) -> AppResult<User> {
     sqlx::query_as::<_, User>(
-        "UPDATE users SET display_name = $1, department = $2, email = $3, updated_at = now()
+        "UPDATE users SET display_name = $1, department = $2, email = $3,
+         email_verified_at = CASE WHEN email IS DISTINCT FROM $3 THEN NULL ELSE email_verified_at END,
+         updated_at = now()
          WHERE id = $4 RETURNING *",
     )
     .bind(display_name)
@@ -968,6 +1077,17 @@ pub async fn update_user_profile(
     .fetch_one(pool)
     .await
     .map_err(AppError::from)
+}
+
+pub async fn set_user_email(pool: &PgPool, user_id: Uuid, email: Option<&str>) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE users SET email = $1, email_verified_at = NULL, updated_at = now() WHERE id = $2",
+    )
+    .bind(email)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 pub async fn set_user_password(pool: &PgPool, user_id: Uuid, password_hash: &str) -> AppResult<()> {

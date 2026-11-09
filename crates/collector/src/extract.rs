@@ -1178,6 +1178,37 @@ mod tests {
     }
 
     #[test]
+    fn parses_wrapped_json_dataset() {
+        let data = r#"{
+            "dataset": "closed_test_T1",
+            "control_time": "2026-11-09T09:00:00+03:00",
+            "items": [
+                {
+                    "id": "T1-01",
+                    "title": "Утечка в каршеринге",
+                    "text": "Каршеринг сообщил об утечке данных 75 тысяч пользователей из-за ошибки в API.",
+                    "source": "КиберВестник",
+                    "url": "https://kibervestnik.example/news/1",
+                    "published_at": "2026-11-08T12:00:00+03:00",
+                    "missing": [],
+                    "error": null
+                }
+            ]
+        }"#;
+        let items = parse_json(
+            "dataset.json",
+            data.as_bytes(),
+            "dataset",
+            chrono_tz::Europe::Moscow,
+        )
+        .unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].external_id, "T1-01");
+        assert_eq!(items[0].source_name, "КиберВестник");
+        assert!(items[0].date_confirmed);
+    }
+
+    #[test]
     fn parses_csv_dataset() {
         let data = "id,title,text,source,url,published_at\n2,Атака,Текст,Test,https://example.com/2,2026-11-07 12:00\n";
         let items = parse_csv(

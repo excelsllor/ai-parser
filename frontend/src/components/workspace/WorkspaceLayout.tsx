@@ -1,9 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode, UIEvent } from 'react';
+import { createPortal } from 'react-dom';
 
+import { getCurrentUser } from '@api/auth';
+import { downloadRunArchive, shareRun } from '@api/runs';
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
-import { AddIcon, DeleteIcon, MenuIcon } from '@components/ui';
+import {
+  AddIcon,
+  CopyIcon,
+  DeleteIcon,
+  DownloadIcon,
+  MenuIcon,
+  MoreIcon,
+} from '@components/ui';
 
 import { cx } from '@utils/cx';
 
@@ -75,8 +85,60 @@ export default function WorkspaceLayout({
   onDeleteRun,
   onNewQuery,
 }: WorkspaceLayoutProps) {
+  const canWrite = getCurrentUser()?.role !== 'viewer';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [openMenu, setOpenMenu] = useState<{
+    run: RunSummary;
+    top: number;
+    right: number;
+  } | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openMenu) {
+      return;
+    }
+    const close = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest('[data-run-menu]')) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [openMenu]);
+
+  async function handleDownload(run: RunSummary) {
+    setOpenMenu(null);
+    setActionNotice(null);
+    try {
+      await downloadRunArchive(run.id);
+    } catch (error) {
+      setActionNotice(
+        error instanceof Error ? error.message : 'Не удалось скачать архив.',
+      );
+    }
+  }
+
+  async function handleShare(run: RunSummary) {
+    setOpenMenu(null);
+    setActionNotice(null);
+    try {
+      const { token } = await shareRun(run.id);
+      const url = `${window.location.origin}/share/${token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setActionNotice('Публичная ссылка скопирована.');
+      } catch {
+        window.prompt('Публичная ссылка', url);
+      }
+    } catch (error) {
+      setActionNotice(
+        error instanceof Error ? error.message : 'Не удалось создать ссылку.',
+      );
+    }
+  }
 
   function toggleSidebar() {
     if (window.matchMedia('(max-width: 1100px)').matches) {
@@ -98,11 +160,13 @@ export default function WorkspaceLayout({
 
   function handleNewQuery() {
     setSidebarOpen(false);
+    setOpenMenu(null);
     onNewQuery();
   }
 
   function handleSelectRun(run: RunSummary) {
     setSidebarOpen(false);
+    setOpenMenu(null);
     onSelectRun(run);
   }
 
@@ -146,6 +210,9 @@ export default function WorkspaceLayout({
                 {hasMoreRuns ? '+' : ''}
               </span>
             </div>
+            {actionNotice && (
+              <span className={cx(styles, "ws-sidebar-note")}>{actionNotice}</span>
+            )}
 
             <nav
               className={cx(styles, "ws-sessions")}
@@ -177,18 +244,35 @@ export default function WorkspaceLayout({
                       <span>{formatDate(run.control_time)}</span>
                     </span>
                   </button>
-                  <span className={cx(styles, `ws-status-dot ws-status-dot--${statusClass(run.status)}`)} />
-                  {onDeleteRun && (
+                  <div className={cx(styles, "ws-session-actions")} data-run-menu>
+                    <span
+                      className={cx(
+                        styles,
+                        `ws-status-dot ws-status-dot--${statusClass(run.status)}`,
+                      )}
+                    />
                     <button
-                      className={cx(styles, "ws-session-delete")}
+                      className={cx(styles, "ws-session-menu-button")}
                       type="button"
-                      title="Удалить сессию"
-                      aria-label="Удалить сессию"
-                      onClick={() => onDeleteRun(run)}
+                      title="Действия с сессией"
+                      aria-label="Действия с сессией"
+                      aria-expanded={openMenu?.run.id === run.id}
+                      onClick={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setOpenMenu((current) =>
+                          current?.run.id === run.id
+                            ? null
+                            : {
+                                run,
+                                top: rect.bottom + 4,
+                                right: window.innerWidth - rect.right,
+                              },
+                        );
+                      }}
                     >
-                      <DeleteIcon />
+                      <MoreIcon />
                     </button>
-                  )}
+                  </div>
                 </div>
               ))}
               {loadingMoreRuns && (
@@ -209,6 +293,50 @@ export default function WorkspaceLayout({
 
         <main className={cx(styles, "ws-main")}>{children}</main>
       </div>
+
+      {openMenu &&
+        createPortal(
+          <div
+            className={cx(styles, "ws-session-menu")}
+            data-run-menu
+            style={{ top: openMenu.top, right: openMenu.right }}
+          >
+            <button
+              className={cx(styles, "ws-session-menu-item")}
+              type="button"
+              onClick={() => void handleDownload(openMenu.run)}
+            >
+              <DownloadIcon />
+              Скачать ZIP
+            </button>
+            <button
+              className={cx(styles, "ws-session-menu-item")}
+              type="button"
+              onClick={() => void handleShare(openMenu.run)}
+            >
+              <CopyIcon />
+              Поделиться
+            </button>
+            {canWrite && onDeleteRun && (
+              <button
+                className={cx(
+                  styles,
+                  "ws-session-menu-item ws-session-menu-item--danger",
+                )}
+                type="button"
+                onClick={() => {
+                  const run = openMenu.run;
+                  setOpenMenu(null);
+                  onDeleteRun(run);
+                }}
+              >
+                <DeleteIcon />
+                Удалить
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

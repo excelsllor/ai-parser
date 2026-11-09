@@ -299,7 +299,11 @@
 }
 
 .ws-page--sidebar-hidden .ws-sidebar {
-  display: none;
+  width: 0;
+  flex-basis: 0;
+  opacity: 0;
+  border-right-color: transparent;
+  pointer-events: none;
 }
 
 .ws-sidebar {
@@ -310,9 +314,19 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow: hidden;
   border-right: 1px solid var(--ws-border);
   background: var(--ws-paper);
   box-shadow: var(--panel-shadow);
+  transition:
+    width 0.22s ease,
+    flex-basis 0.22s ease,
+    opacity 0.16s ease,
+    transform 0.22s ease;
+}
+
+.ws-sidebar-top {
+  width: 288px;
 }
 
 .ws-sidebar-top {
@@ -412,10 +426,11 @@
 .ws-session {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
-  padding-right: 8px;
+  padding-right: 6px;
   border-left: 4px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--ws-text);
   transition: background-color 0.15s ease;
@@ -439,7 +454,7 @@
   gap: 5px;
   padding: 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: inherit;
   font-family: inherit;
@@ -452,11 +467,14 @@
   outline-offset: -2px;
 }
 
-.ws-session > .ws-status-dot {
-  margin-right: 2px;
+.ws-session-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.ws-session-delete {
+.ws-session-menu-button {
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
@@ -468,7 +486,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--ws-soft);
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
@@ -478,19 +496,61 @@
     opacity 0.15s ease;
 }
 
-.ws-session:hover .ws-session-delete,
-.ws-session-delete:focus-visible {
+.ws-session:hover .ws-session-menu-button,
+.ws-session-menu-button:focus-visible,
+.ws-session-actions:has(.ws-session-menu) .ws-session-menu-button {
   opacity: 1;
   pointer-events: auto;
 }
 
-.ws-session-delete:hover {
-  background: #fef2f2;
+.ws-session-menu-button:hover {
+  background: var(--ws-surface-container-high, #f1f5f9);
+  color: var(--ws-text-strong);
+}
+
+.ws-session-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 186px;
+  padding: 4px;
+  border: 1px solid var(--ws-border);
+  border-radius: 8px;
+  background: var(--ws-paper);
+  box-shadow: var(--panel-shadow-modal);
+}
+
+.ws-session-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ws-text);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-session-menu-item:hover {
+  background: var(--ws-surface-container-high, #f1f5f9);
+  color: var(--ws-text-strong);
+}
+
+.ws-session-menu-item--danger {
   color: #dc2626;
 }
 
+.ws-session-menu-item--danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 @media (hover: none) {
-  .ws-session-delete {
+  .ws-session-menu-button {
     opacity: 0.65;
     pointer-events: auto;
   }
@@ -803,6 +863,106 @@
   max-height: 240px;
   overflow-y: auto;
   padding: 2px 4px 2px 0;
+}
+
+.ws-file-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px dashed var(--ws-border-strong);
+  border-radius: 12px;
+  background: var(--ws-bg);
+  color: var(--ws-muted);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.ws-file-picker:hover {
+  border-color: var(--ws-primary);
+  background: var(--ws-paper);
+}
+
+.ws-file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.ws-file-picker svg {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  color: var(--ws-primary);
+}
+
+.ws-file-picker span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ws-file-picker strong {
+  color: var(--ws-text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ws-file-picker small {
+  font-size: 11px;
+}
+
+.ws-file-error {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.ws-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-file-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--ws-border);
+  border-radius: 8px;
+  background: var(--ws-paper);
+  color: var(--ws-text);
+  font-size: 12px;
+}
+
+.ws-file-item small {
+  color: var(--ws-muted);
+  font-size: 10px;
+}
+
+.ws-file-item button {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ws-soft);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ws-file-item button:hover {
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .ws-source {
@@ -1247,7 +1407,15 @@
   }
 
   .ws-page--sidebar-hidden .ws-sidebar {
-    display: flex;
+    width: min(300px, 86vw);
+    flex-basis: min(300px, 86vw);
+    opacity: 1;
+    border-right-color: var(--ws-border);
+    pointer-events: auto;
+  }
+
+  .ws-sidebar-top {
+    width: 100%;
   }
 
   .ws-sidebar {
@@ -1382,7 +1550,12 @@
   border-left-color: #3b82f6;
 }
 
-[data-theme='dark'] .ws-session-delete:hover {
+[data-theme='dark'] .ws-session-menu-button:hover {
+  background: #1f2937;
+  color: #fafafa;
+}
+
+[data-theme='dark'] .ws-session-menu-item--danger:hover {
   background: #450a0a;
   color: #fca5a5;
 }
@@ -1757,7 +1930,7 @@ body .ws-switch-input:checked + .ws-switch-track {
 .ws-menu-button,
 .ws-link-button,
 .ws-session-open,
-.ws-session-delete {
+.ws-session-menu-button {
   transition:
     color var(--motion-fast) ease,
     background-color var(--motion-fast) ease,
