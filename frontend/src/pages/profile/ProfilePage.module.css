@@ -488,7 +488,8 @@
   line-height: 1.4;
 }
 
-.pf-field--invalid input {
+.pf-field--invalid input,
+.pf-field--invalid .pf-input-wrap {
   border-color: #dc2626;
 }
 
@@ -502,9 +503,14 @@
 }
 
 .pf-field-error {
+  display: block;
+  margin-top: 5px;
   color: #dc2626;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.4;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .pf-field > .pf-field-error {

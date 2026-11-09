@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import AppHeader from '@components/layout/AppHeader';
 import {
@@ -22,11 +23,38 @@ const TABS = [
 ];
 
 export default function AdminLayout() {
+  const { pathname } = useLocation();
+  const tabsRef = useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const update = () => {
+      const element = tabsRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (element) {
+        setIndicator({ left: element.offsetLeft, width: element.offsetWidth });
+      } else {
+        setIndicator({ left: 0, width: 0 });
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [pathname]);
+
   return (
     <div className={cx(styles, "ws-page admin-page")}>
       <AppHeader badge="Admin" />
 
-      <nav className={cx(styles, "admin-tabs")} aria-label="Разделы администрирования">
+      <nav
+        className={cx(styles, "admin-tabs")}
+        aria-label="Разделы администрирования"
+        ref={tabsRef}
+      >
+        <span
+          className={cx(styles, "admin-tab-indicator")}
+          style={{ left: indicator.left, width: indicator.width }}
+          aria-hidden="true"
+        />
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (

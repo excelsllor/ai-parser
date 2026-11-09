@@ -260,6 +260,17 @@ export function unshareRun(id: string): Promise<{ ok: boolean }> {
   });
 }
 
+export function setRunStatus(
+  id: string,
+  status: string,
+): Promise<{ ok: boolean; status: string }> {
+  return request<{ ok: boolean; status: string }>(`/runs/${id}/status`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ status }),
+  });
+}
+
 export function cancelRun(id: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/runs/${id}/cancel`, {
     method: 'POST',

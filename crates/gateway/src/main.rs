@@ -142,7 +142,10 @@ fn build_router(state: AppState) -> Router {
             "/api/runs/{id}",
             get(handlers::runs::detail).delete(handlers::runs::delete),
         )
-        .route("/api/runs/{id}/status", get(handlers::runs::status))
+        .route(
+            "/api/runs/{id}/status",
+            get(handlers::runs::status).patch(handlers::runs::set_status),
+        )
         .route("/api/runs/{id}/cancel", post(handlers::runs::cancel))
         .route("/api/runs/{id}/rerun", post(handlers::runs::rerun))
         .route("/api/runs/{id}/archive", get(handlers::runs::archive))

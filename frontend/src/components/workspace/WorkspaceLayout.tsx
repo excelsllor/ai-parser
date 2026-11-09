@@ -3,11 +3,12 @@ import type { ReactNode, UIEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 import { getCurrentUser } from '@api/auth';
-import { downloadRunArchive, shareRun } from '@api/runs';
+import { downloadRunArchive, shareRun, unshareRun } from '@api/runs';
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
 import {
   AddIcon,
+  CloseIcon,
   CopyIcon,
   DeleteIcon,
   DownloadIcon,
@@ -94,6 +95,14 @@ export default function WorkspaceLayout({
     right: number;
   } | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [shareModal, setShareModal] = useState<{
+    run: RunSummary;
+    isPublic: boolean;
+    token: string | null;
+    loading: boolean;
+    error: string | null;
+    copied: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!openMenu) {
@@ -121,22 +130,69 @@ export default function WorkspaceLayout({
     }
   }
 
-  async function handleShare(run: RunSummary) {
+  function openShare(run: RunSummary) {
     setOpenMenu(null);
     setActionNotice(null);
+    setShareModal({
+      run,
+      isPublic: Boolean(run.share_token),
+      token: run.share_token,
+      loading: false,
+      error: null,
+      copied: false,
+    });
+  }
+
+  async function toggleShare(next: boolean) {
+    if (!shareModal) {
+      return;
+    }
+    setShareModal({ ...shareModal, loading: true, error: null });
     try {
-      const { token } = await shareRun(run.id);
-      const url = `${window.location.origin}/share/${token}`;
-      try {
-        await navigator.clipboard.writeText(url);
-        setActionNotice('Публичная ссылка скопирована.');
-      } catch {
-        window.prompt('Публичная ссылка', url);
+      if (next) {
+        const { token } = await shareRun(shareModal.run.id);
+        setShareModal({
+          ...shareModal,
+          isPublic: true,
+          token,
+          loading: false,
+          copied: false,
+        });
+      } else {
+        await unshareRun(shareModal.run.id);
+        setShareModal({
+          ...shareModal,
+          isPublic: false,
+          token: null,
+          loading: false,
+          copied: false,
+        });
       }
     } catch (error) {
-      setActionNotice(
-        error instanceof Error ? error.message : 'Не удалось создать ссылку.',
-      );
+      setShareModal({
+        ...shareModal,
+        loading: false,
+        error:
+          error instanceof Error ? error.message : 'Не удалось изменить доступ.',
+      });
+    }
+  }
+
+  async function copyShareLink() {
+    if (!shareModal?.token) {
+      return;
+    }
+    const url = `${window.location.origin}/share/${shareModal.token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareModal({ ...shareModal, copied: true });
+      window.setTimeout(() => {
+        setShareModal((current) =>
+          current ? { ...current, copied: false } : current,
+        );
+      }, 2000);
+    } catch {
+      window.prompt('Публичная ссылка', url);
     }
   }
 
@@ -312,7 +368,7 @@ export default function WorkspaceLayout({
             <button
               className={cx(styles, "ws-session-menu-item")}
               type="button"
-              onClick={() => void handleShare(openMenu.run)}
+              onClick={() => openShare(openMenu.run)}
             >
               <CopyIcon />
               Поделиться
@@ -334,6 +390,84 @@ export default function WorkspaceLayout({
                 Удалить
               </button>
             )}
+          </div>,
+          document.body,
+        )}
+
+      {shareModal &&
+        createPortal(
+          <div
+            className={cx(styles, "ws-share-backdrop")}
+            onClick={() => setShareModal(null)}
+          >
+            <div
+              className={cx(styles, "ws-share-modal")}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Доступ к сессии"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className={cx(styles, "ws-share-head")}>
+                <div>
+                  <strong>Доступ к сессии</strong>
+                  <span>Запуск {shortId(shareModal.run.id)}</span>
+                </div>
+                <button
+                  className={cx(styles, "ws-icon-button")}
+                  type="button"
+                  aria-label="Закрыть"
+                  onClick={() => setShareModal(null)}
+                >
+                  <CloseIcon />
+                </button>
+              </header>
+
+              <div className={cx(styles, "ws-share-toggle-row")}>
+                <div>
+                  <strong>{shareModal.isPublic ? 'Публичная' : 'Приватная'}</strong>
+                  <span>
+                    {shareModal.isPublic
+                      ? 'Ссылку сможет открыть любой человек'
+                      : 'Сессию видите только вы'}
+                  </span>
+                </div>
+                <button
+                  className={cx(
+                    styles,
+                    `ws-share-toggle${shareModal.isPublic ? ' ws-share-toggle--on' : ''}`,
+                  )}
+                  type="button"
+                  role="switch"
+                  aria-checked={shareModal.isPublic}
+                  disabled={shareModal.loading}
+                  onClick={() => void toggleShare(!shareModal.isPublic)}
+                >
+                  <span className={cx(styles, "ws-share-toggle-thumb")} />
+                </button>
+              </div>
+
+              {shareModal.isPublic && shareModal.token && (
+                <div className={cx(styles, "ws-share-link")}>
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/share/${shareModal.token}`}
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <button
+                    className={cx(styles, "ws-submit")}
+                    type="button"
+                    onClick={() => void copyShareLink()}
+                  >
+                    <CopyIcon />
+                    {shareModal.copied ? 'Скопировано' : 'Копировать'}
+                  </button>
+                </div>
+              )}
+
+              {shareModal.error && (
+                <p className={cx(styles, "ws-file-error")}>{shareModal.error}</p>
+              )}
+            </div>
           </div>,
           document.body,
         )}

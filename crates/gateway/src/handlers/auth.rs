@@ -537,15 +537,17 @@ pub async fn update_profile(
                     return Err(AppError::Validation("invalid email".into()));
                 }
                 let stored = current.email.as_deref().map(str::to_lowercase);
-                if stored.as_deref() != Some(value.as_str()) {
-                    let provided = payload
-                        .current_email
-                        .as_deref()
-                        .unwrap_or("")
-                        .trim()
-                        .to_lowercase();
-                    if stored.as_deref() != Some(provided.as_str()) {
-                        return Err(AppError::Validation("current email is incorrect".into()));
+                if let Some(stored) = stored.as_deref() {
+                    if stored != value {
+                        let provided = payload
+                            .current_email
+                            .as_deref()
+                            .unwrap_or("")
+                            .trim()
+                            .to_lowercase();
+                        if stored != provided {
+                            return Err(AppError::Validation("current email is incorrect".into()));
+                        }
                     }
                 }
                 let taken: Option<Uuid> = sqlx::query_scalar(

@@ -305,6 +305,7 @@ export default function AdminUsersPage() {
                   direction={sortDirection}
                   onClick={() => toggleSort('username')}
                 />
+                <th>Email</th>
                 <SortHeader
                   label="Роль"
                   active={sortKey === 'role'}
@@ -347,6 +348,19 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td>
+                      {user.email ? (
+                        <span className={cx(styles, "admin-cell-sub")}>
+                          {user.email}
+                          <br />
+                          <span className={cx(styles, user.email_verified_at ? 'admin-badge admin-badge--green' : 'admin-badge admin-badge--amber')}>
+                            {user.email_verified_at ? 'подтверждён' : 'не подтверждён'}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className={cx(styles, "admin-cell-sub")}>не указан</span>
+                      )}
+                    </td>
+                    <td>
                       <select
                         className={cx(styles, "admin-select")}
                         disabled={busyId === user.id}
@@ -359,25 +373,32 @@ export default function AdminUsersPage() {
                       </select>
                     </td>
                     <td>
-                      <span
-                        className={cx(styles, `admin-badge ${
-                          user.is_active ? 'admin-badge--green' : 'admin-badge--amber'
-                        }`)}
-                      >
-                        {user.is_active ? 'Активен' : 'Отключён'}
-                      </span>
+                      <div className={cx(styles, "admin-user-status")}>
+                        <button
+                          aria-checked={user.is_active}
+                          aria-label={
+                            user.is_active
+                              ? `Отключить ${user.username}`
+                              : `Включить ${user.username}`
+                          }
+                          className={cx(styles, `admin-toggle${
+                            user.is_active ? ' admin-toggle--on' : ''
+                          }`)}
+                          disabled={busyId === user.id || isSelf}
+                          role="switch"
+                          type="button"
+                          onClick={() => void handleToggleActive(user)}
+                        >
+                          <span className={cx(styles, "admin-toggle-thumb")} />
+                        </button>
+                        <span className={cx(styles, "admin-cell-sub")}>
+                          {user.is_active ? 'Активен' : 'Отключён'}
+                        </span>
+                      </div>
                     </td>
                     <td>{formatDateTime(user.created_at)}</td>
                     <td>
                       <div className={cx(styles, "admin-row-actions")}>
-                        <button
-                          className={cx(styles, "admin-button admin-button--small")}
-                          disabled={busyId === user.id || isSelf}
-                          type="button"
-                          onClick={() => void handleToggleActive(user)}
-                        >
-                          {user.is_active ? 'Отключить' : 'Включить'}
-                        </button>
                         {user.is_active && (
                           <button
                             aria-label={`Деактивировать ${user.username}`}

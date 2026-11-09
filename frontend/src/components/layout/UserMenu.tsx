@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { clearSession, getCurrentUser } from '@api/auth';
+import { getCurrentUser, logout } from '@api/auth';
 import {
   ChevronDownIcon,
   DashboardIcon,
@@ -39,8 +39,8 @@ export default function UserMenu() {
   const initials = (user?.username ?? '?').slice(0, 2).toUpperCase();
   const roleLabel = user?.role === 'admin' ? 'Администратор' : 'Аналитик';
 
-  function handleLogout() {
-    clearSession();
+  async function handleLogout() {
+    await logout();
     navigate('/login', { replace: true });
   }
 
@@ -89,7 +89,7 @@ export default function UserMenu() {
               Администрирование
             </button>
           )}
-          <button className={cx(styles, "ws-user-menu-item")} type="button" onClick={handleLogout}>
+          <button className={cx(styles, "ws-user-menu-item")} type="button" onClick={() => void handleLogout()}>
             <LogoutIcon />
             Выйти
           </button>

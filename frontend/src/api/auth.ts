@@ -242,6 +242,21 @@ export function getMe(): Promise<CurrentUser> {
   });
 }
 
+export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  if (refreshToken) {
+    try {
+      await request<{ ok: boolean }>('/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+    } catch {
+      // Clear the local session even if the server is unreachable.
+    }
+  }
+  clearSession();
+}
+
 export function clearSession(): void {
   for (const storage of [window.localStorage, window.sessionStorage]) {
     storage.removeItem(ACCESS_TOKEN_KEY);

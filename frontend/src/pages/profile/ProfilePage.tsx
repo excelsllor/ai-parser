@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   changePassword,
-  clearSession,
   getCurrentUser,
   getMe,
   listSessions,
+  logout,
   revokeOtherSessions,
   revokeSession,
   updateProfile,
@@ -280,6 +280,7 @@ export default function ProfilePage() {
         setFieldErrors({ email_new: 'Этот адрес уже используется.' });
       } else if (message.includes('current email')) {
         setFieldErrors({ email_current: 'Текущая почта указана неверно.' });
+        setEmailVerified(false);
       } else {
         setFieldErrors({ email_new: message });
       }
@@ -309,8 +310,8 @@ export default function ProfilePage() {
     }
     if (!newPassword) {
       errors.password_new = 'Введите новый пароль.';
-    } else if (newPassword.length < 8) {
-      errors.password_new = 'Минимум 8 символов.';
+    } else if (newPassword.length < 10) {
+      errors.password_new = 'Минимум 10 символов.';
     } else if (
       !/[A-Za-zА-Яа-я]/.test(newPassword) ||
       !/\d/.test(newPassword)
@@ -343,9 +344,10 @@ export default function ProfilePage() {
         setFieldErrors({ password_current: 'Текущий пароль неверен.' });
       } else {
         setFieldErrors({
-          password_new:
-            message.includes('password must')
-              ? 'Пароль должен содержать буквы и цифры.'
+          password_new: message.includes('at least 10')
+            ? 'Минимум 10 символов.'
+            : message.includes('letter')
+              ? 'Используйте хотя бы одну букву и одну цифру.'
               : message,
         });
       }
@@ -374,10 +376,12 @@ export default function ProfilePage() {
     }
   }
 
-  function handleLogout() {
-    clearSession();
+  async function handleLogout() {
+    await logout();
     navigate('/login', { replace: true });
   }
+
+  const passwordMismatch = repeatPassword.length > 0 && repeatPassword !== newPassword;
 
   return (    <div className={cx(styles, "ws-page pf-page")}>
       <AppHeader sub="Security Ops" />
@@ -716,7 +720,7 @@ export default function ProfilePage() {
                     <KeyIcon className={cx(styles, "pf-input-icon")} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
-                      placeholder="Минимум 8 символов"
+                      placeholder="Минимум 10 символов"
                       value={newPassword}
                       aria-invalid={Boolean(fieldErrors.password_new)}
                       onChange={(event) => setNewPassword(event.target.value)}
@@ -751,9 +755,9 @@ export default function ProfilePage() {
                     ))}
                   </div>
                   <div className={cx(styles, "pf-strength-hints")}>
-                    <span className={cx(styles, newPassword.length >= 8 ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
+                    <span className={cx(styles, newPassword.length >= 10 ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
-                      Минимум 8 символов
+                      Минимум 10 символов
                     </span>
                     <span className={cx(styles, /[A-ZА-Я]/.test(newPassword) && /[a-zа-я]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
@@ -768,7 +772,9 @@ export default function ProfilePage() {
 
                 <label
                   className={cx(styles, `pf-field${
-                    fieldErrors.password_repeat ? ' pf-field--invalid' : ''
+                    fieldErrors.password_repeat || passwordMismatch
+                      ? ' pf-field--invalid'
+                      : ''
                   }`)}
                 >
                   <span>Повторите новый пароль</span>
@@ -790,12 +796,13 @@ export default function ProfilePage() {
                       {showRepeatPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </button>
                   </div>
-                  {fieldErrors.password_repeat && (
+                  {(fieldErrors.password_repeat || passwordMismatch) && (
                     <span className={cx(styles, "pf-field-error")} role="alert">
-                      {fieldErrors.password_repeat}
+                      Пароли не совпадают.
                     </span>
                   )}
                   {!fieldErrors.password_repeat &&
+                    !passwordMismatch &&
                     repeatPassword &&
                     repeatPassword === newPassword && (
                       <small className={cx(styles, "pf-match")}>
@@ -876,7 +883,7 @@ export default function ProfilePage() {
                     <button
                       className={cx(styles, "pf-button pf-button--danger")}
                       type="button"
-                      onClick={handleLogout}
+                      onClick={() => void handleLogout()}
                     >
                       <LogoutIcon />
                       Выйти

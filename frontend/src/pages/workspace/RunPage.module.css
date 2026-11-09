@@ -1172,8 +1172,40 @@
   border-radius: 999px;
   background: #fff;
   color: #475569;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.rp-tg-reaction:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.rp-tg-reaction--active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.rp-status-select {
+  border: 1px solid transparent;
+  cursor: pointer;
+  appearance: none;
+  padding-right: 22px;
+}
+
+.rp-public-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 0;
 }
 
 @media (max-width: 520px) {
@@ -1452,6 +1484,12 @@
   border-color: #262626;
   background: #141414;
   color: #d4d4d4;
+}
+
+[data-theme='dark'] .rp-tg-reaction--active {
+  border-color: #3b82f6;
+  background: #172554;
+  color: #bfdbfe;
 }
 
 [data-theme='dark'] .rp-email-meta label {

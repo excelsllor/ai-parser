@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { getCurrentUser } from '@api/auth';
@@ -37,10 +38,32 @@ const ITEMS = [
 export default function AppNav() {
   const { pathname } = useLocation();
   const isAdmin = getCurrentUser()?.role === 'admin';
+  const navRef = useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+  const items = ITEMS.filter((item) => !item.admin || isAdmin);
+
+  useLayoutEffect(() => {
+    const update = () => {
+      const element = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (element) {
+        setIndicator({ left: element.offsetLeft, width: element.offsetWidth });
+      } else {
+        setIndicator({ left: 0, width: 0 });
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [pathname, isAdmin]);
 
   return (
-    <nav className={cx(styles, "app-nav")} aria-label="Основное меню">
-      {ITEMS.filter((item) => !item.admin || isAdmin).map((item) => {
+    <nav className={cx(styles, "app-nav")} aria-label="Основное меню" ref={navRef}>
+      <span
+        className={cx(styles, "app-nav-indicator")}
+        style={{ left: indicator.left, width: indicator.width }}
+        aria-hidden="true"
+      />
+      {items.map((item) => {
         const Icon = item.icon;
         const active = item.match(pathname);
         return (

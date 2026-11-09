@@ -14,6 +14,7 @@ import {
   rerunRun,
   runVersionChain,
   sendTestEmail,
+  setRunStatus,
 } from '@api/runs';
 import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
 import { SnakeLoader, WorkspaceLayout } from '@components';
@@ -45,6 +46,7 @@ import {
 } from '@components/ui';
 
 import { cx } from '@utils/cx';
+import { hostOf, parseDigest, parsePost } from '@utils/runPresentation';
 
 import runStyles from './RunPage.module.css';
 import workspaceStyles from '@components/workspace/workspace.module.css';
@@ -164,14 +166,6 @@ function statusClass(status: string): string {
   return status in RUN_STATUS_LABELS ? status : 'queued';
 }
 
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return url;
-  }
-}
-
 function journalStatusClass(status: string): string {
   if (status.includes('включ')) {
     return 'included';
@@ -196,105 +190,6 @@ function severity(score: number | undefined): { label: string; className: string
     return { label: 'Высокий уровень', className: 'high' };
   }
   return { label: 'Средний уровень', className: 'medium' };
-}
-
-interface DigestSection {
-  title: string;
-  paragraphs: string[];
-}
-
-function parseDigest(text: string): { intro: string[]; sections: DigestSection[] } {
-  const intro: string[] = [];
-  const sections: DigestSection[] = [];
-  let current: DigestSection | null = null;
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line) {
-      continue;
-    }
-
-    if (line.startsWith('## ')) {
-      current = { title: line.slice(3).trim(), paragraphs: [] };
-      sections.push(current);
-      continue;
-    }
-
-    if (line.startsWith('# ')) {
-      intro.push(line.slice(2).trim());
-      continue;
-    }
-
-    if (current) {
-      current.paragraphs.push(line);
-    } else {
-      intro.push(line);
-    }
-  }
-
-  return { intro, sections };
-}
-
-interface PostItem {
-  number: string;
-  title: string;
-  summary: string;
-  sources: string[];
-}
-
-interface ParsedPost {
-  title: string;
-  period: string;
-  items: PostItem[];
-}
-
-function parsePost(text: string): ParsedPost {
-  const items: PostItem[] = [];
-  let title = '';
-  let period = '';
-  let current: PostItem | null = null;
-
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line) {
-      continue;
-    }
-
-    const itemMatch = line.match(/^(\d+)\.\s+(.*)$/);
-    if (itemMatch) {
-      current = {
-        number: itemMatch[1],
-        title: itemMatch[2],
-        summary: '',
-        sources: [],
-      };
-      items.push(current);
-      continue;
-    }
-
-    if (!current) {
-      if (line.startsWith('Период:')) {
-        period = line.replace(/^Период:\s*/, '');
-      } else if (!title) {
-        title = line;
-      }
-      continue;
-    }
-
-    const sourcesMatch = line.match(/^Источники:\s*(.*)$/);
-    if (sourcesMatch) {
-      current.sources = sourcesMatch[1].match(/https?:\/\/\S+/g) ?? [];
-      continue;
-    }
-
-    current.summary += `${current.summary ? ' ' : ''}${line}`;
-  }
-
-  return {
-    title: title || 'Дайджест по кибербезопасности',
-    period,
-    items,
-  };
 }
 
 function seededRandom(seed: string): () => number {
@@ -344,6 +239,7 @@ export default function RunPage() {
   const [sending, setSending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [journalFilter, setJournalFilter] = useState('');
+  const [reactions, setReactions] = useState<Record<string, boolean>>({});
 
   const [artifacts, setArtifacts] = useState<Record<string, string>>({});
   const [loadingArtifacts, setLoadingArtifacts] = useState<Record<string, boolean>>({});
@@ -602,6 +498,26 @@ export default function RunPage() {
     }
   }
 
+  async function handleStatusChange(status: string) {
+    if (!id || !detail) {
+      return;
+    }
+    setActionError(null);
+    try {
+      await setRunStatus(id, status);
+      setDetail({ ...detail, run: { ...detail.run, status } });
+      setNotice('Статус сессии обновлён.');
+    } catch (caught) {
+      setActionError(
+        caught instanceof Error ? caught.message : 'Не удалось изменить статус.',
+      );
+    }
+  }
+
+  function toggleReaction(emoji: string) {
+    setReactions((current) => ({ ...current, [emoji]: !current[emoji] }));
+  }
+
   async function handleCancelRun() {
     if (!id) {
       return;
@@ -811,9 +727,18 @@ export default function RunPage() {
               <SparklesIcon />
             </span>
             <span className={cx(styles, "rp-params-name")}>Параметры текущей выборки</span>
-            <span className={cx(styles, `ws-status ws-status--${statusClass(run.status)}`)}>
-              {RUN_STATUS_LABELS[run.status] ?? run.status}
-            </span>
+            <select
+              className={cx(styles, `ws-status ws-status--${statusClass(run.status)} rp-status-select`)}
+              value={run.status}
+              aria-label="Статус сессии"
+              onChange={(event) => void handleStatusChange(event.target.value)}
+            >
+              {Object.entries(RUN_STATUS_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className={cx(styles, "rp-params-actions")}>
             {isGenerating ? (
@@ -1133,12 +1058,21 @@ export default function RunPage() {
                           <span className={cx(styles, "rp-tg-date")}>{formatDate(run.created_at)}</span>
                         </div>
                         <div className={cx(styles, "rp-tg-reactions")}>
-                          {tgMeta.reactions.map((reaction) => (
-                            <span className={cx(styles, "rp-tg-reaction")} key={reaction.emoji}>
-                              <span>{reaction.emoji}</span>
-                              {reaction.count}
-                            </span>
-                          ))}
+                          {tgMeta.reactions.map((reaction) => {
+                            const active = Boolean(reactions[reaction.emoji]);
+                            return (
+                              <button
+                                className={cx(styles, `rp-tg-reaction${active ? ' rp-tg-reaction--active' : ''}`)}
+                                key={reaction.emoji}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => toggleReaction(reaction.emoji)}
+                              >
+                                <span>{reaction.emoji}</span>
+                                {reaction.count + (active ? 1 : 0)}
+                              </button>
+                            );
+                          })}
                         </div>
                       </footer>
                     </article>
