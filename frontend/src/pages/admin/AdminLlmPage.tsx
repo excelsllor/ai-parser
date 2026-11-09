@@ -16,6 +16,26 @@ import {
 
 import { downloadFile, formatDateTime, formatTime } from './utils';
 
+function isLocalLlmUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host === 'vllm' ||
+      host === 'host.docker.internal' ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      host.endsWith('.local')
+    );
+  } catch {
+    return false;
+  }
+}
+
 const WEIGHT_LABELS: Record<string, string> = {
   impact: 'Влияние',
   scale: 'Масштаб',
@@ -29,8 +49,6 @@ export default function AdminLlmPage() {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [calls, setCalls] = useState<LlmCall[]>([]);
   const [baseUrl, setBaseUrl] = useState('');
-  const [vllmBaseUrl, setVllmBaseUrl] = useState('');
-  const [provider, setProvider] = useState<'api' | 'vllm'>('api');
   const [model, setModel] = useState('');
   const [models, setModels] = useState<string[]>([]);
   const [weights, setWeights] = useState<Record<string, number>>({});
@@ -72,8 +90,6 @@ export default function AdminLlmPage() {
       setSettings(settingsResponse);
       setCalls(callList);
       setBaseUrl(settingsResponse.effective.base_url);
-      setVllmBaseUrl(settingsResponse.effective.vllm_base_url);
-      setProvider(settingsResponse.effective.provider === 'vllm' ? 'vllm' : 'api');
       setModel(settingsResponse.effective.model);
       setWeights({ ...settingsResponse.effective.weights });
       setUpdatedAt(new Date().toISOString());
@@ -118,9 +134,7 @@ export default function AdminLlmPage() {
     setError(null);
     setNotice(null);
     try {
-      const selectedBaseUrl = provider === 'vllm' ? vllmBaseUrl.trim() : baseUrl.trim();
-      await putAdminSetting('llm_provider', provider);
-      await putAdminSetting('llm_base_url', selectedBaseUrl);
+      await putAdminSetting('llm_base_url', baseUrl.trim());
       await putAdminSetting('model', model.trim());
       setNotice('Конфигурация LLM сохранена.');
       await load();
@@ -262,37 +276,18 @@ export default function AdminLlmPage() {
           </div>
 
           <form className="admin-form" onSubmit={handleSave}>
-            <div className="admin-field admin-field--full">
-              <span>Провайдер</span>
-              <div className="admin-provider-toggle" role="group" aria-label="LLM provider">
-                <button
-                  className={`admin-provider-option${provider === 'api' ? ' admin-provider-option--active' : ''}`}
-                  type="button"
-                  aria-pressed={provider === 'api'}
-                  onClick={() => setProvider('api')}
-                >
-                  AI по API
-                </button>
-                <button
-                  className={`admin-provider-option${provider === 'vllm' ? ' admin-provider-option--active' : ''}`}
-                  type="button"
-                  aria-pressed={provider === 'vllm'}
-                  onClick={() => setProvider('vllm')}
-                >
-                  vLLM контейнер
-                </button>
-              </div>
-            </div>
-            <label className="admin-field">
-              <span>{provider === 'vllm' ? 'vLLM Base URL' : 'API Base URL'}</span>
+            <label className="admin-field admin-field--full">
+              <span>Base URL · {baseUrl.trim() ? (isLocalLlmUrl(baseUrl) ? 'Локальная' : 'API') : '—'}</span>
               <input
                 className="admin-input"
                 required
-                readOnly={provider === 'vllm'}
-                placeholder={provider === 'vllm' ? 'http://vllm:8000/v1' : 'https://provider.example/v1'}
-                value={provider === 'vllm' ? vllmBaseUrl : baseUrl}
+                placeholder="http://vllm:8000/v1 или https://provider.example/v1"
+                value={baseUrl}
                 onChange={(event) => setBaseUrl(event.target.value)}
               />
+              <small className="admin-note">
+                Локальная модель: vllm, localhost, host.docker.internal или частный IP. Внешний URL — API.
+              </small>
             </label>
             <label className="admin-field">
               <span>Модель</span>
@@ -316,8 +311,8 @@ export default function AdminLlmPage() {
               <button
                 className="admin-button"
                 type="button"
-                disabled={modelsLoading || !(provider === 'vllm' ? vllmBaseUrl : baseUrl).trim()}
-                onClick={() => void loadModels(provider === 'vllm' ? vllmBaseUrl : baseUrl)}
+                disabled={modelsLoading || !baseUrl.trim()}
+                onClick={() => void loadModels(baseUrl)}
               >
                 <RefreshIcon />
                 {modelsLoading ? 'Загружаем…' : 'Загрузить модели'}
@@ -325,7 +320,7 @@ export default function AdminLlmPage() {
               <button
                 className="admin-button admin-button--primary"
                 type="submit"
-                disabled={saving || loading || !(provider === 'vllm' ? vllmBaseUrl : baseUrl).trim() || !model.trim()}
+                disabled={saving || loading || !baseUrl.trim() || !model.trim()}
               >
                 <SaveIcon />
                 {saving ? 'Сохраняем…' : 'Сохранить'}

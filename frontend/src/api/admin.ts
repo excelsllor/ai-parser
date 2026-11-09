@@ -39,7 +39,6 @@ export interface AdminSettings {
     prompt_version: string;
     provider: string;
     base_url: string;
-    vllm_base_url: string;
     weights: Record<string, number>;
     env: string;
   };

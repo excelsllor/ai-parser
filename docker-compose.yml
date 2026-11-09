@@ -146,7 +146,6 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8000/v1}
-      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://vllm:8000/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-Qwen2.5-14B-Instruct}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-4}
@@ -203,7 +202,6 @@ services:
       GRPC_TIMEOUT_SECS: ${GRPC_TIMEOUT_SECS:-600}
       JWT_SECRET: ${JWT_SECRET}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8000/v1}
-      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://vllm:8000/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-Qwen2.5-14B-Instruct}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-4}
