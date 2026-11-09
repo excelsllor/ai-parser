@@ -972,7 +972,7 @@
   border: 1px solid var(--ws-border);
   border-radius: 14px;
   background: #fff;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--panel-shadow);
 }
 
 .rp-tg-head {
@@ -997,7 +997,7 @@
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.14);
 }
 
 .rp-tg-channel {
@@ -1360,9 +1360,9 @@
 }
 
 [data-theme='dark'] .rp-tg-card {
-  border-color: #262626;
-  background: #0a0a0a;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  border-color: #2a2a2a;
+  background: #0d0d0d;
+  box-shadow: var(--panel-shadow);
 }
 
 [data-theme='dark'] .rp-tg-head {
@@ -1591,7 +1591,7 @@
   border: 1px solid var(--ws-border);
   border-radius: 16px;
   background: var(--ws-paper);
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  box-shadow: var(--panel-shadow-modal);
 }
 
 .rp-modal-head {
@@ -1969,9 +1969,9 @@
 }
 
 [data-theme='dark'] .rp-modal {
-  border-color: #262626;
-  background: #0a0a0a;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  border-color: #2a2a2a;
+  background: #0d0d0d;
+  box-shadow: var(--panel-shadow-modal);
 }
 
 [data-theme='dark'] .rp-modal-head,

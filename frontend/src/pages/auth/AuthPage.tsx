@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -49,6 +49,8 @@ export default function AuthPage() {
 
   const [providers, setProviders] = useState<ProviderAvailability | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
+  const authPanelRef = useRef<HTMLDivElement>(null);
+  const previousPanelHeight = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +72,34 @@ export default function AuthPage() {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const panel = authPanelRef.current;
+    const from = previousPanelHeight.current;
+    previousPanelHeight.current = null;
+
+    if (!panel || from === null) {
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const to = panel.offsetHeight;
+    if (Math.abs(to - from) < 1) {
+      return;
+    }
+
+    panel.animate(
+      [{ height: `${from}px` }, { height: `${to}px` }],
+      { duration: 380, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+    );
+  }, [tab]);
+
   function switchTab(next: Tab) {
+    if (next === tab) {
+      return;
+    }
+    previousPanelHeight.current = authPanelRef.current?.offsetHeight ?? null;
     setError(null);
     setNotice(null);
     navigate(next === 'register' ? '/register' : '/login');
@@ -225,8 +254,9 @@ export default function AuthPage() {
               </div>
             )}
 
-            {tab === 'login' ? (
-              <form className="auth-form" onSubmit={handleLogin} noValidate>
+            <div className="auth-panel" ref={authPanelRef}>
+              {tab === 'login' ? (
+                <form className="auth-form" onSubmit={handleLogin} noValidate>
                 <div className="auth-field">
                   <label className="auth-label" htmlFor="login-username">
                     Email или логин
@@ -423,8 +453,9 @@ export default function AuthPage() {
                   <span>{loading ? 'Создаём…' : 'Создать аккаунт'}</span>
                   <ArrowRightIcon className="auth-submit-icon" />
                 </button>
-              </form>
-            )}
+                </form>
+              )}
+            </div>
 
             <div className="auth-divider">
               <span>

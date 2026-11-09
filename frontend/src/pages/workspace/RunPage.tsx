@@ -15,9 +15,8 @@ import {
   runVersionChain,
   sendTestEmail,
 } from '@api/runs';
-import type { CheckResult, RunDetail, RunPolicies, RunSummary, Source } from '@api/runs';
+import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
 import WorkspaceLayout from '@components/workspace/WorkspaceLayout';
-import PolicySwitches from '@components/workspace/PolicySwitches';
 import SnakeLoader from '@components/ui/SnakeLoader';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
@@ -48,7 +47,21 @@ import {
 
 import './RunPage.css';
 
-type TabId = 'digest' | 'post' | 'email' | 'journal' | 'checks';
+interface VulnerabilityRow {
+  item_title: string;
+  item_url: string;
+  cve_id: string;
+  bdu_id: string;
+  software: string;
+  severity: string;
+  cvss_score: number | null;
+  fixed_version: string;
+  cmdb_match: boolean;
+  cmdb_error: string;
+  recommendation: string;
+}
+
+type TabId = 'digest' | 'post' | 'email' | 'journal' | 'checks' | 'vulns';
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof DescriptionIcon }> = [
   { id: 'digest', label: 'Дайджест', icon: DescriptionIcon },
@@ -56,6 +69,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof DescriptionIcon }> = 
   { id: 'email', label: 'Предпросмотр письма', icon: MailIcon },
   { id: 'journal', label: 'Журнал обработки', icon: TableIcon },
   { id: 'checks', label: 'Обязательные проверки', icon: RuleIcon },
+  { id: 'vulns', label: 'Уязвимости', icon: ShieldHeartIcon },
 ];
 
 const RUN_STATUS_LABELS: Record<string, string> = {
@@ -336,11 +350,6 @@ export default function RunPage() {
   const [regenControlTime, setRegenControlTime] = useState('');
   const [regenInterval, setRegenInterval] = useState(24);
   const [regenLimit, setRegenLimit] = useState(5);
-  const [regenPolicies, setRegenPolicies] = useState<RunPolicies>({
-    dedup: true,
-    injection_guard: true,
-    neutral: true,
-  });
   const [regenError, setRegenError] = useState<string | null>(null);
   const [regenLoadingSources, setRegenLoadingSources] = useState(false);
   const [regenSubmitting, setRegenSubmitting] = useState(false);
@@ -450,6 +459,9 @@ export default function RunPage() {
     if (tab === 'email') {
       return ['email.html', 'email_subject.txt'];
     }
+    if (tab === 'vulns') {
+      return ['vulnerabilities.json'];
+    }
     return [];
   }, [tab]);
 
@@ -484,6 +496,13 @@ export default function RunPage() {
   const postText = artifacts['post.md'] ?? '';
   const emailHtml = artifacts['email.html'] ?? '';
   const emailSubject = (artifacts['email_subject.txt'] ?? '').trim();
+  const vulnerabilities = useMemo(() => {
+    try {
+      return JSON.parse(artifacts['vulnerabilities.json'] ?? '[]') as VulnerabilityRow[];
+    } catch {
+      return [];
+    }
+  }, [artifacts]);
 
   const parsedDigest = useMemo(() => parseDigest(digestText), [digestText]);
   const parsedPost = useMemo(() => parsePost(postText), [postText]);
@@ -604,9 +623,6 @@ export default function RunPage() {
     setRegenControlTime(toDateTimeLocal(detail?.run?.control_time));
     setRegenInterval(detail?.run.interval_hours ?? 24);
     setRegenLimit(detail?.run.max_items ?? 5);
-    setRegenPolicies(
-      detail?.run.policies ?? { dedup: true, injection_guard: true, neutral: true },
-    );
     setRegenLoadingSources(true);
 
     try {
@@ -671,7 +687,6 @@ export default function RunPage() {
               intervalHours: regenInterval,
               maxItems: regenLimit,
               parentRunId: run.id,
-              policies: regenPolicies,
             });
 
       setRegenOpen(false);
@@ -1235,6 +1250,68 @@ export default function RunPage() {
             </div>
           )}
 
+          {tab === 'vulns' && (
+            <div className="rp-journal">
+              <div className="rp-journal-toolbar">
+                <span className="rp-muted">
+                  Обогащение BDU / NVD / CMDB по найденным идентификаторам
+                </span>
+                <span className="rp-muted">
+                  {vulnerabilities.length} записей
+                </span>
+              </div>
+              <div className="rp-journal-table-wrap">
+                <table className="rp-journal-table">
+                  <thead>
+                    <tr>
+                      <th>Уязвимость</th>
+                      <th>ПО</th>
+                      <th>Уровень</th>
+                      <th>CMDB</th>
+                      <th>Исправление</th>
+                      <th>Рекомендация</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vulnerabilities.map((vuln, index) => (
+                      <tr key={`${vuln.cve_id || vuln.bdu_id}-${index}`}>
+                        <td>
+                          <span className="rp-journal-group">
+                            {vuln.cve_id || vuln.bdu_id}
+                          </span>
+                          {vuln.bdu_id && vuln.cve_id && (
+                            <span className="rp-journal-url">{vuln.bdu_id}</span>
+                          )}
+                        </td>
+                        <td>{vuln.software || '—'}</td>
+                        <td>
+                          <span className="rp-chip">
+                            {vuln.severity}
+                            {vuln.cvss_score !== null ? ` · ${vuln.cvss_score}` : ''}
+                          </span>
+                        </td>
+                        <td>
+                          {vuln.cmdb_match
+                            ? 'Найдено'
+                            : vuln.cmdb_error
+                              ? 'Ошибка'
+                              : 'Не найдено'}
+                        </td>
+                        <td>{vuln.fixed_version || '—'}</td>
+                        <td>{vuln.recommendation || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {vulnerabilities.length === 0 && (
+                  <p className="rp-muted rp-journal-empty">
+                    В этом запуске CVE/BDU не найдены или обогащение ещё не завершено.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {tab === 'checks' && (
             <div className="rp-checks">
               <div className="rp-checks-head">
@@ -1464,23 +1541,6 @@ export default function RunPage() {
                     Сбросить
                   </button>
                 </div>
-              </div>
-
-              <div className="rp-modal-field">
-                <span className="rp-modal-label">Фильтры нормализации и безопасности</span>
-                <PolicySwitches
-                  className="rp-modal-policies"
-                  value={regenPolicies}
-                  onChange={(key) =>
-                    setRegenPolicies((previous) => ({
-                      ...previous,
-                      [key]: !previous[key],
-                    }))
-                  }
-                />
-                <small className="rp-modal-note">
-                  Политики применяются к новому прогону.
-                </small>
               </div>
 
               {detail?.run.mode === 'file' && (

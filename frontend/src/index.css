@@ -19,6 +19,42 @@ body {
   width: 100%;
 }
 
+:root {
+  --panel-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.12),
+    0 0 18px rgba(37, 99, 235, 0.10),
+    0 0 36px rgba(37, 99, 235, 0.05);
+  --panel-shadow-hover:
+    0 0 0 1px rgba(37, 99, 235, 0.18),
+    0 0 24px rgba(37, 99, 235, 0.15),
+    0 0 48px rgba(37, 99, 235, 0.08);
+  --panel-shadow-modal:
+    0 0 0 1px rgba(37, 99, 235, 0.18),
+    0 0 28px rgba(37, 99, 235, 0.16),
+    0 0 56px rgba(37, 99, 235, 0.08);
+  --header-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.08),
+    0 0 14px rgba(37, 99, 235, 0.08);
+}
+
+[data-theme='dark'] {
+  --panel-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.22),
+    0 0 20px rgba(96, 165, 250, 0.17),
+    0 0 42px rgba(96, 165, 250, 0.08);
+  --panel-shadow-hover:
+    0 0 0 1px rgba(96, 165, 250, 0.32),
+    0 0 28px rgba(96, 165, 250, 0.24),
+    0 0 56px rgba(96, 165, 250, 0.12);
+  --panel-shadow-modal:
+    0 0 0 1px rgba(96, 165, 250, 0.30),
+    0 0 32px rgba(96, 165, 250, 0.22),
+    0 0 64px rgba(96, 165, 250, 0.12);
+  --header-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.16),
+    0 0 16px rgba(96, 165, 250, 0.12);
+}
+
 button,
 input,
 textarea,

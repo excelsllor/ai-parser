@@ -89,6 +89,7 @@ pub(crate) async fn process_digest_verified(
     let items = db::get_items(&state.pool, verified.run_id).await?;
     let item_map: HashMap<Uuid, Item> = items.iter().map(|i| (i.id, i.clone())).collect();
     let journal = db::get_journal(&state.pool, verified.run_id).await?;
+    let vulnerabilities = news_shared::vuln::enrich_items(&items).await;
     let artifact_dir = state.config.artifact_dir(verified.run_id);
     tokio::fs::create_dir_all(&artifact_dir).await?;
 
@@ -148,6 +149,15 @@ pub(crate) async fn process_digest_verified(
     write_artifact(
         &state,
         verified.run_id,
+        "vulnerabilities.json",
+        serde_json::to_vec_pretty(&vulnerabilities)?.as_slice(),
+        "application/json; charset=utf-8",
+        &mut artifacts,
+    )
+    .await?;
+    write_artifact(
+        &state,
+        verified.run_id,
         "ai.md",
         ai_description.as_bytes(),
         "text/markdown; charset=utf-8",
@@ -196,6 +206,7 @@ pub(crate) async fn process_digest_verified(
         "duration_secs": duration,
         "events": verified.events.len(),
         "items": items.len(),
+        "vulnerabilities": vulnerabilities.len(),
         "checks": {
             "passed": checks.iter().filter(|c| c.passed).count(),
             "total": checks.len(),
