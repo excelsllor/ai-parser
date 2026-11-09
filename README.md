@@ -1,5 +1,7 @@
 # News Digest — Rust microservices backend
 
+[cyber-bug.duckdns.org](https://cyber-bug.duckdns.org/)
+
 ИИ-сервис подготовки дайджеста новостей по кибербезопасности. Бэкенд на Rust:
 6 микросервисов, Kafka, Redis, PostgreSQL, vLLM (OpenAI-совместимый API),
 React/vanilla SPA, Docker Compose, CI/CD и security-by-default.
