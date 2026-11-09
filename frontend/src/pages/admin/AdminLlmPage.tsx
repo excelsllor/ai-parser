@@ -16,26 +16,6 @@ import {
 
 import { downloadFile, formatDateTime, formatTime } from './utils';
 
-function isLocalLlmUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    return (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '::1' ||
-      host === 'vllm' ||
-      host === 'host.docker.internal' ||
-      host.startsWith('10.') ||
-      host.startsWith('192.168.') ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-      host.endsWith('.local')
-    );
-  } catch {
-    return false;
-  }
-}
-
 const WEIGHT_LABELS: Record<string, string> = {
   impact: 'Влияние',
   scale: 'Масштаб',
@@ -276,18 +256,15 @@ export default function AdminLlmPage() {
           </div>
 
           <form className="admin-form" onSubmit={handleSave}>
-            <label className="admin-field admin-field--full">
-              <span>Base URL · {baseUrl.trim() ? (isLocalLlmUrl(baseUrl) ? 'Локальная' : 'API') : '—'}</span>
+            <label className="admin-field">
+              <span>Base URL</span>
               <input
                 className="admin-input"
                 required
-                placeholder="http://vllm:8000/v1 или https://provider.example/v1"
+                placeholder="https://provider.example/v1"
                 value={baseUrl}
                 onChange={(event) => setBaseUrl(event.target.value)}
               />
-              <small className="admin-note">
-                Локальная модель: vllm, localhost, host.docker.internal или частный IP. Внешний URL — API.
-              </small>
             </label>
             <label className="admin-field">
               <span>Модель</span>

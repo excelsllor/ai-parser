@@ -389,30 +389,6 @@ pub async fn delete_keyword(
     Ok(Json(json!({"ok": true})))
 }
 
-fn detect_llm_provider(base_url: &str) -> &'static str {
-    let value = base_url.trim().to_lowercase();
-    let local = value.contains("localhost")
-        || value.contains("127.0.0.1")
-        || value.contains("[::1]")
-        || value.contains("host.docker.internal")
-        || value.contains("://vllm")
-        || value.contains("://10.")
-        || value.contains("://192.168.")
-        || value.contains("://172.16.")
-        || value.contains("://172.17.")
-        || value.contains("://172.18.")
-        || value.contains("://172.19.")
-        || value.contains("://172.2")
-        || value.contains("://172.30.")
-        || value.contains("://172.31.")
-        || value.ends_with(".local");
-    if local {
-        "local"
-    } else {
-        "api"
-    }
-}
-
 pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppResult<Json<Value>> {
     user.require_admin()?;
     let keys = [
@@ -443,7 +419,6 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         .and_then(Value::as_str)
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| state.config.llm.base_url.clone());
-    let provider = detect_llm_provider(&base_url).to_owned();
     let weights = out
         .get("weights")
         .and_then(|value| {
@@ -455,7 +430,6 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         "effective": {
             "model": model,
             "prompt_version": prompt_version,
-            "provider": provider,
             "base_url": base_url,
             "weights": {
                 "impact": weights.impact,

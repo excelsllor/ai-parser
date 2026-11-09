@@ -906,10 +906,6 @@
   box-shadow: var(--panel-shadow);
 }
 
-.admin-field--full {
-  grid-column: 1 / -1;
-}
-
 .admin-form .admin-form-actions {
   grid-column: 1 / -1;
   justify-content: flex-end;
