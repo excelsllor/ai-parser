@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   DashboardIcon,
   LogoutIcon,
+  MonitorHeartIcon,
   UserIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
@@ -37,7 +38,7 @@ export default function UserMenu() {
   }, [open]);
 
   const initials = (user?.username ?? '?').slice(0, 2).toUpperCase();
-  const roleLabel = user?.role === 'admin' ? 'Администратор' : 'Аналитик';
+  const roleLabel = user?.role === 'admin' ? 'Администратор' : 'Пользователь';
 
   async function handleLogout() {
     await logout();
@@ -65,6 +66,17 @@ export default function UserMenu() {
             <span>{user?.username ?? 'Пользователь'}</span>
             <span>{roleLabel}</span>
           </div>
+          <button
+            className={cx(styles, "ws-user-menu-item")}
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              navigate('/');
+            }}
+          >
+            <MonitorHeartIcon />
+            Мониторинг
+          </button>
           <button
             className={cx(styles, "ws-user-menu-item ws-user-menu-item--profile")}
             type="button"

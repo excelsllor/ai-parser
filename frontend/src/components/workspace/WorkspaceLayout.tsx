@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode, UIEvent } from 'react';
 import { createPortal } from 'react-dom';
 
-import { getCurrentUser } from '@api/auth';
-import { downloadRunArchive, shareRun, unshareRun } from '@api/runs';
+import { downloadRunArchive, renameRun, shareRun, unshareRun } from '@api/runs';
 import type { RunSummary } from '@api/runs';
 import AppHeader from '@components/layout/AppHeader';
 import {
@@ -12,6 +11,7 @@ import {
   CopyIcon,
   DeleteIcon,
   DownloadIcon,
+  EditIcon,
   MenuIcon,
   MoreIcon,
 } from '@components/ui';
@@ -32,6 +32,7 @@ interface WorkspaceLayoutProps {
   onLoadMoreRuns?: () => void;
   onSelectRun: (run: RunSummary) => void;
   onDeleteRun?: (run: RunSummary) => void;
+  onRenameRun?: (runId: string, title: string) => void;
   onNewQuery: () => void;
 }
 
@@ -84,9 +85,9 @@ export default function WorkspaceLayout({
   onLoadMoreRuns,
   onSelectRun,
   onDeleteRun,
+  onRenameRun,
   onNewQuery,
 }: WorkspaceLayoutProps) {
-  const canWrite = getCurrentUser()?.role !== 'viewer';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openMenu, setOpenMenu] = useState<{
@@ -117,6 +118,22 @@ export default function WorkspaceLayout({
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [openMenu]);
+
+  async function handleRename(run: RunSummary) {
+    setOpenMenu(null);
+    const title = window.prompt('Название сессии', run.title ?? '');
+    if (!title?.trim()) {
+      return;
+    }
+    try {
+      const result = await renameRun(run.id, title.trim());
+      onRenameRun?.(run.id, result.title);
+    } catch (error) {
+      setActionNotice(
+        error instanceof Error ? error.message : 'Не удалось переименовать сессию.',
+      );
+    }
+  }
 
   async function handleDownload(run: RunSummary) {
     setOpenMenu(null);
@@ -293,11 +310,11 @@ export default function WorkspaceLayout({
                   >
                     <span className={cx(styles, "ws-session-top")}>
                       <span className={cx(styles, "ws-session-title")}>
-                        Запуск {shortId(run.id)}
+                        {run.title || `Запуск ${shortId(run.id)}`}
                       </span>
                     </span>
                     <span className={cx(styles, "ws-session-meta")}>
-                      <span>{formatDate(run.control_time)}</span>
+                      <span>{formatDate(run.created_at)}</span>
                     </span>
                   </button>
                   <div className={cx(styles, "ws-session-actions")} data-run-menu>
@@ -368,12 +385,20 @@ export default function WorkspaceLayout({
             <button
               className={cx(styles, "ws-session-menu-item")}
               type="button"
+              onClick={() => void handleRename(openMenu.run)}
+            >
+              <EditIcon />
+              Переименовать
+            </button>
+            <button
+              className={cx(styles, "ws-session-menu-item")}
+              type="button"
               onClick={() => openShare(openMenu.run)}
             >
               <CopyIcon />
               Поделиться
             </button>
-            {canWrite && onDeleteRun && (
+            {onDeleteRun && (
               <button
                 className={cx(
                   styles,

@@ -467,6 +467,15 @@ pub async fn get_run_by_share_token(pool: &PgPool, token: &str) -> AppResult<Run
         .ok_or_else(|| AppError::NotFound("shared run not found".into()))
 }
 
+pub async fn set_run_title(pool: &PgPool, run_id: Uuid, title: &str) -> AppResult<()> {
+    sqlx::query("UPDATE runs SET title = $1 WHERE id = $2")
+        .bind(title)
+        .bind(run_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn set_run_share_token(pool: &PgPool, run_id: Uuid, token: &str) -> AppResult<()> {
     sqlx::query("UPDATE runs SET share_token = $1 WHERE id = $2")
         .bind(token)
@@ -1004,7 +1013,7 @@ pub async fn create_oauth_user(
         let mut tx = pool.begin().await?;
         let user = sqlx::query_as::<_, User>(
             "INSERT INTO users (username, password_hash, role, display_name, email)
-             VALUES ($1,$2,'viewer',$3,$4)
+             VALUES ($1,$2,'user',$3,$4)
              ON CONFLICT (username) DO NOTHING
              RETURNING *",
         )
@@ -1061,17 +1070,15 @@ pub async fn update_user_profile(
     pool: &PgPool,
     user_id: Uuid,
     display_name: &str,
-    department: &str,
     email: Option<&str>,
 ) -> AppResult<User> {
     sqlx::query_as::<_, User>(
-        "UPDATE users SET display_name = $1, department = $2, email = $3,
-         email_verified_at = CASE WHEN email IS DISTINCT FROM $3 THEN NULL ELSE email_verified_at END,
+        "UPDATE users SET display_name = $1, email = $2,
+         email_verified_at = CASE WHEN email IS DISTINCT FROM $2 THEN NULL ELSE email_verified_at END,
          updated_at = now()
-         WHERE id = $4 RETURNING *",
+         WHERE id = $3 RETURNING *",
     )
     .bind(display_name)
-    .bind(department)
     .bind(email)
     .bind(user_id)
     .fetch_one(pool)

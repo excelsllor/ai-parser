@@ -60,6 +60,17 @@ export default function useRunsFeed() {
     [update],
   );
 
+  const renameRunLocally = useCallback(
+    (runId: string, title: string) => {
+      update(
+        runsRef.current.map((run) =>
+          run.id === runId ? { ...run, title } : run,
+        ),
+      );
+    },
+    [update],
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -93,5 +104,13 @@ export default function useRunsFeed() {
     };
   }, [refresh, update]);
 
-  return { runs, loading, loadingMore, hasMore, loadMore, removeRun };
+  return {
+    runs,
+    loading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    removeRun,
+    renameRunLocally,
+  };
 }

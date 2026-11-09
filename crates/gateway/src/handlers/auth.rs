@@ -178,7 +178,7 @@ pub async fn register(
     }
 
     let hash = hash_password(&payload.password)?;
-    let user = db::create_user(&state.pool, &username, &hash, "viewer").await?;
+    let user = db::create_user(&state.pool, &username, &hash, "user").await?;
     if let Some(email) = email.as_deref() {
         db::set_user_email(&state.pool, user.id, Some(email)).await?;
         let (token, token_hash) = new_refresh_token();
@@ -234,17 +234,20 @@ pub async fn forgot_password(
         )
         .await?;
         let link = format!("{}/reset-password?token={token}", public_base(&state));
-        if let Err(error) = send_email_link(
-            &state,
-            &email,
-            "Восстановление пароля в CyberBug",
-            &link,
-            "Вы запросили восстановление пароля в CyberBug.",
-        )
-        .await
-        {
-            tracing::warn!(error = %error, "password reset email send failed");
-        }
+        let send_state = state.clone();
+        tokio::spawn(async move {
+            if let Err(error) = send_email_link(
+                &send_state,
+                &email,
+                "Восстановление пароля в CyberBug",
+                &link,
+                "Вы запросили восстановление пароля в CyberBug.",
+            )
+            .await
+            {
+                tracing::warn!(error = %error, "password reset email send failed");
+            }
+        });
     }
     Ok(Json(json!({"ok": true})))
 }
@@ -458,7 +461,6 @@ pub async fn me(State(state): State<AppState>, user: AuthUser) -> AppResult<Json
 #[derive(Debug, Deserialize)]
 pub struct UpdateProfileRequest {
     pub display_name: Option<String>,
-    pub department: Option<String>,
     pub email: Option<String>,
     pub current_email: Option<String>,
 }
@@ -512,14 +514,9 @@ pub async fn update_profile(
         .unwrap_or(current.display_name)
         .trim()
         .to_string();
-    let department = payload
-        .department
-        .unwrap_or(current.department)
-        .trim()
-        .to_string();
-    if display_name.chars().count() > 120 || department.chars().count() > 120 {
+    if display_name.chars().count() > 120 {
         return Err(AppError::Validation(
-            "display_name and department must be at most 120 characters".into(),
+            "display_name must be at most 120 characters".into(),
         ));
     }
 
@@ -566,14 +563,8 @@ pub async fn update_profile(
         None => current.email,
     };
 
-    let updated = db::update_user_profile(
-        &state.pool,
-        user.id,
-        &display_name,
-        &department,
-        email.as_deref(),
-    )
-    .await?;
+    let updated =
+        db::update_user_profile(&state.pool, user.id, &display_name, email.as_deref()).await?;
 
     let _ = write_audit(
         &state.pool,
@@ -582,7 +573,7 @@ pub async fn update_profile(
             user.username.clone(),
             "auth.profile.update",
             "auth",
-            json!({"email": updated.email, "display_name": updated.display_name, "department": updated.department}),
+            json!({"email": updated.email, "display_name": updated.display_name}),
             ip,
         ),
     )

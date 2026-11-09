@@ -150,6 +150,10 @@ fn build_router(state: AppState) -> Router {
         .route("/api/runs/{id}/rerun", post(handlers::runs::rerun))
         .route("/api/runs/{id}/archive", get(handlers::runs::archive))
         .route(
+            "/api/runs/{id}/title",
+            axum::routing::patch(handlers::runs::rename),
+        )
+        .route(
             "/api/runs/{id}/share",
             post(handlers::runs::share_run).delete(handlers::runs::unshare_run),
         )

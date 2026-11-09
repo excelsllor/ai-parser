@@ -17,7 +17,7 @@ import {
   setRunStatus,
 } from '@api/runs';
 import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
-import { SnakeLoader, WorkspaceLayout } from '@components';
+import { LogoRunner, SnakeLoader, WorkspaceLayout } from '@components';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
@@ -29,6 +29,7 @@ import {
   DeleteIcon,
   DescriptionIcon,
   DownloadIcon,
+  LinkifiedText,
   EyeIcon,
   InfoIcon,
   LockIcon,
@@ -231,6 +232,7 @@ export default function RunPage() {
     hasMore,
     loadMore,
     removeRun,
+    renameRunLocally,
   } = useRunsFeed();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -357,7 +359,7 @@ export default function RunPage() {
       return ['post.md'];
     }
     if (tab === 'email') {
-      return ['email.html', 'email_subject.txt'];
+      return ['email.html', 'email.md', 'email_subject.txt'];
     }
     if (tab === 'vulns') {
       return ['vulnerabilities.json'];
@@ -436,6 +438,7 @@ export default function RunPage() {
       reactions,
     };
   }, [run?.id]);
+  const loaderVariant = run ? Number.parseInt(run.id.slice(0, 2), 16) % 2 : 0;
   const stats = (run?.stats ?? {}) as Record<string, unknown>;
   const passedChecks = checks.filter((check) => check.passed).length;
   const mergedCount = (detail?.journal ?? []).filter((row) =>
@@ -668,6 +671,7 @@ export default function RunPage() {
         onLoadMoreRuns={loadMore}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
+        onRenameRun={renameRunLocally}
         onNewQuery={() => navigate('/')}
       >
         <section className={cx(styles, "ws-card rp-loading")}>Загружаем запуск…</section>
@@ -685,6 +689,7 @@ export default function RunPage() {
         onLoadMoreRuns={loadMore}
         onSelectRun={(next) => navigate(`/runs/${next.id}`)}
         onDeleteRun={handleDeleteRun}
+        onRenameRun={renameRunLocally}
         onNewQuery={() => navigate('/')}
       >
         <section className={cx(styles, "ws-card")}>
@@ -718,6 +723,7 @@ export default function RunPage() {
       activeRunId={run.id}
       onSelectRun={(next) => navigate(`/runs/${next.id}`)}
       onDeleteRun={handleDeleteRun}
+      onRenameRun={renameRunLocally}
       onNewQuery={() => navigate('/')}
     >
       <section className={cx(styles, "ws-card rp-params")}>
@@ -820,7 +826,11 @@ export default function RunPage() {
       {isGenerating ? (
         <section className={cx(styles, "ws-card rp-generating")}>
           <div className={cx(styles, "rp-generating-loader")}>
-            <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
+            {loaderVariant === 0 ? (
+              <LogoRunner message="Формируем дайджест…" hint={generationHint} />
+            ) : (
+              <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
+            )}
           </div>
           {actionError && (
             <div className={cx(styles, "ws-alert ws-alert--error rp-generating-alert")} role="alert">
@@ -901,14 +911,24 @@ export default function RunPage() {
               </>
             )}
             {tab === 'email' && (
-              <button
-                className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
-                type="button"
-                onClick={() => handleDownload('email.html')}
-              >
-                <DownloadIcon />
-                email.html
-              </button>
+              <>
+                <button
+                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
+                  type="button"
+                  onClick={() => handleDownload('email.md')}
+                >
+                  <DownloadIcon />
+                  email.md
+                </button>
+                <button
+                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
+                  type="button"
+                  onClick={() => handleDownload('email.html')}
+                >
+                  <DownloadIcon />
+                  email.html
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -960,7 +980,7 @@ export default function RunPage() {
                               key={`${section.title}-${paragraphIndex}`}
                             >
                               {label && <strong>{label}:</strong>}
-                              {rest}
+                              <LinkifiedText text={rest} />
                             </p>
                           );
                         })}

@@ -21,7 +21,7 @@
    MODE=live CONTROL_TIME=2026-11-09T12:00:00+03:00 ./scripts/control_run.sh
    ```
 4. Артефакты: `runs/<run_id>/digest.md`, `post.md`, `journal.csv`,
-   `email.html`, `ai.md`, `run_stats.json`, `check_results.json`.
+   `email.html`, `email.md`, `ai.md`, `run_stats.json`, `check_results.json`.
 5. Проверьте `check_results.json`: все проверки должны быть `passed: true`
    либо иметь обоснованное `note`.
 

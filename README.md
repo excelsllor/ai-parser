@@ -66,7 +66,7 @@ MODE=file DATASET=/path/to/dataset.zip CONTROL_TIME=2026-11-09T12:00:00+03:00 ./
 | `normalizer` | кодировки, даты МСК, период, тема, дедупликация |
 | `analyst` | vLLM: анализ, кластеризация, ранжирование, тексты |
 | `critic` | фактчекинг, противоречия, лимиты, проверка ссылок |
-| `reporter` | digest.md, post.md, email.html, journal.csv, AI.md, run_stats.json |
+| `reporter` | digest.md, post.md, email.html, email.md, journal.csv, AI.md, run_stats.json |
 
 При работе за reverse proxy включите `TRUST_PROXY_HEADERS=true` и задайте
 `CORS_ORIGINS` с внешним HTTPS-origin.

@@ -21,6 +21,7 @@ export interface RunPolicies {
 
 export interface RunSummary {
   id: string;
+  title: string | null;
   status: string;
   mode: string;
   control_time: string;
@@ -257,6 +258,17 @@ export function unshareRun(id: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/runs/${id}/share`, {
     method: 'DELETE',
     headers: authHeaders(),
+  });
+}
+
+export function renameRun(
+  id: string,
+  title: string,
+): Promise<{ ok: boolean; title: string }> {
+  return request<{ ok: boolean; title: string }>(`/runs/${id}/title`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ title }),
   });
 }
 

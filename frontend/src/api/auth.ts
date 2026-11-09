@@ -6,7 +6,6 @@ export interface CurrentUser {
   role: string;
   is_active: boolean;
   display_name: string;
-  department: string;
   email: string | null;
   email_verified_at: string | null;
   created_at: string;
@@ -181,7 +180,6 @@ export function getCurrentUser(): { username: string; role: string } | null {
 
 export function updateProfile(input: {
   display_name?: string;
-  department?: string;
   email?: string;
   current_email?: string;
 }): Promise<CurrentUser> {

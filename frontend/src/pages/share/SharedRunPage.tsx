@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { API_BASE_URL } from '@constants/api';
 import {
   downloadSharedArchive,
   fetchSharedArtifact,
@@ -14,6 +13,7 @@ import {
   CheckIcon,
   DescriptionIcon,
   DownloadIcon,
+  LinkifiedText,
   EyeIcon,
   MailIcon,
   SendIcon,
@@ -60,6 +60,7 @@ export default function SharedRunPage() {
   const [tab, setTab] = useState<TabId>('digest');
   const [digest, setDigest] = useState('');
   const [post, setPost] = useState('');
+  const [emailHtml, setEmailHtml] = useState('');
   const [reactions, setReactions] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,9 +74,10 @@ export default function SharedRunPage() {
           return;
         }
         setDetail(result);
-        const [digestText, postText, checksText] = await Promise.all([
+        const [digestText, postText, emailText, checksText] = await Promise.all([
           fetchSharedArtifact(token, 'digest.md').catch(() => ''),
           fetchSharedArtifact(token, 'post.md').catch(() => ''),
+          fetchSharedArtifact(token, 'email.html').catch(() => ''),
           fetchSharedArtifact(token, 'check_results.json').catch(() => '[]'),
         ]);
         if (!active) {
@@ -83,6 +85,7 @@ export default function SharedRunPage() {
         }
         setDigest(digestText);
         setPost(postText);
+        setEmailHtml(emailText);
         try {
           const parsed = JSON.parse(checksText) as CheckResult[];
           setChecks(Array.isArray(parsed) ? parsed : []);
@@ -108,9 +111,38 @@ export default function SharedRunPage() {
     };
   }, [token]);
 
+  async function downloadEmailMarkdown() {
+    try {
+      const text = await fetchSharedArtifact(token, 'email.md');
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'email.md';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Download is best-effort; ZIP still contains the artifact.
+    }
+  }
+
   const parsedDigest = useMemo(() => parseDigest(digest), [digest]);
   const parsedPost = useMemo(() => parsePost(post), [post]);
   const run = detail?.run;
+
+  function severity(score: number | undefined) {
+    if (score === undefined) {
+      return null;
+    }
+    if (score >= 3.5) {
+      return { label: 'Критический уровень', className: 'critical' };
+    }
+    if (score >= 2.8) {
+      return { label: 'Высокий уровень', className: 'high' };
+    }
+    return { label: 'Средний уровень', className: 'medium' };
+  }
 
   return (
     <div className={cx(styles, 'ws-page')}>
@@ -137,6 +169,16 @@ export default function SharedRunPage() {
               })}
             </div>
             <div className={cx(styles, 'rp-tab-actions')}>
+              {tab === 'email' && (
+                <button
+                  className={cx(styles, 'rp-secondary-button rp-secondary-button--small')}
+                  type="button"
+                  onClick={() => void downloadEmailMarkdown()}
+                >
+                  <DownloadIcon />
+                  email.md
+                </button>
+              )}
               <button
                 className={cx(styles, 'rp-primary-button rp-primary-button--small')}
                 type="button"
@@ -168,7 +210,7 @@ export default function SharedRunPage() {
             <>
               <div className={cx(styles, 'rp-public-meta')}>
                 <span className={cx(styles, 'rp-muted')}>
-                  Запуск {run.id.slice(0, 8)} · {dateFormatter.format(new Date(run.control_time))}
+                  {run.title || `Запуск ${run.id.slice(0, 8)}`} · {dateFormatter.format(new Date(run.control_time))}
                 </span>
                 <span className={cx(styles, `ws-status ws-status--${run.status}`)}>
                   {STATUS_LABELS[run.status] ?? run.status}
@@ -178,37 +220,58 @@ export default function SharedRunPage() {
               <div className={cx(styles, 'rp-content')}>
                 {tab === 'digest' && (
                   <div className={cx(styles, 'rp-digest')}>
-                    {parsedDigest.intro.map((line) => (
-                      <p className={cx(styles, 'rp-muted')} key={line}>
-                        {line}
-                      </p>
-                    ))}
-                    {parsedDigest.sections.map((section, index) => (
-                      <article className={cx(styles, 'rp-article')} key={`${section.title}-${index}`}>
-                        <div className={cx(styles, 'rp-article-head')}>
-                          <span className={cx(styles, 'rp-article-index')}>
-                            Событие {index + 1}
-                          </span>
-                        </div>
-                        <h3>{section.title}</h3>
-                        <div className={cx(styles, 'rp-article-body')}>
-                          {section.paragraphs.map((paragraph, paragraphIndex) => {
-                            const separator = paragraph.indexOf(':');
-                            const label =
-                              separator > 0 && separator < 24
-                                ? paragraph.slice(0, separator)
-                                : null;
-                            const rest = label ? paragraph.slice(separator + 1) : paragraph;
-                            return (
-                              <p key={`${section.title}-${paragraphIndex}`}>
-                                {label && <strong>{label}:</strong>}
-                                {rest}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </article>
-                    ))}
+                    {parsedDigest.intro.length > 0 && (
+                      <div className={cx(styles, 'rp-digest-intro')}>
+                        <h2>{parsedDigest.intro[0]}</h2>
+                        {parsedDigest.intro.slice(1).map((line) => (
+                          <p key={line}>{line}</p>
+                        ))}
+                      </div>
+                    )}
+                    {parsedDigest.sections.map((section, index) => {
+                      const event = detail?.events[index];
+                      const level = severity(event?.score);
+                      return (
+                        <article className={cx(styles, 'rp-article')} key={`${section.title}-${index}`}>
+                          <div className={cx(styles, 'rp-article-head')}>
+                            <div className={cx(styles, 'rp-article-tags')}>
+                              {level && (
+                                <span className={cx(styles, `rp-level rp-level--${level.className}`)}>
+                                  {level.label}
+                                </span>
+                              )}
+                              <span className={cx(styles, 'rp-article-index')}>
+                                Событие {index + 1}
+                              </span>
+                            </div>
+                            {event && (
+                              <span className={cx(styles, 'rp-article-key')}>{event.event_key}</span>
+                            )}
+                          </div>
+                          <h3>{section.title}</h3>
+                          <div className={cx(styles, 'rp-article-body')}>
+                            {section.paragraphs.map((paragraph, paragraphIndex) => {
+                              const separator = paragraph.indexOf(':');
+                              const label =
+                                separator > 0 && separator < 24
+                                  ? paragraph.slice(0, separator)
+                                  : null;
+                              const rest = label ? paragraph.slice(separator + 1) : paragraph;
+                              const isSources = label === 'Источники';
+                              return (
+                                <p
+                                  className={cx(styles, isSources ? 'rp-article-sources' : undefined)}
+                                  key={`${section.title}-${paragraphIndex}`}
+                                >
+                                  {label && <strong>{label}:</strong>}
+                                  <LinkifiedText text={rest} />
+                                </p>
+                              );
+                            })}
+                          </div>
+                        </article>
+                      );
+                    })}
                     {parsedDigest.sections.length === 0 && (
                       <p className={cx(styles, 'rp-muted')}>Дайджест ещё не сформирован.</p>
                     )}
@@ -306,7 +369,8 @@ export default function SharedRunPage() {
                   <iframe
                     className={cx(styles, 'rp-email-frame')}
                     title="Письмо"
-                    src={`${API_BASE_URL}/public/runs/${token}/artifacts/email.html`}
+                    sandbox=""
+                    srcDoc={emailHtml}
                   />
                 )}
 

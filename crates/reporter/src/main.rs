@@ -93,9 +93,17 @@ pub(crate) async fn process_digest_verified(
     let artifact_dir = state.config.artifact_dir(verified.run_id);
     tokio::fs::create_dir_all(&artifact_dir).await?;
 
-    let digest = render_digest(&verified.events, &run, &item_map, 4000);
+    let digest = render_digest(&verified.events, &run, &item_map, 4000, &verified.notes);
+    let title = verified
+        .events
+        .first()
+        .map(|event| truncate_plain(&event.title, 100))
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or_else(|| format!("Дайджест за {}", format_period(&run)));
+    db::set_run_title(&state.pool, verified.run_id, &title).await?;
     let post = render_post(&verified.events, &run, &item_map, 2000);
-    let email = render_email(&verified.events, &run, &item_map);
+    let email = render_email(&verified.events, &run, &item_map, &verified.notes);
+    let email_md = render_email_markdown(&verified.events, &run, &item_map, &verified.notes);
     let email_subject = format!("Дайджест по кибербезопасности за {}", format_period(&run));
     let ai_description = render_ai_description(&run, &verified.verification);
     let journal_csv = render_journal_csv(&journal);
@@ -125,6 +133,15 @@ pub(crate) async fn process_digest_verified(
         "email.html",
         email.as_bytes(),
         "text/html; charset=utf-8",
+        &mut artifacts,
+    )
+    .await?;
+    write_artifact(
+        &state,
+        verified.run_id,
+        "email.md",
+        email_md.as_bytes(),
+        "text/markdown; charset=utf-8",
         &mut artifacts,
     )
     .await?;
@@ -310,10 +327,11 @@ fn render_digest(
     run: &news_shared::models::Run,
     items: &HashMap<Uuid, Item>,
     max_chars: usize,
+    notes: &[String],
 ) -> String {
     let mut events = events.to_vec();
     for _ in 0..10 {
-        let text = render_digest_full(&events, run, items);
+        let text = render_digest_full(&events, run, items, notes);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
@@ -328,7 +346,7 @@ fn render_digest(
                 event.justification = truncate_plain(&event.justification, 200);
             }
         }
-        let text = render_digest_full(&events, run, items);
+        let text = render_digest_full(&events, run, items, notes);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
@@ -337,7 +355,7 @@ fn render_digest(
             event.consequences = truncate_plain(&event.consequences, 110);
             event.justification = truncate_plain(&event.justification, 120);
         }
-        let text = render_digest_full(&events, run, items);
+        let text = render_digest_full(&events, run, items, notes);
         if count_chars_without_urls(&text) <= max_chars {
             return text;
         }
@@ -348,13 +366,14 @@ fn render_digest(
             event.title = truncate_plain(&event.title, 100);
         }
     }
-    render_digest_full(&events, run, items)
+    render_digest_full(&events, run, items, notes)
 }
 
 fn render_digest_full(
     events: &[DraftEvent],
     run: &news_shared::models::Run,
     items: &HashMap<Uuid, Item>,
+    notes: &[String],
 ) -> String {
     let mut out = String::new();
     out.push_str("# Дайджест по кибербезопасности\n\n");
@@ -364,11 +383,23 @@ fn render_digest_full(
         format_dt(run.control_time, run)
     ));
 
+    if !events.is_empty() && !notes.is_empty() {
+        for note in notes {
+            out.push_str(&format!("{note}\n"));
+        }
+        out.push('\n');
+    }
+
+    out.push_str(&render_digest_events(events, items));
+    out
+}
+
+fn render_digest_events(events: &[DraftEvent], items: &HashMap<Uuid, Item>) -> String {
+    let mut out = String::new();
     if events.is_empty() {
         out.push_str("Подходящих событий за период нет.\n");
         return out;
     }
-
     for (idx, event) in events.iter().enumerate() {
         out.push_str(&format!(
             "## {}. {}\n\n",
@@ -445,10 +476,38 @@ fn render_post_full(
     out
 }
 
+fn render_email_markdown(
+    events: &[DraftEvent],
+    run: &news_shared::models::Run,
+    items: &HashMap<Uuid, Item>,
+    notes: &[String],
+) -> String {
+    let period = format_period(run);
+    let mut out = String::new();
+    out.push_str("# Дайджест по кибербезопасности\n\n");
+    out.push_str(&format!(
+        "**Тема:** Дайджест по кибербезопасности за {period}\n\n"
+    ));
+    out.push_str(&format!("**Период:** {period}\n\n"));
+    out.push_str(&format!(
+        "**Контрольное время:** {}\n\n",
+        format_dt(run.control_time, run)
+    ));
+    if !events.is_empty() {
+        for note in notes {
+            out.push_str(&format!("{note}\n"));
+        }
+        out.push('\n');
+    }
+    out.push_str(&render_digest_events(events, items));
+    out
+}
+
 fn render_email(
     events: &[DraftEvent],
     run: &news_shared::models::Run,
     items: &HashMap<Uuid, Item>,
+    notes: &[String],
 ) -> String {
     let mut out = String::new();
     out.push_str("<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\">");
@@ -465,6 +524,11 @@ fn render_email(
         escape_html(&format_period(run)),
         escape_html(&format_dt(run.control_time, run))
     ));
+    if !events.is_empty() {
+        for note in notes {
+            out.push_str(&format!("<p><em>{}</em></p>", escape_html(note)));
+        }
+    }
 
     if events.is_empty() {
         out.push_str("<p>Подходящих событий за период нет.</p>");
@@ -722,7 +786,7 @@ async fn run_checks(
                 .published_at
                 .map(|d| d <= run.period_start || d > run.period_end)
                 .unwrap_or(false);
-            item.clean_text.chars().count() < 120
+            item.clean_text.chars().count() < 80
                 && item.analysis.get("source_error").is_none()
                 && !outside_period
         })
@@ -880,22 +944,13 @@ fn format_sources(event: &DraftEvent, items: &HashMap<Uuid, Item>) -> String {
         .sources
         .iter()
         .map(|source| {
-            let date = source
-                .published_at
-                .map(|d| {
-                    d.with_timezone(&chrono_tz::Europe::Moscow)
-                        .format("%d.%m.%Y %H:%M")
-                        .to_string()
-                })
-                .unwrap_or_else(|| "дата не указана".to_string());
             let external = items
                 .get(&source.item_id)
                 .map(|i| i.external_id.as_str())
                 .unwrap_or("");
             format!(
-                "{}, {}, {}, ID {}",
+                "{}, {}, ID {}",
                 remove_em_dash(&source.source_name),
-                date,
                 source.url,
                 external
             )
@@ -943,6 +998,7 @@ mod tests {
         let control = Utc.with_ymd_and_hms(2026, 11, 9, 9, 0, 0).unwrap();
         news_shared::models::Run {
             id: Uuid::new_v4(),
+            title: None,
             status: "running".to_string(),
             mode: "file".to_string(),
             control_time: control,
@@ -1020,7 +1076,7 @@ mod tests {
         let items = sample_items();
         let item_id = *items.keys().next().unwrap();
         let events = sample_events(item_id);
-        let digest = render_digest(&events, &run, &items, 4000);
+        let digest = render_digest(&events, &run, &items, 4000, &[]);
         assert!(count_chars_without_urls(&digest) <= 4000);
         assert!(digest.contains("## 1."));
         assert!(digest.contains("Суть:"));
@@ -1029,6 +1085,17 @@ mod tests {
         assert!(digest.contains("Обоснование:"));
         assert!(!digest.contains('—'));
         assert!(!digest.contains('…'));
+    }
+
+    #[test]
+    fn digest_includes_fewer_than_five_note() {
+        let run = sample_run();
+        let items = sample_items();
+        let item_id = *items.keys().next().unwrap();
+        let events = sample_events(item_id);
+        let notes = vec!["Подходящих событий меньше пяти: найдено 3.".to_string()];
+        let digest = render_digest(&events, &run, &items, 4000, &notes);
+        assert!(digest.contains("меньше пяти"));
     }
 
     #[test]

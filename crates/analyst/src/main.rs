@@ -182,10 +182,10 @@ pub(crate) async fn process_items_normalized(
                         "модель недоступна, использован экстрактивный fallback"
                     } else if analysis.ad {
                         "рекламный или партнёрский материал"
-                    } else if analysis.insufficient_data {
-                        "недостаточно данных для пересказа"
                     } else if !analysis.relevant {
                         "публикация не относится к теме кибербезопасности"
+                    } else if analysis.insufficient_data {
+                        "недостаточно данных для пересказа"
                     } else {
                         "низкая уверенность тематической классификации"
                     };
@@ -298,11 +298,15 @@ pub(crate) async fn process_items_normalized(
             primary.analysis.title.clone()
         };
         let summary = build_summary(primary);
-        let consequences = if primary.analysis.consequences.trim().is_empty() {
+        let mut consequences = if primary.analysis.consequences.trim().is_empty() {
             "Сведения о последствиях в публикации не указаны.".to_string()
         } else {
             primary.analysis.consequences.clone()
         };
+        if !primary.analysis.caveats.is_empty() {
+            consequences.push_str(" Оговорка: ");
+            consequences.push_str(&primary.analysis.caveats.join("; "));
+        }
         let justification = justification(&primary.analysis, &primary.item);
 
         let draft = DraftEvent {
@@ -656,12 +660,7 @@ fn score_event(w: &ScoringWeights, attributes: &EventAttributes) -> f64 {
 }
 
 fn build_summary(primary: &AnalyzedItem) -> String {
-    let mut summary = primary.analysis.summary.trim().to_string();
-    if !primary.analysis.caveats.is_empty() {
-        summary.push_str(" Оговорка: ");
-        summary.push_str(&primary.analysis.caveats.join("; "));
-    }
-    summary
+    primary.analysis.summary.trim().to_string()
 }
 
 fn justification(analysis: &LlmItemAnalysis, item: &Item) -> String {

@@ -41,20 +41,13 @@ import profileStyles from './ProfilePage.module.css';
 
 const styles = { ...workspaceStyles, ...profileStyles };
 
-const roleLabel = (role: string | undefined): string => {
-  if (role === 'admin') {
-    return 'Администратор';
-  }
-  if (role === 'analyst') {
-    return 'Аналитик';
-  }
-  return role ?? 'Пользователь';
-};
+const roleLabel = (role: string | undefined): string =>
+  role === 'admin' ? 'Администратор' : 'Пользователь';
 
 const accessLabel = (role: string | undefined): string =>
   role === 'admin'
-    ? 'Администратор (полный доступ к конвейеру)'
-    : 'Tier-3 Analyst (доступ к конвейеру дайджестов)';
+    ? 'Администратор (полный доступ)'
+    : 'Пользователь (без доступа к админке)';
 
 function formatDate(value: string | undefined): string {
   if (!value) {
@@ -74,7 +67,6 @@ function formatDate(value: string | undefined): string {
 type FieldErrors = Partial<
   Record<
     | 'profile_name'
-    | 'profile_department'
     | 'email_current'
     | 'email_new'
     | 'email_confirm'
@@ -112,7 +104,6 @@ export default function ProfilePage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   const [displayName, setDisplayName] = useState('');
-  const [department, setDepartment] = useState('');
   const [currentEmail, setCurrentEmail] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
@@ -133,7 +124,6 @@ export default function ProfilePage() {
           setMe(user);
           setSessions(sessionList);
           setDisplayName(user.display_name);
-          setDepartment(user.department);
           setEmailVerified(!user.email);
         }
       } catch {
@@ -142,10 +132,9 @@ export default function ProfilePage() {
           setMe({
             id: '',
             username: local?.username ?? '—',
-            role: local?.role ?? 'analyst',
+            role: local?.role ?? 'user',
             is_active: true,
             display_name: '',
-            department: '',
             email: null,
             email_verified_at: null,
             created_at: '',
@@ -186,9 +175,6 @@ export default function ProfilePage() {
     if (displayName.trim().length > 120) {
       errors.profile_name = 'Не более 120 символов.';
     }
-    if (department.trim().length > 120) {
-      errors.profile_department = 'Не более 120 символов.';
-    }
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       return;
@@ -198,11 +184,9 @@ export default function ProfilePage() {
     try {
       const updated = await updateProfile({
         display_name: displayName.trim(),
-        department: department.trim(),
       });
       setMe(updated);
       setDisplayName(updated.display_name);
-      setDepartment(updated.department);
       setNotice('Профиль обновлён.');
     } catch (caught) {
       setFieldErrors({
@@ -432,7 +416,6 @@ export default function ProfilePage() {
                     <p className={cx(styles, "pf-profile-role")}>
                       <VerifiedUserIcon />
                       {accessLabel(me?.role)}
-                      {me?.department ? ` · ${me.department}` : ''}
                     </p>
                   </div>
                 </div>
@@ -462,27 +445,6 @@ export default function ProfilePage() {
                     {fieldErrors.profile_name && (
                       <span className={cx(styles, "pf-field-error")} role="alert">
                         {fieldErrors.profile_name}
-                      </span>
-                    )}
-                  </label>
-                  <label
-                    className={cx(styles, `pf-field${
-                      fieldErrors.profile_department ? ' pf-field--invalid' : ''
-                    }`)}
-                  >
-                    <span>Подразделение</span>
-                    <div className={cx(styles, "pf-input-wrap")}>
-                      <BadgeIcon className={cx(styles, "pf-input-icon")} />
-                      <input
-                        placeholder="SOC Monitoring & Ops"
-                        value={department}
-                        aria-invalid={Boolean(fieldErrors.profile_department)}
-                        onChange={(event) => setDepartment(event.target.value)}
-                      />
-                    </div>
-                    {fieldErrors.profile_department && (
-                      <span className={cx(styles, "pf-field-error")} role="alert">
-                        {fieldErrors.profile_department}
                       </span>
                     )}
                   </label>
@@ -601,7 +563,7 @@ export default function ProfilePage() {
                         <AlternateEmailIcon className={cx(styles, "pf-input-icon")} />
                         <input
                           type="email"
-                          placeholder="analyst.new@enterprise.sec"
+                          placeholder="user.new@enterprise.sec"
                           value={newEmail}
                           aria-invalid={Boolean(fieldErrors.email_new)}
                           onChange={(event) => setNewEmail(event.target.value)}
@@ -623,7 +585,7 @@ export default function ProfilePage() {
                         <MailIcon className={cx(styles, "pf-input-icon")} />
                         <input
                           type="email"
-                          placeholder="analyst.new@enterprise.sec"
+                          placeholder="user.new@enterprise.sec"
                           value={confirmEmail}
                           aria-invalid={Boolean(fieldErrors.email_confirm)}
                           onChange={(event) => setConfirmEmail(event.target.value)}

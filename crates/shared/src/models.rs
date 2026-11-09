@@ -7,30 +7,27 @@ use uuid::Uuid;
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     Admin,
-    Analyst,
-    Viewer,
+    User,
 }
 
 impl Role {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",
-            Self::Analyst => "analyst",
-            Self::Viewer => "viewer",
+            Self::User => "user",
         }
     }
 
     pub fn parse(value: &str) -> Option<Self> {
         match value {
             "admin" => Some(Self::Admin),
-            "analyst" => Some(Self::Analyst),
-            "viewer" => Some(Self::Viewer),
+            "user" | "analyst" | "viewer" => Some(Self::User),
             _ => None,
         }
     }
 
     pub fn can_write(&self) -> bool {
-        matches!(self, Self::Admin | Self::Analyst)
+        matches!(self, Self::Admin | Self::User)
     }
 }
 
@@ -89,7 +86,6 @@ pub struct User {
     pub role: String,
     pub is_active: bool,
     pub display_name: String,
-    pub department: String,
     pub email: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
@@ -172,6 +168,7 @@ pub struct Run {
     pub control_time: DateTime<Utc>,
     pub period_start: DateTime<Utc>,
     pub period_end: DateTime<Utc>,
+    pub title: Option<String>,
     pub model: String,
     pub prompt_version: String,
     pub created_by: Option<Uuid>,
@@ -545,7 +542,6 @@ pub struct UserResponse {
     pub role: String,
     pub is_active: bool,
     pub display_name: String,
-    pub department: String,
     pub email: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
@@ -559,7 +555,6 @@ impl From<User> for UserResponse {
             role: value.role,
             is_active: value.is_active,
             display_name: value.display_name,
-            department: value.department,
             email: value.email,
             email_verified_at: value.email_verified_at,
             created_at: value.created_at,
@@ -570,6 +565,7 @@ impl From<User> for UserResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunSummary {
     pub id: Uuid,
+    pub title: Option<String>,
     pub status: String,
     pub mode: String,
     pub control_time: DateTime<Utc>,
@@ -586,6 +582,7 @@ impl From<Run> for RunSummary {
     fn from(value: Run) -> Self {
         Self {
             id: value.id,
+            title: value.title,
             status: value.status,
             mode: value.mode,
             control_time: value.control_time,

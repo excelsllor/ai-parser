@@ -58,6 +58,7 @@ export default function WorkspacePage() {
     hasMore,
     loadMore,
     removeRun,
+    renameRunLocally,
   } = useRunsFeed();
   const [loadingSources, setLoadingSources] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export default function WorkspacePage() {
   const [files, setFiles] = useState<File[]>([]);
   const [controlTime, setControlTime] = useState<string | undefined>();
   const [fileError, setFileError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
   const enabledSources = useMemo(
     () => sources.filter((source) => source.enabled),
@@ -231,6 +233,7 @@ export default function WorkspacePage() {
       onLoadMoreRuns={loadMore}
       onSelectRun={openRun}
       onDeleteRun={handleDeleteRun}
+      onRenameRun={renameRunLocally}
       onNewQuery={resetForm}
     >
       <form className={cx(styles, "ws-card")} onSubmit={handleSubmit}>
@@ -368,7 +371,19 @@ export default function WorkspacePage() {
                 JSON, JSONL, CSV или ZIP
               </span>
             </div>
-            <label className={cx(styles, "ws-file-picker")}>
+            <label
+              className={cx(styles, `ws-file-picker${dragActive ? ' ws-file-picker--active' : ''}`)}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragActive(false);
+                void handleFiles(event.dataTransfer.files);
+              }}
+            >
               <input
                 type="file"
                 multiple

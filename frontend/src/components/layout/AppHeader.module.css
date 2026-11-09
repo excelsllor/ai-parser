@@ -229,8 +229,36 @@ button.app-brand {
 
 @media (max-width: 760px) {
   .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    padding: 0 16px;
+    padding: 0 12px;
+  }
+
+  .app-header-center {
+    display: none;
+  }
+
+  .app-header-left {
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .app-brand-text {
+    min-width: 0;
+  }
+
+  .app-brand-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-brand-sub {
+    display: none;
+  }
+
+  .app-header-right {
+    gap: 4px;
   }
 }
 

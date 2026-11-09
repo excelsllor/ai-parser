@@ -858,11 +858,33 @@
 
 @media (max-width: 760px) {
   .admin-tabs {
-    padding: 0 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+    overflow-x: visible;
+    padding: 8px 12px;
+  }
+
+  .admin-tab-indicator {
+    display: none;
+  }
+
+  .admin-tab {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .admin-tab--active {
+    background: #eff6ff;
+  }
+
+  [data-theme='dark'] .admin-tab--active {
+    background: #141414;
   }
 
   .admin-main {
-    padding: 16px;
+    padding: 16px 12px;
   }
 
   .admin-title {

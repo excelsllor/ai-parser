@@ -197,27 +197,6 @@ pub(crate) async fn process_items_collected(
             continue;
         }
 
-        if clean.chars().count() < 120 {
-            let reason = with_injection(
-                "недостаточно данных для пересказа (только заголовок или обрывок текста)",
-                &injection,
-            );
-            item.status = "excluded".to_string();
-            item.reason = Some(reason.clone());
-            db::insert_item(&state.pool, &item).await?;
-            db::upsert_journal(
-                &state.pool,
-                event.run_id,
-                item.id,
-                "исключён",
-                None,
-                &reason,
-                None,
-            )
-            .await?;
-            continue;
-        }
-
         let canonical = if item.canonical_url.is_empty() {
             canonicalize_url(&item.url).unwrap_or_default()
         } else {
@@ -272,6 +251,27 @@ pub(crate) async fn process_items_collected(
                 continue;
             }
             title_seen.push((item.title.clone(), item.id));
+        }
+
+        if clean.chars().count() < 80 {
+            let reason = with_injection(
+                "недостаточно данных для пересказа (только заголовок или обрывок текста)",
+                &injection,
+            );
+            item.status = "excluded".to_string();
+            item.reason = Some(reason.clone());
+            db::insert_item(&state.pool, &item).await?;
+            db::upsert_journal(
+                &state.pool,
+                event.run_id,
+                item.id,
+                "исключён",
+                None,
+                &reason,
+                None,
+            )
+            .await?;
+            continue;
         }
 
         let keyword_hit = contains_keyword(&format!("{} {}", item.title, clean), &keywords);

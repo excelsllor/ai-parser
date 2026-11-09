@@ -24,6 +24,7 @@ def check_dir(path: Path) -> list[str]:
     post_path = path / "post.md"
     journal_path = path / "journal.csv"
     email_path = path / "email.html"
+    email_md_path = path / "email.md"
 
     if not digest_path.exists():
         return ["digest.md отсутствует"]
@@ -33,9 +34,14 @@ def check_dir(path: Path) -> list[str]:
     events = re.findall(r"^## (\d+)\.", digest, flags=re.MULTILINE)
     if len(events) > 5:
         errors.append(f"в digest.md больше пяти событий: {len(events)}")
-    for field in REQUIRED_FIELDS:
-        if field not in digest:
-            errors.append(f"в digest.md нет поля {field}")
+    if events:
+        for field in REQUIRED_FIELDS:
+            if field not in digest:
+                errors.append(f"в digest.md нет поля {field}")
+        if len(events) < 5 and "меньше пяти" not in digest:
+            errors.append("в digest.md нет пояснения, почему событий меньше пяти")
+    elif "Подходящих событий за период нет" not in digest:
+        errors.append("в пустом digest.md нет сообщения об отсутствии событий")
     if "—" in digest:
         errors.append("digest.md содержит длинное тире")
 
@@ -61,8 +67,8 @@ def check_dir(path: Path) -> list[str]:
                     errors.append(f"journal.csv: недопустимый status={row.get('status')!r}")
                     break
 
-    if not email_path.exists():
-        errors.append("email.html отсутствует")
+    if not email_path.exists() and not email_md_path.exists():
+        errors.append("email.html/email.md отсутствует")
 
     return errors
 

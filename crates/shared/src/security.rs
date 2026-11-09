@@ -220,7 +220,7 @@ pub fn validate_password(password: &str) -> AppResult<()> {
 
 pub fn validate_role(role: &str) -> AppResult<()> {
     match role {
-        "admin" | "analyst" | "viewer" => Ok(()),
+        "admin" | "user" => Ok(()),
         _ => Err(AppError::Validation("invalid role".into())),
     }
 }

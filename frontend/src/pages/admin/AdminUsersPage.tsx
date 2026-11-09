@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('analyst');
+  const [role, setRole] = useState('user');
   const [submitting, setSubmitting] = useState(false);
 
   async function load() {
@@ -94,7 +94,7 @@ export default function AdminUsersPage() {
       total: users.length,
       active: users.filter((user) => user.is_active).length,
       admins: users.filter((user) => user.role === 'admin').length,
-      analysts: users.filter((user) => user.role === 'analyst').length,
+      usersCount: users.filter((user) => user.role === 'user').length,
     }),
     [users],
   );
@@ -107,7 +107,7 @@ export default function AdminUsersPage() {
       await createAdminUser({ username: username.trim(), password, role });
       setUsername('');
       setPassword('');
-      setRole('analyst');
+      setRole('user');
       setAddOpen(false);
       setNotice('Пользователь создан.');
       await load();
@@ -230,21 +230,11 @@ export default function AdminUsersPage() {
         </article>
         <article className={cx(styles, "admin-stat")}>
           <span className={cx(styles, "admin-stat-label")}>
-            Аналитики
+            Пользователи
             <UserIcon />
           </span>
-          <strong className={cx(styles, "admin-stat-value")}>{stats.analysts}</strong>
-          <span className={cx(styles, "admin-stat-hint")}>Запуск и анализ дайджестов</span>
-        </article>
-        <article className={cx(styles, "admin-stat")}>
-          <span className={cx(styles, "admin-stat-label")}>
-            Наблюдатели
-            <UserIcon />
-          </span>
-          <strong className={cx(styles, "admin-stat-value")}>
-            {users.filter((user) => user.role === 'viewer').length}
-          </strong>
-          <span className={cx(styles, "admin-stat-hint")}>Только чтение</span>
+          <strong className={cx(styles, "admin-stat-value")}>{stats.usersCount}</strong>
+          <span className={cx(styles, "admin-stat-hint")}>Доступ без админки</span>
         </article>
       </div>
 
@@ -277,9 +267,8 @@ export default function AdminUsersPage() {
               value={role}
               onChange={(event) => setRole(event.target.value)}
             >
-              <option value="analyst">Аналитик</option>
+              <option value="user">Пользователь</option>
               <option value="admin">Администратор</option>
-              <option value="viewer">Наблюдатель</option>
             </select>
           </label>
           <div className={cx(styles, "admin-form-actions")}>
@@ -342,7 +331,6 @@ export default function AdminUsersPage() {
                           </span>
                           <span className={cx(styles, "admin-cell-sub")}>
                             @{user.username}
-                            {user.department ? ` · ${user.department}` : ''}
                           </span>
                         </span>
                       </div>
@@ -368,8 +356,7 @@ export default function AdminUsersPage() {
                         onChange={(event) => void handleRole(user, event.target.value)}
                       >
                         <option value="admin">Администратор</option>
-                        <option value="analyst">Аналитик</option>
-                        <option value="viewer">Наблюдатель</option>
+                        <option value="user">Пользователь</option>
                       </select>
                     </td>
                     <td>

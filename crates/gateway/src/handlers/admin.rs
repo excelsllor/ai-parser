@@ -146,7 +146,7 @@ pub async fn create_user(
     user.require_admin()?;
     validate_username(&payload.username)?;
     validate_password(&payload.password)?;
-    let role = payload.role.unwrap_or_else(|| "viewer".to_string());
+    let role = payload.role.unwrap_or_else(|| "user".to_string());
     validate_role(&role)?;
 
     let hash = news_shared::auth::hash_password(&payload.password)?;

@@ -107,7 +107,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -126,7 +126,7 @@
 }
 
 .ws-brand-sub {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -250,7 +250,7 @@
 }
 
 .ws-user-menu-head span:last-child {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
 }
 
@@ -511,12 +511,14 @@
 .ws-session-menu {
   position: fixed;
   z-index: 100;
-  min-width: 186px;
-  padding: 4px;
-  border: 1px solid var(--ws-border);
-  border-radius: 8px;
-  background: var(--ws-paper);
-  box-shadow: var(--panel-shadow-modal);
+  min-width: 196px;
+  padding: 6px;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--ws-paper, #ffffff);
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.16),
+    0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 .ws-session-menu-item {
@@ -528,7 +530,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--ws-text);
+  color: var(--ws-text, #334155);
   font-family: inherit;
   font-size: 12px;
   text-align: left;
@@ -541,6 +543,10 @@
 }
 
 .ws-session-menu-item--danger {
+  margin-top: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 0 0 6px 6px;
   color: #dc2626;
 }
 
@@ -564,9 +570,9 @@
 .ws-share-modal {
   width: min(520px, 100%);
   padding: 22px;
-  border: 1px solid var(--ws-border);
+  border: 1px solid var(--ws-border, #e2e8f0);
   border-radius: 16px;
-  background: var(--ws-paper);
+  background: var(--ws-paper, #ffffff);
   box-shadow: var(--panel-shadow-modal);
 }
 
@@ -585,12 +591,12 @@
 }
 
 .ws-share-head strong {
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 16px;
 }
 
 .ws-share-head span {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 12px;
 }
 
@@ -600,9 +606,9 @@
   justify-content: space-between;
   gap: 20px;
   padding: 14px;
-  border: 1px solid var(--ws-border);
+  border: 1px solid var(--ws-border, #e2e8f0);
   border-radius: 12px;
-  background: var(--ws-bg);
+  background: var(--ws-bg, #f8fafc);
 }
 
 .ws-share-toggle-row div {
@@ -612,12 +618,12 @@
 }
 
 .ws-share-toggle-row strong {
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 13px;
 }
 
 .ws-share-toggle-row span {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
 }
 
@@ -627,9 +633,9 @@
   height: 24px;
   flex: 0 0 42px;
   padding: 0;
-  border: 1px solid var(--ws-border-strong);
+  border: 1px solid var(--ws-border-strong, #cbd5e1);
   border-radius: 999px;
-  background: var(--ws-bg);
+  background: var(--ws-bg, #f8fafc);
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -650,8 +656,8 @@
 }
 
 .ws-share-toggle--on {
-  border-color: var(--ws-primary);
-  background: var(--ws-primary);
+  border-color: var(--ws-primary, #2563eb);
+  background: var(--ws-primary, #2563eb);
 }
 
 .ws-share-toggle--on .ws-share-toggle-thumb {
@@ -674,10 +680,10 @@
   flex: 1;
   min-width: 0;
   padding: 9px 12px;
-  border: 1px solid var(--ws-border);
+  border: 1px solid var(--ws-border, #e2e8f0);
   border-radius: 8px;
-  background: var(--ws-bg);
-  color: var(--ws-text);
+  background: var(--ws-bg, #f8fafc);
+  color: var(--ws-text, #334155);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
 }
@@ -703,7 +709,7 @@
 
 .ws-session-title {
   overflow: hidden;
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 13px;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -772,7 +778,7 @@
 
 .ws-sidebar-status p {
   margin: 8px 0 0;
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
   line-height: 1.5;
 }
@@ -821,7 +827,7 @@
 
 .ws-card-title {
   margin: 0;
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -830,7 +836,7 @@
 
 .ws-card-sub {
   margin: 4px 0 0;
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1018,7 +1024,8 @@
     background-color 0.15s ease;
 }
 
-.ws-file-picker:hover {
+.ws-file-picker:hover,
+.ws-file-picker--active {
   border-color: var(--ws-primary);
   background: var(--ws-paper);
 }
@@ -1045,7 +1052,7 @@
 }
 
 .ws-file-picker strong {
-  color: var(--ws-text-strong);
+  color: var(--ws-text-strong, #0f172a);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1249,7 +1256,7 @@
 }
 
 .ws-estimate {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -1448,7 +1455,7 @@
 }
 
 .ws-stage-status {
-  color: var(--ws-muted);
+  color: var(--ws-muted, #64748b);
   font-size: 11px;
 }
 
@@ -1673,6 +1680,10 @@
 
 [data-theme='dark'] .ws-user-menu-item--profile {
   color: #d4d4d4;
+}
+
+[data-theme='dark'] .ws-user-name {
+  color: #fafafa;
 }
 
 [data-theme='dark'] .ws-user-menu-item--profile:hover {
@@ -2164,4 +2175,48 @@ body .ws-switch-input:checked + .ws-switch-track {
 @keyframes motion-soft-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
+}
+
+
+[data-theme='dark'] .ws-session-menu,
+[data-theme='dark'] .ws-share-modal {
+  border-color: #2a2a2a;
+  background: #111111;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .ws-session-menu-item {
+  color: #e5e5e5;
+}
+
+[data-theme='dark'] .ws-session-menu-item:hover {
+  background: #1f1f1f;
+  color: #ffffff;
+}
+
+[data-theme='dark'] .ws-share-toggle-row {
+  border-color: #2a2a2a;
+  background: #0a0a0a;
+}
+
+[data-theme='dark'] .ws-share-head strong,
+[data-theme='dark'] .ws-share-toggle-row strong {
+  color: #fafafa;
+}
+
+[data-theme='dark'] .ws-share-head span,
+[data-theme='dark'] .ws-share-toggle-row span {
+  color: #a3a3a3;
+}
+
+[data-theme='dark'] .ws-session-menu-item--danger {
+  border-color: #2a2a2a;
+}
+
+[data-theme='dark'] .ws-share-link input {
+  border-color: #2a2a2a;
+  background: #0a0a0a;
+  color: #e5e5e5;
 }

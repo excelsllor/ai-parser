@@ -410,6 +410,42 @@ pub struct SetStatusRequest {
     pub status: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RenameRunRequest {
+    pub title: String,
+}
+
+pub async fn rename(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(run_id): Path<Uuid>,
+    Json(payload): Json<RenameRunRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    user.require_write()?;
+    get_run_for_user(&state, &user, run_id).await?;
+    let title = payload.title.trim();
+    if title.is_empty() || title.chars().count() > 120 {
+        return Err(AppError::BadRequest(
+            "title must be between 1 and 120 characters".into(),
+        ));
+    }
+    db::set_run_title(&state.pool, run_id, title).await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "run.rename",
+            format!("run:{run_id}"),
+            json!({"title": title}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true, "title": title})))
+}
+
 pub async fn set_status(
     State(state): State<AppState>,
     user: AuthUser,
