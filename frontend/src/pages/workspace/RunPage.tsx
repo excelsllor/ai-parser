@@ -648,12 +648,12 @@ export default function RunPage() {
       const result = await sendRunToTelegram(id);
       setNotice(
         result.message_id
-          ? `Дайджест отправлен в Telegram (message_id ${result.message_id}).`
-          : 'Дайджест отправлен в Telegram.',
+          ? `Пост отправлен в Telegram (message_id ${result.message_id}).`
+          : 'Пост отправлен в Telegram.',
       );
     } catch (caught) {
       setActionError(
-        caught instanceof Error ? caught.message : 'Не удалось отправить дайджест в Telegram.',
+        caught instanceof Error ? caught.message : 'Не удалось отправить пост в Telegram.',
       );
     } finally {
       setTelegramSending(false);
@@ -916,6 +916,15 @@ export default function RunPage() {
                   <DownloadIcon />
                   post.md
                 </button>
+                <button
+                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
+                  type="button"
+                  onClick={handleSendTelegram}
+                  disabled={telegramSending}
+                >
+                  <SendIcon />
+                  {telegramSending ? 'Отправляем…' : 'В Telegram'}
+                </button>
               </>
             )}
             {tab === 'email' && (
@@ -1128,15 +1137,6 @@ export default function RunPage() {
                 <div className={cx(styles, "rp-email-actions")}>
                   <button
                     className={cx(styles, "rp-primary-button rp-primary-button--small")}
-                    type="button"
-                    onClick={handleSendTelegram}
-                    disabled={telegramSending}
-                  >
-                    <SendIcon />
-                    {telegramSending ? 'Отправляем…' : 'Отправить в Telegram'}
-                  </button>
-                  <button
-                    className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                     type="button"
                     onClick={handleSendEmail}
                     disabled={sending}

@@ -56,7 +56,7 @@ MODE=file DATASET=/path/to/dataset.zip CONTROL_TIME=2026-11-09T12:00:00+03:00 ./
 - обязательные проверки (дубли, <5 событий, пустой период, обрывки,
   противоречия, ошибки источников, prompt injection);
 - админ-панель, debug-панель, аудит, выгрузка артефактов, отправка тестового письма;
-- Telegram-бот: токен и канал задаются в админке, отправка дайджеста в один клик,
+- Telegram-бот: токен и канал задаются в админке, отправка поста в один клик,
   список пользователей, которые написали боту.
 
 ## Сервисы
@@ -81,7 +81,7 @@ MODE=file DATASET=/path/to/dataset.zip CONTROL_TIME=2026-11-09T12:00:00+03:00 ./
 - `POST /api/runs/{id}/email/send`, `POST /api/runs/{id}/items`
 - `GET /api/runs/{id}/checks`, `GET /api/sources`
 - `GET/POST/PUT/DELETE /api/admin/*` — пользователи, источники, ключевые слова
-- `POST /api/runs/{id}/telegram/send` — отправить дайджест в Telegram
+- `POST /api/runs/{id}/telegram/send` — отправить пост в Telegram
 - `GET/POST /api/admin/telegram/*` — настройки бота, синхронизация и список пользователей
 - `GET /api/admin/debug/*`, `GET /api/admin/audit`
 - `GET /api/health`, `GET /api/ready`, `GET /metrics`

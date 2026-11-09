@@ -128,20 +128,16 @@ async fn call_api(
     Ok(body)
 }
 
-async fn read_run_text(state: &AppState, run_id: Uuid) -> AppResult<String> {
-    for name in ["digest.md", "post.md"] {
-        let Ok(artifact) = db::get_artifact(&state.pool, run_id, name).await else {
-            continue;
-        };
-        let path = safe_artifact_path(state, &artifact.path)?;
-        let text = tokio::fs::read_to_string(path).await?;
-        if !text.trim().is_empty() {
-            return Ok(text);
-        }
+async fn read_post_text(state: &AppState, run_id: Uuid) -> AppResult<String> {
+    let artifact = db::get_artifact(&state.pool, run_id, "post.md").await?;
+    let path = safe_artifact_path(state, &artifact.path)?;
+    let text = tokio::fs::read_to_string(path).await?;
+    if text.trim().is_empty() {
+        return Err(AppError::BadRequest(
+            "post.md пуст, отправить в Telegram нечего".into(),
+        ));
     }
-    Err(AppError::NotFound(
-        "в запуске нет digest.md или post.md для отправки".into(),
-    ))
+    Ok(text)
 }
 
 fn truncate_message(text: &str) -> String {
@@ -182,7 +178,7 @@ pub async fn send_run(
     get_run_for_user(&state, &user, run_id).await?;
     let token = bot_token(&state).await?;
     let chat_id = target_chat_id(&state).await?;
-    let text = read_run_text(&state, run_id).await?;
+    let text = read_post_text(&state, run_id).await?;
     let response = send_message(&state, &token, &chat_id, &text).await?;
     let message_id = response
         .pointer("/result/message_id")
