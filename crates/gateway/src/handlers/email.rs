@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
+use lettre::transport::smtp::client::{Tls, TlsParameters};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use news_shared::error::{AppError, AppResult};
 
@@ -31,17 +32,33 @@ pub async fn send_html(
         .body(html.to_string())
         .map_err(|e| AppError::internal(format!("failed to build email: {e}")))?;
 
+    // Docker networks often have no IPv6 route. Connect to the resolved IPv4
+    // address while keeping the hostname for TLS SNI and certificate checks.
+    let ipv4 = tokio::net::lookup_host((state.config.smtp.host.as_str(), state.config.smtp.port))
+        .await
+        .ok()
+        .and_then(|addresses| {
+            addresses
+                .filter(|address| address.is_ipv4())
+                .map(|address| address.ip().to_string())
+                .next()
+        });
+    let target = ipv4.as_deref().unwrap_or(state.config.smtp.host.as_str());
+
     let builder = if state.config.smtp.tls && state.config.smtp.starttls {
-        AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&state.config.smtp.host)
-            .map_err(|e| AppError::internal(format!("SMTP STARTTLS init failed: {e}")))?
+        let tls = TlsParameters::new(state.config.smtp.host.clone())
+            .map_err(|e| AppError::internal(format!("SMTP STARTTLS init failed: {e}")))?;
+        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
             .port(state.config.smtp.port)
+            .tls(Tls::Required(tls))
     } else if state.config.smtp.tls {
-        AsyncSmtpTransport::<Tokio1Executor>::relay(&state.config.smtp.host)
-            .map_err(|e| AppError::internal(format!("SMTP relay init failed: {e}")))?
+        let tls = TlsParameters::new(state.config.smtp.host.clone())
+            .map_err(|e| AppError::internal(format!("SMTP relay init failed: {e}")))?;
+        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target)
             .port(state.config.smtp.port)
+            .tls(Tls::Wrapper(tls))
     } else {
-        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&state.config.smtp.host)
-            .port(state.config.smtp.port)
+        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(target).port(state.config.smtp.port)
     };
 
     let builder = if state.config.smtp.username.is_empty() {
