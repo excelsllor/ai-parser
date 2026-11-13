@@ -17,6 +17,7 @@ export interface RunPolicies {
   dedup: boolean;
   injection_guard: boolean;
   neutral: boolean;
+  include_images: boolean;
 }
 
 export interface RunSummary {

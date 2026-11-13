@@ -21,6 +21,7 @@ import {
 } from '@components/ui';
 import { cx } from '@utils/cx';
 import { hostOf, parseDigest, parsePost } from '@utils/runPresentation';
+import { useTabIndicator } from '@utils/useTabIndicator';
 
 import runStyles from '@pages/workspace/RunPage.module.css';
 import workspaceStyles from '@components/workspace/workspace.module.css';
@@ -58,6 +59,7 @@ export default function SharedRunPage() {
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [checks, setChecks] = useState<CheckResult[]>([]);
   const [tab, setTab] = useState<TabId>('digest');
+  const { containerRef: tabListRef, indicator } = useTabIndicator<HTMLDivElement>(tab);
   const [digest, setDigest] = useState('');
   const [post, setPost] = useState('');
   const [emailHtml, setEmailHtml] = useState('');
@@ -150,7 +152,16 @@ export default function SharedRunPage() {
       <main className={cx(styles, 'ws-main')}>
         <section className={cx(styles, 'ws-card rp-results')}>
           <div className={cx(styles, 'rp-tabs')}>
-            <div className={cx(styles, 'rp-tab-list')} role="tablist">
+            <div className={cx(styles, 'rp-tab-list')} ref={tabListRef} role="tablist">
+              <span
+                aria-hidden="true"
+                className={cx(styles, 'rp-tab-indicator')}
+                style={{
+                  width: indicator.width,
+                  opacity: indicator.visible ? 1 : 0,
+                  transform: `translateX(${indicator.left}px)`,
+                }}
+              />
               {TABS.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -160,6 +171,7 @@ export default function SharedRunPage() {
                     type="button"
                     role="tab"
                     aria-selected={tab === item.id}
+                    data-tab-active={tab === item.id}
                     onClick={() => setTab(item.id)}
                   >
                     <Icon />

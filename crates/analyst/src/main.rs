@@ -106,6 +106,11 @@ pub(crate) async fn process_items_normalized(
         .and_then(|value| value.as_str().map(ToOwned::to_owned))
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let llm_api_key = db::get_setting(&state.pool, "llm_api_key")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .or_else(|| state.config.llm.api_key.clone());
     let policies = run.policy_flags();
     let all_items = db::get_items(&state.pool, event.run_id).await?;
     let mut duplicates: HashMap<Uuid, Vec<Item>> = HashMap::new();
@@ -143,12 +148,14 @@ pub(crate) async fn process_items_normalized(
             let prompt_version = run.prompt_version.clone();
             let model = run.model.clone();
             let llm_base_url = llm_base_url.clone();
+            let llm_api_key = llm_api_key.clone();
             let policies = policies.clone();
             async move {
                 analyze_item(
                     state,
                     run_id,
                     llm_base_url,
+                    llm_api_key,
                     model,
                     prompt_version,
                     policies,
@@ -290,6 +297,12 @@ pub(crate) async fn process_items_normalized(
             organizations: primary.analysis.organizations.clone(),
             systems: primary.analysis.systems.clone(),
             date_unconfirmed: !primary.item.date_confirmed,
+            image_url: primary
+                .item
+                .analysis
+                .get("image_url")
+                .and_then(|value| value.as_str())
+                .map(str::to_string),
         };
         let score = score_event(&weights, &attributes);
         let title = if primary.analysis.title.trim().is_empty() {
@@ -437,6 +450,7 @@ async fn analyze_item(
     state: AnalystState,
     run_id: Uuid,
     llm_base_url: String,
+    llm_api_key: Option<String>,
     model: String,
     prompt_version: String,
     policies: RunPolicies,
@@ -466,6 +480,7 @@ async fn analyze_item(
 
     let result = state
         .llm
+        .with_api_key(llm_api_key)
         .chat_json_with_model::<LlmItemAnalysis>(
             &llm_base_url,
             &model,

@@ -11,9 +11,70 @@
   padding: 24px;
 }
 
+.rp-generating-footer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-top: 4px;
+  border-top: 1px solid var(--ws-border);
+  color: var(--ws-muted);
+  font-size: 11px;
+}
+
 .rp-generating-alert,
 .rp-generating-loader {
   width: min(620px, 100%);
+}
+
+.rp-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(620px, 100%);
+  padding: 14px 16px;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--ws-paper, #ffffff);
+}
+
+.rp-progress-head,
+.rp-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rp-progress-head span {
+  color: var(--ws-text-strong, #0f172a);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rp-progress-head strong {
+  color: var(--ws-primary, #2563eb);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--ws-bg, #f8fafc);
+}
+
+.rp-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #22c55e);
+  transition: width 0.4s ease;
+}
+
+.rp-progress-meta {
+  color: var(--ws-muted, #64748b);
+  font-size: 11px;
 }
 
 .rp-params {
@@ -282,6 +343,7 @@
 }
 
 .rp-tab-list {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -289,7 +351,24 @@
   min-width: 0;
 }
 
+.rp-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ws-primary);
+  pointer-events: none;
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease;
+}
+
 .rp-tab {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -313,7 +392,7 @@
 }
 
 .rp-tab--active {
-  border-bottom-color: var(--ws-primary);
+  border-bottom-color: transparent;
   color: var(--ws-primary);
 }
 
@@ -444,6 +523,16 @@
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.35;
+}
+
+.rp-article-image {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  margin: 0 0 14px;
+  border: 1px solid var(--ws-border);
+  border-radius: 12px;
+  object-fit: cover;
 }
 
 .rp-article-body {

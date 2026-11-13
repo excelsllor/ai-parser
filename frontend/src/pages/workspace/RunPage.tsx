@@ -15,10 +15,16 @@ import {
   runVersionChain,
   sendRunToTelegram,
   sendTestEmail,
-  setRunStatus,
 } from '@api/runs';
-import type { CheckResult, RunDetail, RunSummary, Source } from '@api/runs';
-import { LogoRunner, SnakeLoader, WorkspaceLayout } from '@components';
+import type {
+  CheckResult,
+  RunDetail,
+  RunInfo,
+  RunStage,
+  RunSummary,
+  Source,
+} from '@api/runs';
+import { LoaderGame, WorkspaceLayout } from '@components';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
@@ -45,10 +51,12 @@ import {
   SparklesIcon,
   TableIcon,
   TuneIcon,
+  UploadIcon,
 } from '@components/ui';
 
 import { cx } from '@utils/cx';
 import { hostOf, parseDigest, parsePost } from '@utils/runPresentation';
+import { useTabIndicator } from '@utils/useTabIndicator';
 
 import runStyles from './RunPage.module.css';
 import workspaceStyles from '@components/workspace/workspace.module.css';
@@ -72,6 +80,14 @@ const RUN_STATUS_LABELS: Record<string, string> = {
   failed: 'Ошибка',
   cancelled: 'Отменён',
 };
+
+const GENERATION_STAGES = [
+  { key: 'collect', label: 'Сбор источников', weight: 20 },
+  { key: 'normalize', label: 'Нормализация материалов', weight: 15 },
+  { key: 'analyze', label: 'Анализ и оценка событий', weight: 35 },
+  { key: 'critic', label: 'Проверка фактов', weight: 15 },
+  { key: 'report', label: 'Формирование дайджеста', weight: 15 },
+] as const;
 
 const CHECK_LABELS: Record<string, string> = {
   digest_format: 'Структура дайджеста',
@@ -199,6 +215,78 @@ function readNumber(
   return typeof value === 'number' ? value : null;
 }
 
+function formatRemaining(seconds: number | null): string {
+  if (seconds === null) {
+    return '~1–2 мин';
+  }
+  if (seconds <= 1) {
+    return 'меньше секунды';
+  }
+  if (seconds < 60) {
+    return `~${seconds} с`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `~${minutes} мин ${rest.toString().padStart(2, '0')} с`;
+}
+
+function generationProgress(
+  run: RunInfo | undefined,
+  stages: RunStage[],
+): { percent: number; label: string; step: number; remaining: number | null } {
+  if (!run) {
+    return { percent: 0, label: 'Подготовка…', step: 0, remaining: null };
+  }
+  if (run.status === 'completed') {
+    return { percent: 100, label: 'Готово', step: GENERATION_STAGES.length, remaining: 0 };
+  }
+  if (run.status === 'queued') {
+    return { percent: 0, label: 'Ожидание в очереди', step: 0, remaining: null };
+  }
+  if (run.status === 'failed' || run.status === 'cancelled') {
+    return { percent: 0, label: 'Обработка остановлена', step: 0, remaining: null };
+  }
+
+  const byKey = new Map(stages.map((stage) => [stage.stage, stage]));
+  let percent = 0;
+  let step = 0;
+  let label: string = GENERATION_STAGES[0].label;
+
+  for (let index = 0; index < GENERATION_STAGES.length; index += 1) {
+    const definition = GENERATION_STAGES[index];
+    const stage = byKey.get(definition.key);
+    step = index + 1;
+
+    if (stage?.status === 'completed') {
+      percent += definition.weight;
+      continue;
+    }
+
+    label = stage?.message?.trim() || definition.label;
+    if (stage?.status === 'running') {
+      percent += Math.round(definition.weight * 0.45);
+    }
+    break;
+  }
+
+  if (step === GENERATION_STAGES.length && percent >= 100) {
+    label = 'Завершаем обработку…';
+    percent = 99;
+  }
+
+  const startedAt = run.started_at ? new Date(run.started_at).getTime() : null;
+  const elapsed =
+    startedAt && Number.isFinite(startedAt)
+      ? Math.max(0, (Date.now() - startedAt) / 1000)
+      : null;
+  const remaining =
+    elapsed !== null && percent > 5
+      ? Math.max(0, Math.round((elapsed * (100 - percent)) / percent))
+      : null;
+
+  return { percent: Math.min(99, percent), label, step, remaining };
+}
+
 export default function RunPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -208,6 +296,7 @@ export default function RunPage() {
   const tab: TabId = TABS.some((item) => item.id === activeTab)
     ? activeTab
     : 'digest';
+  const { containerRef: tabListRef, indicator } = useTabIndicator<HTMLDivElement>(tab);
 
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [checks, setChecks] = useState<CheckResult[]>([]);
@@ -236,6 +325,7 @@ export default function RunPage() {
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenSources, setRegenSources] = useState<Source[]>([]);
   const [regenSelected, setRegenSelected] = useState<Set<string>>(new Set());
+  const [regenFiles, setRegenFiles] = useState<File[]>([]);
   const [regenControlTime, setRegenControlTime] = useState('');
   const [regenInterval, setRegenInterval] = useState(24);
   const [regenLimit, setRegenLimit] = useState(5);
@@ -256,6 +346,17 @@ export default function RunPage() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+  }, [regenOpen]);
+
+  useEffect(() => {
+    if (!regenOpen) {
+      return;
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [regenOpen]);
 
   useEffect(() => {
@@ -391,6 +492,31 @@ export default function RunPage() {
     [id, runs],
   );
   const versionIndex = id ? versions.indexOf(id) : -1;
+  const versionNav = (
+    <span className={cx(styles, "rp-versions")}>
+      <button
+        className={cx(styles, "rp-version-button")}
+        type="button"
+        aria-label="Предыдущая версия"
+        disabled={versionIndex <= 0}
+        onClick={() => navigate(`/runs/${versions[versionIndex - 1]}`)}
+      >
+        <ChevronLeftIcon />
+      </button>
+      <span>
+        Версия {versionIndex + 1} из {versions.length}
+      </span>
+      <button
+        className={cx(styles, "rp-version-button")}
+        type="button"
+        aria-label="Следующая версия"
+        disabled={versionIndex >= versions.length - 1}
+        onClick={() => navigate(`/runs/${versions[versionIndex + 1]}`)}
+      >
+        <ChevronRightIcon />
+      </button>
+    </span>
+  );
   const digestPending =
     isGenerating || (loadingArtifacts['digest.md'] === true && !digestText);
   const postPending =
@@ -401,6 +527,7 @@ export default function RunPage() {
     run?.status === 'queued'
       ? 'Запрос в очереди. Запуск начнётся сразу после освобождения пайплайна.'
       : 'Собираем источники, проверяем факты и формируем текст. Обычно занимает 1–2 минуты.';
+  const generation = generationProgress(run, detail?.stages ?? []);
   const tgMeta = useMemo(() => {
     const random = seededRandom(run?.id ?? 'digest-post');
     const randomInt = (min: number, max: number) =>
@@ -414,7 +541,6 @@ export default function RunPage() {
       reactions,
     };
   }, [run?.id]);
-  const loaderVariant = run ? Number.parseInt(run.id.slice(0, 2), 16) % 2 : 0;
   const stats = (run?.stats ?? {}) as Record<string, unknown>;
   const passedChecks = checks.filter((check) => check.passed).length;
   const mergedCount = (detail?.journal ?? []).filter((row) =>
@@ -477,22 +603,6 @@ export default function RunPage() {
     }
   }
 
-  async function handleStatusChange(status: string) {
-    if (!id || !detail) {
-      return;
-    }
-    setActionError(null);
-    try {
-      await setRunStatus(id, status);
-      setDetail({ ...detail, run: { ...detail.run, status } });
-      setNotice('Статус сессии обновлён.');
-    } catch (caught) {
-      setActionError(
-        caught instanceof Error ? caught.message : 'Не удалось изменить статус.',
-      );
-    }
-  }
-
   function toggleReaction(emoji: string) {
     setReactions((current) => ({ ...current, [emoji]: !current[emoji] }));
   }
@@ -519,6 +629,7 @@ export default function RunPage() {
     setRegenError(null);
     setRegenOpen(true);
     setRegenSelected(new Set());
+    setRegenFiles([]);
     setRegenControlTime(toDateTimeLocal(detail?.run?.control_time));
     setRegenInterval(detail?.run.interval_hours ?? 24);
     setRegenLimit(detail?.run.max_items ?? 5);
@@ -578,7 +689,19 @@ export default function RunPage() {
     try {
       const next =
         run.mode === 'file'
-          ? await rerunRun(run.id)
+          ? regenFiles.length > 0
+            ? await createRun({
+                mode: 'file',
+                sources: [],
+                files: regenFiles,
+                controlTime: Number.isNaN(controlTime.getTime())
+                  ? run.control_time
+                  : controlTime.toISOString(),
+                intervalHours: regenInterval,
+                maxItems: regenLimit,
+                parentRunId: run.id,
+              })
+            : await rerunRun(run.id)
           : await createRun({
               mode: 'live',
               sources: [...regenSelected],
@@ -732,18 +855,12 @@ export default function RunPage() {
               <SparklesIcon />
             </span>
             <span className={cx(styles, "rp-params-name")}>Параметры текущей выборки</span>
-            <select
-              className={cx(styles, `ws-status ws-status--${statusClass(run.status)} rp-status-select`)}
-              value={run.status}
+            <span
+              className={cx(styles, `ws-status ws-status--${statusClass(run.status)}`)}
               aria-label="Статус сессии"
-              onChange={(event) => void handleStatusChange(event.target.value)}
             >
-              {Object.entries(RUN_STATUS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              {RUN_STATUS_LABELS[run.status] ?? run.status}
+            </span>
           </div>
           <div className={cx(styles, "rp-params-actions")}>
             {isGenerating ? (
@@ -764,25 +881,16 @@ export default function RunPage() {
                 disabled={regenLoadingSources}
               >
                 <RefreshIcon />
-                Перегенерировать дайджест
+                Перегенерировать
               </button>
             )}
-            <button
-              className={cx(styles, "rp-secondary-button")}
-              type="button"
-              onClick={handleSendTelegram}
-              disabled={telegramSending || isGenerating}
-            >
-              <SendIcon />
-              {telegramSending ? 'Отправляем…' : 'В Telegram'}
-            </button>
             <button
               className={cx(styles, "rp-danger-button")}
               type="button"
               onClick={() => handleDeleteRun(run)}
             >
               <DeleteIcon />
-              Удалить сессию
+              Удалить
             </button>
           </div>
         </div>
@@ -833,12 +941,31 @@ export default function RunPage() {
 
       {isGenerating ? (
         <section className={cx(styles, "ws-card rp-generating")}>
+          <div className={cx(styles, "rp-progress")}>
+            <div className={cx(styles, "rp-progress-head")}>
+              <span>{generation.label}</span>
+              <strong>{generation.percent}%</strong>
+            </div>
+            <div
+              className={cx(styles, "rp-progress-track")}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={generation.percent}
+            >
+              <span style={{ width: `${generation.percent}%` }} />
+            </div>
+            <div className={cx(styles, "rp-progress-meta")}>
+              <span>
+                {generation.step > 0
+                  ? `Шаг ${generation.step} из ${GENERATION_STAGES.length}`
+                  : 'Ожидание'}
+              </span>
+              <span>Осталось {formatRemaining(generation.remaining)}</span>
+            </div>
+          </div>
           <div className={cx(styles, "rp-generating-loader")}>
-            {loaderVariant === 0 ? (
-              <LogoRunner message="Формируем дайджест…" hint={generationHint} />
-            ) : (
-              <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
-            )}
+            <LoaderGame message="Формируем дайджест…" hint={generationHint} />
           </div>
           {actionError && (
             <div className={cx(styles, "ws-alert ws-alert--error rp-generating-alert")} role="alert">
@@ -846,11 +973,23 @@ export default function RunPage() {
               <span>{actionError}</span>
             </div>
           )}
+          {versions.length > 0 && (
+            <div className={cx(styles, "rp-generating-footer")}>{versionNav}</div>
+          )}
         </section>
       ) : (
         <section className={cx(styles, "ws-card rp-results")}>
         <div className={cx(styles, "rp-tabs")}>
-          <div className={cx(styles, "rp-tab-list")} role="tablist">
+          <div className={cx(styles, "rp-tab-list")} ref={tabListRef} role="tablist">
+            <span
+              aria-hidden="true"
+              className={cx(styles, "rp-tab-indicator")}
+              style={{
+                width: indicator.width,
+                opacity: indicator.visible ? 1 : 0,
+                transform: `translateX(${indicator.left}px)`,
+              }}
+            />
             {TABS.map((item) => {
               const Icon = item.icon;
               return (
@@ -860,6 +999,7 @@ export default function RunPage() {
                   type="button"
                   role="tab"
                   aria-selected={tab === item.id}
+                  data-tab-active={tab === item.id}
                   onClick={() => selectTab(item.id)}
                 >
                   <Icon />
@@ -901,12 +1041,12 @@ export default function RunPage() {
             {tab === 'post' && (
               <>
                 <button
-                  className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
+                  className={cx(styles, "rp-icon-button")}
                   type="button"
+                  title="Скопировать пост"
                   onClick={() => handleCopy(postText, 'Пост')}
                 >
                   <CopyIcon />
-                  Копировать
                 </button>
                 <button
                   className={cx(styles, "rp-primary-button rp-primary-button--small")}
@@ -945,6 +1085,15 @@ export default function RunPage() {
                   <DownloadIcon />
                   email.html
                 </button>
+                <button
+                  className={cx(styles, "rp-primary-button rp-primary-button--small")}
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={sending}
+                >
+                  <SendIcon />
+                  {sending ? 'Отправляем…' : 'Отправить на тестовый адрес'}
+                </button>
               </>
             )}
           </div>
@@ -960,7 +1109,7 @@ export default function RunPage() {
         <div className={cx(styles, "rp-content")}>
           {tab === 'digest' && (
             digestPending ? (
-              <SnakeLoader message="Формируем дайджест…" hint={generationHint} />
+              <LoaderGame message="Формируем дайджест…" hint={generationHint} />
             ) : (
               <div className={cx(styles, "rp-digest")}>
                 {headerForDigest(parsedDigest.intro)}
@@ -970,6 +1119,10 @@ export default function RunPage() {
                 {parsedDigest.sections.map((section, index) => {
                   const event = detail?.events[index];
                   const level = severity(event?.score);
+                  const imageUrl =
+                    typeof event?.attributes?.image_url === 'string'
+                      ? event.attributes.image_url
+                      : null;
                   return (
                     <article className={cx(styles, "rp-article")} key={`${section.title}-${index}`}>
                       <div className={cx(styles, "rp-article-head")}>
@@ -982,6 +1135,14 @@ export default function RunPage() {
                         )}
                       </div>
                       <h3>{section.title}</h3>
+                      {run?.policies?.include_images && imageUrl && (
+                        <img
+                          className={cx(styles, "rp-article-image")}
+                          src={imageUrl}
+                          alt=""
+                          loading="lazy"
+                        />
+                      )}
                       <div className={cx(styles, "rp-article-body")}>
                         {section.paragraphs.map((paragraph, paragraphIndex) => {
                           const separator = paragraph.indexOf(':');
@@ -1011,7 +1172,7 @@ export default function RunPage() {
 
           {tab === 'post' && (
             postPending ? (
-              <SnakeLoader message="Готовим пост…" hint={generationHint} />
+              <LoaderGame message="Готовим пост…" hint={generationHint} />
             ) : (
               <div className={cx(styles, "rp-post")}>
               {!postText && (
@@ -1122,7 +1283,7 @@ export default function RunPage() {
 
           {tab === 'email' && (
             emailPending ? (
-              <SnakeLoader message="Готовим письмо…" hint={generationHint} />
+              <LoaderGame message="Готовим письмо…" hint={generationHint} />
             ) : (
             <div className={cx(styles, "rp-email")}>
               <div className={cx(styles, "rp-email-meta")}>
@@ -1134,17 +1295,6 @@ export default function RunPage() {
                   Период
                   <span>{formatShortDate(run.period_start)} — {formatShortDate(run.period_end)}</span>
                 </label>
-                <div className={cx(styles, "rp-email-actions")}>
-                  <button
-                    className={cx(styles, "rp-primary-button rp-primary-button--small")}
-                    type="button"
-                    onClick={handleSendEmail}
-                    disabled={sending}
-                  >
-                    <SendIcon />
-                    {sending ? 'Отправляем…' : 'Отправить на тестовый адрес'}
-                  </button>
-                </div>
               </div>
 
               {!emailHtml && (
@@ -1261,29 +1411,7 @@ export default function RunPage() {
         </div>
 
         <div className={cx(styles, "rp-footer")}>
-          <span className={cx(styles, "rp-versions")}>
-            <button
-              className={cx(styles, "rp-version-button")}
-              type="button"
-              aria-label="Предыдущая версия"
-              disabled={versionIndex <= 0}
-              onClick={() => navigate(`/runs/${versions[versionIndex - 1]}`)}
-            >
-              <ChevronLeftIcon />
-            </button>
-            <span>
-              Версия {versionIndex + 1} из {versions.length}
-            </span>
-            <button
-              className={cx(styles, "rp-version-button")}
-              type="button"
-              aria-label="Следующая версия"
-              disabled={versionIndex >= versions.length - 1}
-              onClick={() => navigate(`/runs/${versions[versionIndex + 1]}`)}
-            >
-              <ChevronRightIcon />
-            </button>
-          </span>
+          {versionNav}
           <span className={cx(styles, "rp-footer-dot")} />
           <span>{formatDate(run.created_at)}</span>
           <span className={cx(styles, "rp-footer-dot")} />
@@ -1385,7 +1513,7 @@ export default function RunPage() {
                   <span className={cx(styles, "rp-modal-label")}>Лимит отобранных событий</span>
                 </div>
                 <div className={cx(styles, "ws-pills")}>
-                  {[3, 5, 7].map((value) => (
+                  {[3, 5, 7, 10].map((value) => (
                     <button
                       className={cx(styles, `ws-pill${
                         regenLimit === value ? ' ws-pill--active' : ''
@@ -1401,68 +1529,118 @@ export default function RunPage() {
                 </div>
               </div>
 
-              <div className={cx(styles, "rp-modal-field")}>
-                <div className={cx(styles, "rp-modal-field-head")}>
-                  <span className={cx(styles, "rp-modal-label")}>Источники мониторинга</span>
-                  <span>
-                    Выбрано: {regenSelected.size} из {regenSources.length}
-                  </span>
-                </div>
-                {regenLoadingSources ? (
-                  <p className={cx(styles, "rp-muted")}>Загружаем источники…</p>
-                ) : (
-                  <div className={cx(styles, "ws-sources rp-modal-source-list")}>
-                    {regenSources.map((source) => {
-                      const selected = regenSelected.has(source.id);
-                      return (
-                        <button
-                          className={cx(styles, `ws-source${
-                            selected ? ' ws-source--selected' : ''
-                          }`)}
-                          key={source.id}
-                          type="button"
-                          title={source.url}
-                          onClick={() => toggleRegenSource(source.id)}
-                        >
-                          <span className={cx(styles, "ws-source-dot")} />
-                          <span>{source.name}</span>
-                          <span className={cx(styles, "ws-source-badge")}>{source.trust}</span>
-                        </button>
-                      );
-                    })}
+              {detail?.run.mode !== 'file' && (
+                <div className={cx(styles, "rp-modal-field")}>
+                  <div className={cx(styles, "rp-modal-field-head")}>
+                    <span className={cx(styles, "rp-modal-label")}>Источники мониторинга</span>
+                    <span>
+                      Выбрано: {regenSelected.size} из {regenSources.length}
+                    </span>
                   </div>
-                )}
-                <div className={cx(styles, "rp-modal-source-actions")}>
-                  <button
-                    className={cx(styles, "ws-link-button")}
-                    type="button"
-                    onClick={() =>
-                      setRegenSelected(
-                        new Set(
-                          regenSources
-                            .filter((source) => source.enabled)
-                            .map((source) => source.id),
-                        ),
-                      )
-                    }
-                  >
-                    Выбрать все
-                  </button>
-                  <button
-                    className={cx(styles, "ws-link-button ws-link-button--muted")}
-                    type="button"
-                    onClick={() => setRegenSelected(new Set())}
-                  >
-                    Сбросить
-                  </button>
+                  {regenLoadingSources ? (
+                    <p className={cx(styles, "rp-muted")}>Загружаем источники…</p>
+                  ) : (
+                    <div className={cx(styles, "ws-sources rp-modal-source-list")}>
+                      {regenSources.map((source) => {
+                        const selected = regenSelected.has(source.id);
+                        return (
+                          <button
+                            className={cx(styles, `ws-source${
+                              selected ? ' ws-source--selected' : ''
+                            }`)}
+                            key={source.id}
+                            type="button"
+                            title={source.url}
+                            onClick={() => toggleRegenSource(source.id)}
+                          >
+                            <span className={cx(styles, "ws-source-dot")} />
+                            <span>{source.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className={cx(styles, "rp-modal-source-actions")}>
+                    <button
+                      className={cx(styles, "ws-link-button")}
+                      type="button"
+                      onClick={() =>
+                        setRegenSelected(
+                          new Set(
+                            regenSources
+                              .filter((source) => source.enabled)
+                              .map((source) => source.id),
+                          ),
+                        )
+                      }
+                    >
+                      Выбрать все
+                    </button>
+                    <button
+                      className={cx(styles, "ws-link-button ws-link-button--muted")}
+                      type="button"
+                      onClick={() => setRegenSelected(new Set())}
+                    >
+                      Сбросить
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {detail?.run.mode === 'file' && (
-                <p className={cx(styles, "rp-modal-note")}>
-                  Для файлового запуска параметры источников и времени не применяются —
-                  будет создан новый запуск с теми же файлами.
-                </p>
+                <div className={cx(styles, "rp-modal-field")}>
+                  <div className={cx(styles, "rp-modal-field-head")}>
+                    <span className={cx(styles, "rp-modal-label")}>Файлы датасета</span>
+                    <span>
+                      {regenFiles.length > 0
+                        ? `Выбрано: ${regenFiles.length}`
+                        : 'Оставьте пусто, чтобы взять файлы текущей сессии'}
+                    </span>
+                  </div>
+                  <label className={cx(styles, "ws-file-picker")}>
+                    <input
+                      type="file"
+                      multiple
+                      accept=".json,.jsonl,.ndjson,.csv,.zip,.txt,.md,.html"
+                      onChange={(event) =>
+                        setRegenFiles(Array.from(event.target.files ?? []))
+                      }
+                    />
+                    <UploadIcon />
+                    <span>
+                      <strong>Выбрать файлы</strong>
+                      <small>JSON, JSONL, CSV, TXT или ZIP</small>
+                    </span>
+                  </label>
+                  {regenFiles.length > 0 && (
+                    <div className={cx(styles, "ws-file-list")}>
+                      {regenFiles.map((file) => (
+                        <span
+                          className={cx(styles, "ws-file-item")}
+                          key={`${file.name}-${file.size}`}
+                        >
+                          <span>{file.name}</span>
+                          <small>{Math.ceil(file.size / 1024)} КБ</small>
+                          <button
+                            type="button"
+                            aria-label={`Убрать ${file.name}`}
+                            onClick={() =>
+                              setRegenFiles((previous) =>
+                                previous.filter((item) => item !== file),
+                              )
+                            }
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className={cx(styles, "rp-modal-note")}>
+                    Если файлы не выбраны, будет создан новый запуск с файлами текущей
+                    сессии.
+                  </p>
+                </div>
               )}
             </div>
 

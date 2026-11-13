@@ -509,79 +509,109 @@ fn render_email(
     items: &HashMap<Uuid, Item>,
     notes: &[String],
 ) -> String {
+    let period = escape_html(&format_period(run));
+    let control_time = escape_html(&format_dt(run.control_time, run));
     let mut out = String::new();
     out.push_str("<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\">");
     out.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-    out.push_str("<title>Дайджест по кибербезопасности</title></head><body>");
-    out.push_str("<div style=\"max-width:760px;margin:0 auto;font-family:Arial,sans-serif;line-height:1.5;color:#222\">");
-    out.push_str("<h1>Дайджест по кибербезопасности</h1>");
+    out.push_str("<title>Дайджест по кибербезопасности</title></head>");
+    out.push_str("<body style=\"margin:0;padding:24px;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#172033;\">");
+    out.push_str("<div style=\"max-width:720px;margin:0 auto;background:#ffffff;border:1px solid #dbe3ee;border-radius:18px;overflow:hidden;box-shadow:0 12px 36px rgba(15,23,42,.08);\">");
+    out.push_str("<div style=\"padding:30px 34px;background:#0f172a;color:#ffffff;\">");
+    out.push_str("<div style=\"font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9fb3c8;font-weight:700;\">CyberBug Digest</div>");
+    out.push_str("<h1 style=\"margin:10px 0 0;font-size:28px;line-height:1.2;font-weight:800;\">Дайджест по кибербезопасности</h1>");
+    out.push_str("</div>");
+    out.push_str("<div style=\"padding:24px 34px 8px;\">");
     out.push_str(&format!(
-        "<p><strong>Тема:</strong> Дайджест по кибербезопасности за {}</p>",
-        escape_html(&format_period(run))
+        "<div style=\"margin-bottom:10px;padding:13px 15px;background:#f5f8fc;border:1px solid #e5ebf3;border-radius:12px;\"><span style=\"display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7b8a9e;font-weight:700;\">Период</span><strong style=\"font-size:14px;\">{period}</strong></div>"
     ));
     out.push_str(&format!(
-        "<p><strong>Период:</strong> {}<br><strong>Контрольное время:</strong> {}</p>",
-        escape_html(&format_period(run)),
-        escape_html(&format_dt(run.control_time, run))
+        "<div style=\"margin-bottom:18px;padding:13px 15px;background:#f5f8fc;border:1px solid #e5ebf3;border-radius:12px;\"><span style=\"display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7b8a9e;font-weight:700;\">Контрольное время</span><strong style=\"font-size:14px;\">{control_time}</strong></div>"
     ));
     if !events.is_empty() {
         for note in notes {
-            out.push_str(&format!("<p><em>{}</em></p>", escape_html(note)));
-        }
-    }
-
-    if events.is_empty() {
-        out.push_str("<p>Подходящих событий за период нет.</p>");
-    }
-
-    for (idx, event) in events.iter().enumerate() {
-        out.push_str(&format!(
-            "<h2>{}. {}</h2>",
-            idx + 1,
-            escape_html(&remove_em_dash(&event.title))
-        ));
-        out.push_str(&format!(
-            "<p><strong>Суть:</strong> {}</p>",
-            escape_html(&remove_em_dash(&event.summary))
-        ));
-        out.push_str(&format!(
-            "<p><strong>Последствия:</strong> {}</p>",
-            escape_html(&remove_em_dash(&event.consequences))
-        ));
-        out.push_str("<p><strong>Источники:</strong></p><ul>");
-        for source in &event.sources {
-            let date = source
-                .published_at
-                .map(|d| format_dt(d, run))
-                .unwrap_or_else(|| "дата не указана".to_string());
-            let external = items
-                .get(&source.item_id)
-                .map(|i| i.external_id.clone())
-                .unwrap_or_default();
-            let link = if let Some(href) = safe_href(&source.url) {
-                format!(
-                    "<a href=\"{}\">{}</a>",
-                    escape_html(href),
-                    escape_html(&remove_em_dash(&source.source_name))
-                )
-            } else {
-                escape_html(&remove_em_dash(&source.source_name))
-            };
             out.push_str(&format!(
-                "<li>{} - {}, {}, ID {}</li>",
-                link,
-                escape_html(&date),
-                escape_html(&source.url),
-                escape_html(&external)
+                "<div style=\"margin-bottom:14px;padding:12px 14px;background:#fff7e6;border:1px solid #f3d19e;border-radius:12px;color:#6b4b12;font-size:13px;line-height:1.5;\">{}</div>",
+                escape_html(note)
             ));
         }
-        out.push_str("</ul>");
-        out.push_str(&format!(
-            "<p><strong>Обоснование:</strong> {}</p>",
-            escape_html(&remove_em_dash(&event.justification))
-        ));
+    }
+    out.push_str("</div>");
+
+    if events.is_empty() {
+        out.push_str("<div style=\"padding:4px 34px 30px;\"><p style=\"margin:0;padding:20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px;color:#64748b;text-align:center;\">Подходящих событий за период нет.</p></div>");
+    } else {
+        out.push_str("<div style=\"padding:0 34px 28px;\">");
+        for (idx, event) in events.iter().enumerate() {
+            out.push_str("<div style=\"padding:22px 0;border-top:1px solid #e5ebf3;\">");
+            out.push_str(&format!(
+                "<div style=\"font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#2563eb;font-weight:700;\">Событие {}</div>",
+                idx + 1
+            ));
+            out.push_str(&format!(
+                "<h2 style=\"margin:8px 0 14px;font-size:20px;line-height:1.35;color:#0f172a;\">{}</h2>",
+                escape_html(&remove_em_dash(&event.title))
+            ));
+            if run.policy_flags().include_images {
+                if let Some(src) = event.attributes.image_url.as_deref().and_then(safe_href) {
+                    out.push_str(&format!(
+                        "<img src=\"{}\" alt=\"\" style=\"display:block;width:100%;max-height:320px;object-fit:cover;border-radius:12px;margin:0 0 14px;border:1px solid #e5ebf3;\">",
+                        escape_html(src)
+                    ));
+                }
+            }
+            out.push_str(&format!(
+                "<p style=\"margin:0 0 12px;font-size:14px;line-height:1.65;\"><strong style=\"color:#0f172a;\">Суть.</strong> {}</p>",
+                escape_html(&remove_em_dash(&event.summary))
+            ));
+            out.push_str(&format!(
+                "<p style=\"margin:0 0 12px;font-size:14px;line-height:1.65;\"><strong style=\"color:#0f172a;\">Последствия.</strong> {}</p>",
+                escape_html(&remove_em_dash(&event.consequences))
+            ));
+            out.push_str("<div style=\"margin-top:14px;padding:14px 16px;background:#f8fafc;border:1px solid #e5ebf3;border-radius:14px;\">");
+            out.push_str("<div style=\"font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7b8a9e;font-weight:700;\">Источники</div>");
+            out.push_str("<ul style=\"margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.6;color:#526175;\">");
+            for source in &event.sources {
+                let date = source
+                    .published_at
+                    .map(|d| format_dt(d, run))
+                    .unwrap_or_else(|| "дата не указана".to_string());
+                let external = items
+                    .get(&source.item_id)
+                    .map(|i| i.external_id.clone())
+                    .unwrap_or_default();
+                let link = if let Some(href) = safe_href(&source.url) {
+                    format!(
+                        "<a href=\"{}\" style=\"color:#2563eb;text-decoration:none;\">{}</a>",
+                        escape_html(href),
+                        escape_html(&remove_em_dash(&source.source_name))
+                    )
+                } else {
+                    escape_html(&remove_em_dash(&source.source_name))
+                };
+                out.push_str(&format!(
+                    "<li style=\"margin:0 0 6px;\">{} — {}, {}{}</li>",
+                    link,
+                    escape_html(&date),
+                    escape_html(&source.url),
+                    if external.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", ID {}", escape_html(&external))
+                    }
+                ));
+            }
+            out.push_str("</ul></div>");
+            out.push_str(&format!(
+                "<div style=\"margin-top:14px;padding:12px 14px;background:#eef4ff;border-left:3px solid #2563eb;border-radius:0 10px 10px 0;font-size:13px;line-height:1.6;color:#334155;\"><strong style=\"color:#1d4ed8;\">Обоснование.</strong> {}</div>",
+                escape_html(&remove_em_dash(&event.justification))
+            ));
+            out.push_str("</div>");
+        }
+        out.push_str("</div>");
     }
 
+    out.push_str("<div style=\"padding:18px 34px;background:#f8fafc;border-top:1px solid #e5ebf3;color:#7b8a9e;font-size:11px;line-height:1.6;\">Сформировано автоматически сервисом CyberBug. Проверяйте первоисточники перед принятием решений.</div>");
     out.push_str("</div></body></html>");
     out
 }

@@ -36,6 +36,7 @@ pub struct RawArticle {
     pub url: String,
     pub published_at: Option<DateTime<Utc>>,
     pub date_confirmed: bool,
+    pub image_url: Option<String>,
 }
 
 pub async fn read_dataset(
@@ -316,6 +317,7 @@ fn parse_json(
             url,
             published_at: parsed.value,
             date_confirmed: parsed.confirmed,
+            image_url: None,
         });
     }
     Ok(out)
@@ -390,6 +392,7 @@ fn parse_csv(
             url,
             published_at: parsed.value,
             date_confirmed: parsed.confirmed,
+            image_url: None,
         });
     }
     Ok(out)
@@ -418,6 +421,7 @@ fn parse_text_article(name: &str, source_name: &str, text: &str, tz: chrono_tz::
         url: String::new(),
         published_at: parsed.value,
         date_confirmed: parsed.confirmed,
+        image_url: None,
     }
 }
 
@@ -586,6 +590,7 @@ async fn fetch_rss_source(
         let mut page_title = title.clone();
         let mut published_at = published;
         let mut date_confirmed = published.is_some();
+        let mut image_url = None;
 
         if !link.is_empty() {
             match fetch_article_page(state, client, &link, allowed_hosts).await {
@@ -600,6 +605,7 @@ async fn fetch_rss_source(
                         published_at = Some(date);
                         date_confirmed = article.date_confirmed;
                     }
+                    image_url = article.image_url;
                 }
                 Err(error) => {
                     tracing::debug!(url = %link, error = %error, "article fetch failed, using feed summary");
@@ -621,6 +627,7 @@ async fn fetch_rss_source(
             url: link,
             published_at,
             date_confirmed,
+            image_url,
         });
     }
     Ok(())
@@ -860,6 +867,7 @@ async fn fetch_usergate_article(
         url: link.to_string(),
         published_at: parsed_date.value,
         date_confirmed: parsed_date.confirmed,
+        image_url: None,
     })
 }
 
@@ -1061,6 +1069,12 @@ pub fn parse_html_article(
         .and_then(|href| canonicalize_url(&href))
         .or_else(|| canonicalize_url(url))
         .unwrap_or_else(|| url.to_string());
+    let image_url = meta_content(&doc, "meta[property='og:image']")
+        .or_else(|| meta_content(&doc, "meta[property='og:image:url']"))
+        .or_else(|| meta_content(&doc, "meta[name='twitter:image']"))
+        .or_else(|| attr_of(&doc, "article img", "src"))
+        .and_then(|src| Url::parse(url).ok()?.join(&src).ok())
+        .and_then(|absolute| canonicalize_url(absolute.as_str()));
 
     RawArticle {
         external_id: if external_id.is_empty() {
@@ -1080,6 +1094,7 @@ pub fn parse_html_article(
         url: canonical,
         published_at: parsed.value,
         date_confirmed: parsed.confirmed,
+        image_url,
     }
 }
 

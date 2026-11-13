@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode, UIEvent } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -75,6 +75,19 @@ function statusClass(status: string): string {
     : 'queued';
 }
 
+function rootRunId(runId: string, byId: Map<string, RunSummary>): string {
+  let rootId = runId;
+  const seen = new Set([rootId]);
+  while (true) {
+    const parentId = byId.get(rootId)?.parent_run_id;
+    if (!parentId || seen.has(parentId) || !byId.has(parentId)) {
+      return rootId;
+    }
+    seen.add(parentId);
+    rootId = parentId;
+  }
+}
+
 export default function WorkspaceLayout({
   children,
   runs,
@@ -88,6 +101,36 @@ export default function WorkspaceLayout({
   onRenameRun,
   onNewQuery,
 }: WorkspaceLayoutProps) {
+  const sessions = useMemo(() => {
+    const byId = new Map(runs.map((run) => [run.id, run]));
+    const groups = new Map<string, { rootId: string; run: RunSummary }>();
+
+    for (const run of runs) {
+      const rootId = rootRunId(run.id, byId);
+      const current = groups.get(rootId);
+      if (
+        !current ||
+        new Date(run.created_at).getTime() > new Date(current.run.created_at).getTime()
+      ) {
+        groups.set(rootId, { rootId, run });
+      }
+    }
+
+    return [...groups.values()].sort(
+      (left, right) =>
+        new Date(right.run.created_at).getTime() -
+        new Date(left.run.created_at).getTime(),
+    );
+  }, [runs]);
+
+  const activeSessionId = useMemo(() => {
+    if (!activeRunId) {
+      return null;
+    }
+    const byId = new Map(runs.map((run) => [run.id, run]));
+    return rootRunId(activeRunId, byId);
+  }, [activeRunId, runs]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openMenu, setOpenMenu] = useState<{
@@ -279,7 +322,7 @@ export default function WorkspaceLayout({
             <div className={cx(styles, "ws-sidebar-label")}>
               <span>Недавние сессии</span>
               <span>
-                {recordsLabel(runs.length)}
+                {recordsLabel(sessions.length)}
                 {hasMoreRuns ? '+' : ''}
               </span>
             </div>
@@ -296,12 +339,12 @@ export default function WorkspaceLayout({
               {!loadingRuns && runs.length === 0 && (
                 <span className={cx(styles, "ws-sidebar-note")}>Пока нет запусков</span>
               )}
-              {runs.map((run) => (
+              {sessions.map(({ rootId, run }) => (
                 <div
                   className={cx(styles, `ws-session${
-                    run.id === activeRunId ? ' ws-session--active' : ''
+                    rootId === activeSessionId ? ' ws-session--active' : ''
                   }`)}
-                  key={run.id}
+                  key={rootId}
                 >
                   <button
                     className={cx(styles, "ws-session-open")}

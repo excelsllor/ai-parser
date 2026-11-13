@@ -145,6 +145,8 @@ pub struct RunPolicies {
     pub injection_guard: bool,
     #[serde(default = "enabled_by_default")]
     pub neutral: bool,
+    #[serde(default)]
+    pub include_images: bool,
 }
 
 fn enabled_by_default() -> bool {
@@ -157,6 +159,7 @@ impl Default for RunPolicies {
             dedup: true,
             injection_guard: true,
             neutral: true,
+            include_images: false,
         }
     }
 }
@@ -405,6 +408,8 @@ pub struct EventAttributes {
     pub systems: Vec<String>,
     #[serde(default)]
     pub date_unconfirmed: bool,
+    #[serde(default)]
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

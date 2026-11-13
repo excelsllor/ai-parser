@@ -286,6 +286,7 @@ pub(crate) async fn process_items_collected(
             "injection_snippet": injection,
             "ad_suspected": ad,
             "source_trust": item.analysis.get("source_trust").cloned().unwrap_or_else(|| json!("unknown")),
+            "image_url": item.analysis.get("image_url").cloned().unwrap_or_else(|| json!(null)),
         });
         db::insert_item(&state.pool, &item).await?;
 

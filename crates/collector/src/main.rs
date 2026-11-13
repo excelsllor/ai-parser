@@ -183,20 +183,32 @@ async fn collect(
     state: &CollectorState,
     event: &RunStartedEvent,
 ) -> AppResult<(usize, Vec<extract::SourceFetchError>)> {
-    let (articles, source_errors) = if event.mode == "file" {
+    let mut articles = Vec::new();
+    let mut source_errors = Vec::new();
+
+    if event.mode == "file" {
         let dir = event
             .dataset_dir
             .as_deref()
             .ok_or_else(|| AppError::BadRequest("dataset_dir is required for file mode".into()))?;
-        extract::read_dataset(
+        let (mut from_files, mut file_errors) = extract::read_dataset(
             std::path::Path::new(dir),
             &state.config.data_dir,
             state.config.max_articles_per_run,
         )
-        .await?
-    } else {
-        extract::collect_live(state, &event.sources).await?
-    };
+        .await?;
+        articles.append(&mut from_files);
+        source_errors.append(&mut file_errors);
+    }
+
+    // A file dataset no longer excludes live sources: selected sources are
+    // collected in addition to the uploaded files.
+    if event.mode != "file" || !event.sources.is_empty() {
+        let (mut from_sources, mut source_fetch_errors) =
+            extract::collect_live(state, &event.sources).await?;
+        articles.append(&mut from_sources);
+        source_errors.append(&mut source_fetch_errors);
+    }
 
     let mut count = 0;
     for article in articles.into_iter().take(state.config.max_articles_per_run) {
@@ -230,6 +242,7 @@ async fn collect(
                 "injection_detected": injection.is_some(),
                 "injection_snippet": injection,
                 "source_trust": source_trust,
+                "image_url": article.image_url,
             }),
             created_at: Utc::now(),
         };

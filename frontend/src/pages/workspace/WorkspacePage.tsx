@@ -10,6 +10,7 @@ import {
   AlertCircleIcon,
   BoltIcon,
   CheckIcon,
+  FormatGuide,
   InfoIcon,
   ListNumberedIcon,
   RssIcon,
@@ -36,6 +37,49 @@ const NEWS_COUNTS = [
   { value: 7 },
   { value: 10 },
 ] as const;
+
+type DatasetFormat = 'json' | 'jsonl' | 'csv' | 'text' | 'zip';
+
+const DATASET_FORMATS: Record<DatasetFormat, { label: string; example: string }> = {
+  json: {
+    label: 'JSON',
+    example: `{
+  "items": [
+    {
+      "id": "news-1",
+      "title": "Заголовок новости",
+      "text": "Полный текст публикации",
+      "url": "https://example.com/news/1",
+      "source": "Название источника",
+      "published_at": "2026-11-12T10:00:00+03:00"
+    }
+  ]
+}`,
+  },
+  jsonl: {
+    label: 'JSONL',
+    example: `{"id":"news-1","title":"Заголовок","text":"Текст","url":"https://example.com/news/1","source":"Источник","published_at":"2026-11-12T10:00:00+03:00"}
+{"id":"news-2","title":"Заголовок 2","text":"Текст 2","url":"https://example.com/news/2","source":"Источник","published_at":"2026-11-12T11:00:00+03:00"}`,
+  },
+  csv: {
+    label: 'CSV',
+    example: `id,title,text,url,source,published_at
+news-1,Заголовок,Текст,https://example.com/news/1,Источник,2026-11-12T10:00:00+03:00`,
+  },
+  text: {
+    label: 'TXT / MD / HTML',
+    example: `Один материал на файл.
+Название файла может использоваться как заголовок.
+Поддерживаются .txt, .md и .html.`,
+  },
+  zip: {
+    label: 'ZIP',
+    example: `ZIP-архив с любыми из поддерживаемых файлов:
+JSON, JSONL, CSV, TXT, MD или HTML.`,
+  },
+};
+
+
 
 function formatEstimate(seconds: number): string {
   if (seconds <= 0) {
@@ -65,6 +109,7 @@ export default function WorkspacePage() {
 
   const [intervalHours, setIntervalHours] = useState(24);
   const [newsCount, setNewsCount] = useState(5);
+  const [includeImages, setIncludeImages] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
@@ -72,6 +117,7 @@ export default function WorkspacePage() {
   const [controlTime, setControlTime] = useState<string | undefined>();
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [datasetFormat, setDatasetFormat] = useState<DatasetFormat>('json');
 
   const enabledSources = useMemo(
     () => sources.filter((source) => source.enabled),
@@ -189,7 +235,7 @@ export default function WorkspacePage() {
     setSubmitError(null);
 
     if (selectedSources.size === 0 && files.length === 0) {
-      setSubmitError('Выберите источники или загрузите файлы датасета.');
+      setSubmitError('Выберите источники и/или загрузите файлы датасета.');
       return;
     }
 
@@ -197,11 +243,17 @@ export default function WorkspacePage() {
     try {
       const run = await createRun({
         mode: files.length > 0 ? 'file' : 'live',
-        sources: files.length > 0 ? [] : [...selectedSources],
+        sources: [...selectedSources],
         files,
         controlTime,
         intervalHours,
         maxItems: newsCount,
+        policies: {
+          dedup: true,
+          injection_guard: true,
+          neutral: true,
+          include_images: includeImages,
+        },
       });
       navigate(`/runs/${run.id}`);
     } catch (error) {
@@ -351,7 +403,6 @@ export default function WorkspacePage() {
                   >
                     <span className={cx(styles, "ws-source-dot")} />
                     <span>{source.name}</span>
-                    <span className={cx(styles, "ws-source-badge")}>{source.trust}</span>
                   </button>
                 );
               })}
@@ -423,10 +474,36 @@ export default function WorkspacePage() {
                 Контрольное время из датасета: {new Date(controlTime).toLocaleString('ru-RU')}
               </span>
             )}
+            <FormatGuide
+              title="Форматы файлов"
+              formats={(Object.keys(DATASET_FORMATS) as DatasetFormat[]).map((format) => ({
+                id: format,
+                label: DATASET_FORMATS[format].label,
+                example: DATASET_FORMATS[format].example,
+              }))}
+              value={datasetFormat}
+              onChange={(value) => setDatasetFormat(value as DatasetFormat)}
+              note="Можно загрузить один или несколько файлов. ZIP распаковывается автоматически."
+            />
           </section>
         </div>
 
         <div className={cx(styles, "ws-card-footer")}>
+          <button
+            className={cx(styles, `ws-media-toggle ws-media-toggle--bare${
+              includeImages ? ' ws-media-toggle--on' : ''
+            }`)}
+            type="button"
+            role="switch"
+            aria-checked={includeImages}
+            title="Добавлять изображение из первоисточника, если оно есть"
+            onClick={() => setIncludeImages((value) => !value)}
+          >
+            <span className={cx(styles, "ws-media-toggle-track")}>
+              <span className={cx(styles, "ws-media-toggle-thumb")} />
+            </span>
+            <span>Изображения</span>
+          </button>
           <div className={cx(styles, "ws-submit-block")}>
             <span className={cx(styles, "ws-estimate")}>
               Примерное время:{' '}
@@ -434,8 +511,10 @@ export default function WorkspacePage() {
                 {selectedCount === 0
                   ? files.length > 0
                     ? 'анализ по загруженным файлам'
-                    : 'выберите источники или файлы'
-                  : formatEstimate(estimatedSeconds)}
+                    : 'выберите источники и/или файлы'
+                  : files.length > 0
+                    ? `${formatEstimate(estimatedSeconds)} + файлы`
+                    : formatEstimate(estimatedSeconds)}
               </strong>
             </span>
             <button
@@ -444,7 +523,7 @@ export default function WorkspacePage() {
               disabled={!canSubmit}
               title={
                 selectedCount === 0 && files.length === 0
-                  ? 'Выберите источник или загрузите файлы'
+                  ? 'Выберите источник и/или загрузите файлы'
                   : undefined
               }
             >
