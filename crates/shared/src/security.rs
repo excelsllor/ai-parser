@@ -20,7 +20,7 @@ pub async fn security_headers(request: Request<axum::body::Body>, next: Next) ->
         .or_insert(HeaderValue::from_static(
             "default-src 'self'; \
              script-src 'self' 'sha256-0QByiwckHM2UCphp5K1A0jZOeeMw9uouubKhB8hUEAk='; \
-             style-src 'self'; img-src 'self' data:; connect-src 'self'; \
+             style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; \
              frame-ancestors 'none'; base-uri 'self'; form-action 'self'; \
              object-src 'none'",
         ));
@@ -200,9 +200,9 @@ pub fn validate_username(username: &str) -> AppResult<()> {
 }
 
 pub fn validate_password(password: &str) -> AppResult<()> {
-    if password.len() < 10 {
+    if password.len() < 8 {
         return Err(AppError::Validation(
-            "password must be at least 10 characters".into(),
+            "password must be at least 8 characters".into(),
         ));
     }
     if password.len() > 256 {

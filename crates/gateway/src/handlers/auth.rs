@@ -13,7 +13,7 @@ use news_shared::db;
 use news_shared::error::{AppError, AppResult};
 use news_shared::models::{LoginRequest, LoginResponse, RefreshRequest, User, UserResponse};
 use news_shared::security::{validate_password, validate_username};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -34,12 +34,143 @@ pub async fn status(State(state): State<AppState>) -> AppResult<Json<serde_json:
     Ok(Json(json!({ "initialized": count > 0 })))
 }
 
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum LoginResult {
+    Session(LoginResponse),
+    TwoFactor {
+        two_factor_required: bool,
+        challenge: String,
+    },
+}
+
+async fn two_factor_global(state: &AppState) -> AppResult<bool> {
+    Ok(db::get_setting(&state.pool, "two_factor_enabled")
+        .await?
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false))
+}
+
+fn generate_code() -> String {
+    let (token, _) = new_refresh_token();
+    let value = u32::from_str_radix(&token[..8], 16).unwrap_or(0);
+    format!("{:06}", value % 1_000_000)
+}
+
+async fn send_code(
+    state: &AppState,
+    recipient: &str,
+    code: &str,
+    purpose: &str,
+) -> AppResult<()> {
+    let (title, intro, note) = match purpose {
+        "enable" => (
+            "Подключение двухфакторной защиты",
+            "Вы включаете двухфакторную аутентификацию в CyberBug. Введите код ниже, чтобы подтвердить включение.",
+            "Код действует 10 минут. Если вы не включали 2FA, просто проигнорируйте письмо.",
+        ),
+        "disable" => (
+            "Отключение двухфакторной защиты",
+            "Вы отключаете двухфакторную аутентификацию в CyberBug. Введите код ниже, чтобы подтвердить отключение.",
+            "Код действует 10 минут. Если вы не отключали 2FA, просто проигнорируйте письмо.",
+        ),
+        _ => (
+            "Подтверждение входа",
+            "Вы входите в CyberBug. Введите код ниже, чтобы завершить вход.",
+            "Код действует 10 минут. Если вы не пытались войти, смените пароль.",
+        ),
+    };
+    let html = email::render_code_email(&email::CodeEmail {
+        title,
+        intro,
+        code,
+        note,
+    })?;
+    email::send_html(state, recipient, "Код подтверждения CyberBug", &html).await
+}
+
+async fn create_two_factor_code(
+    pool: &PgPool,
+    user_id: Uuid,
+    purpose: &str,
+) -> AppResult<String> {
+    let code = generate_code();
+    sqlx::query("DELETE FROM two_factor_codes WHERE user_id = $1 AND purpose = $2")
+        .bind(user_id)
+        .bind(purpose)
+        .execute(pool)
+        .await?;
+    sqlx::query(
+        "INSERT INTO two_factor_codes (user_id, purpose, code_hash, expires_at)
+         VALUES ($1, $2, $3, now() + interval '10 minutes')",
+    )
+    .bind(user_id)
+    .bind(purpose)
+    .bind(hash_token(&code))
+    .execute(pool)
+    .await?;
+    Ok(code)
+}
+
+async fn consume_two_factor_code(
+    pool: &PgPool,
+    user_id: Uuid,
+    purpose: &str,
+    code: &str,
+) -> AppResult<bool> {
+    let row: Option<(Uuid,)> = sqlx::query_as(
+        "UPDATE two_factor_codes SET used_at = now()
+         WHERE user_id = $1 AND purpose = $2 AND code_hash = $3
+           AND used_at IS NULL AND expires_at > now()
+         RETURNING id",
+    )
+    .bind(user_id)
+    .bind(purpose)
+    .bind(hash_token(code.trim()))
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.is_some())
+}
+
+async fn begin_two_factor_login(
+    state: &AppState,
+    user: &User,
+    email: &str,
+) -> AppResult<String> {
+    let code = create_two_factor_code(&state.pool, user.id, "login").await?;
+    let (ticket, ticket_hash) = new_refresh_token();
+    sqlx::query("DELETE FROM two_factor_challenges WHERE user_id = $1")
+        .bind(user.id)
+        .execute(&state.pool)
+        .await?;
+    sqlx::query(
+        "INSERT INTO two_factor_challenges (user_id, ticket_hash, expires_at)
+         VALUES ($1, $2, now() + interval '10 minutes')",
+    )
+    .bind(user.id)
+    .bind(ticket_hash)
+    .execute(&state.pool)
+    .await?;
+    send_code(state, email, &code, "login").await?;
+    Ok(ticket)
+}
+
+async fn two_factor_recipient(user: &User) -> AppResult<String> {
+    user.email
+        .as_deref()
+        .filter(|_| user.email_verified_at.is_some())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            AppError::Validation("подтвердите адрес электронной почты, чтобы использовать 2FA".into())
+        })
+}
+
 pub async fn login(
     State(state): State<AppState>,
     Extension(ClientIp(ip)): Extension<ClientIp>,
     headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
-) -> AppResult<Json<LoginResponse>> {
+) -> AppResult<Json<LoginResult>> {
     let _ = &headers;
     let key = format!("ratelimit:login:{ip}");
     let allowed = state.redis.rate_limit(&key, 10, 60).await.unwrap_or(true);
@@ -85,8 +216,218 @@ pub async fn login(
         return Err(AppError::Unauthorized("invalid credentials".into()));
     }
 
+    if user.two_factor_enabled && two_factor_global(&state).await? {
+        if let Some(email) = user
+            .email
+            .as_deref()
+            .filter(|_| user.email_verified_at.is_some())
+        {
+            let challenge = begin_two_factor_login(&state, &user, email).await?;
+            return Ok(Json(LoginResult::TwoFactor {
+                two_factor_required: true,
+                challenge,
+            }));
+        }
+    }
+
     let session = issue_session(&state, &user, ip, "auth.login.success").await?;
-    Ok(Json(session))
+    Ok(Json(LoginResult::Session(session)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TwoFactorLoginRequest {
+    pub challenge: String,
+    pub code: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TwoFactorCodeRequest {
+    pub code: String,
+}
+
+pub async fn login_two_factor(
+    State(state): State<AppState>,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<TwoFactorLoginRequest>,
+) -> AppResult<Json<LoginResult>> {
+    let key = format!("ratelimit:login2fa:{ip}");
+    let allowed = state.redis.rate_limit(&key, 20, 60).await.unwrap_or(true);
+    if !allowed {
+        return Err(AppError::RateLimited(
+            "too many login attempts, try again later".into(),
+        ));
+    }
+
+    let ticket_hash = hash_token(payload.challenge.trim());
+    let row: Option<(Uuid,)> = sqlx::query_as(
+        "SELECT user_id FROM two_factor_challenges
+         WHERE ticket_hash = $1 AND used_at IS NULL AND expires_at > now()",
+    )
+    .bind(&ticket_hash)
+    .fetch_optional(&state.pool)
+    .await?;
+    let Some((user_id,)) = row else {
+        return Err(AppError::Unauthorized(
+            "invalid or expired confirmation code".into(),
+        ));
+    };
+
+    let user: Option<User> =
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND is_active = TRUE")
+            .bind(user_id)
+            .fetch_optional(&state.pool)
+            .await?;
+    let Some(user) = user else {
+        return Err(AppError::Unauthorized(
+            "invalid or expired confirmation code".into(),
+        ));
+    };
+
+    if !consume_two_factor_code(&state.pool, user.id, "login", &payload.code).await? {
+        let _ = write_audit(
+            &state.pool,
+            &AuditRecord::new(
+                Some(user.id),
+                user.username.clone(),
+                "auth.login.failed",
+                "auth",
+                json!({"reason": "invalid_2fa_code"}),
+                ip,
+            ),
+        )
+        .await;
+        return Err(AppError::Unauthorized(
+            "invalid or expired confirmation code".into(),
+        ));
+    }
+
+    sqlx::query("UPDATE two_factor_challenges SET used_at = now() WHERE ticket_hash = $1")
+        .bind(&ticket_hash)
+        .execute(&state.pool)
+        .await?;
+
+    let session = issue_session(&state, &user, ip, "auth.login.2fa").await?;
+    Ok(Json(LoginResult::Session(session)))
+}
+
+pub async fn two_factor_status(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    Ok(Json(json!({
+        "available": two_factor_global(&state).await?,
+        "enabled": current.two_factor_enabled,
+        "email_verified": current.email.is_some() && current.email_verified_at.is_some(),
+    })))
+}
+
+pub async fn two_factor_setup(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<serde_json::Value>> {
+    if !two_factor_global(&state).await? {
+        return Err(AppError::BadRequest(
+            "two-factor authentication is disabled".into(),
+        ));
+    }
+    let current = fetch_user(&state.pool, user.id).await?;
+    let email = two_factor_recipient(&current).await?;
+    let code = create_two_factor_code(&state.pool, current.id, "enable").await?;
+    send_code(&state, &email, &code, "enable").await?;
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn two_factor_enable(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<TwoFactorCodeRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    if !two_factor_global(&state).await? {
+        return Err(AppError::BadRequest(
+            "two-factor authentication is disabled".into(),
+        ));
+    }
+    let current = fetch_user(&state.pool, user.id).await?;
+    let _ = two_factor_recipient(&current).await?;
+    if !consume_two_factor_code(&state.pool, current.id, "enable", &payload.code).await? {
+        return Err(AppError::Validation(
+            "invalid or expired confirmation code".into(),
+        ));
+    }
+    sqlx::query("UPDATE users SET two_factor_enabled = TRUE, updated_at = now() WHERE id = $1")
+        .bind(current.id)
+        .execute(&state.pool)
+        .await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(current.id),
+            current.username.clone(),
+            "auth.2fa.enable",
+            "auth",
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn two_factor_disable_setup(
+    State(state): State<AppState>,
+    user: AuthUser,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    if !current.two_factor_enabled {
+        return Err(AppError::BadRequest(
+            "two-factor authentication is not enabled".into(),
+        ));
+    }
+    let email = two_factor_recipient(&current).await?;
+    let code = create_two_factor_code(&state.pool, current.id, "disable").await?;
+    send_code(&state, &email, &code, "disable").await?;
+    Ok(Json(json!({"ok": true})))
+}
+
+pub async fn two_factor_disable(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<TwoFactorCodeRequest>,
+) -> AppResult<Json<serde_json::Value>> {
+    let current = fetch_user(&state.pool, user.id).await?;
+    if !consume_two_factor_code(&state.pool, current.id, "disable", &payload.code).await? {
+        return Err(AppError::Validation(
+            "invalid or expired confirmation code".into(),
+        ));
+    }
+    sqlx::query("UPDATE users SET two_factor_enabled = FALSE, updated_at = now() WHERE id = $1")
+        .bind(current.id)
+        .execute(&state.pool)
+        .await?;
+    sqlx::query("DELETE FROM two_factor_codes WHERE user_id = $1")
+        .bind(current.id)
+        .execute(&state.pool)
+        .await?;
+    sqlx::query("DELETE FROM two_factor_challenges WHERE user_id = $1")
+        .bind(current.id)
+        .execute(&state.pool)
+        .await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(current.id),
+            current.username.clone(),
+            "auth.2fa.disable",
+            "auth",
+            json!({}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"ok": true})))
 }
 
 #[derive(Debug, Deserialize)]
@@ -112,7 +453,7 @@ pub struct TokenRequest {
     pub token: String,
 }
 
-fn normalize_email(raw: Option<String>) -> AppResult<Option<String>> {
+pub(crate) fn normalize_email(raw: Option<String>) -> AppResult<Option<String>> {
     match raw {
         None => Ok(None),
         Some(value) => {
@@ -145,12 +486,9 @@ async fn send_email_link(
     state: &AppState,
     recipient: &str,
     subject: &str,
-    link: &str,
-    intro: &str,
+    content: email::ActionEmail<'_>,
 ) -> AppResult<()> {
-    let html = format!(
-        "<p>{intro}</p><p><a href=\"{link}\">{link}</a></p><p>Ссылка действует 30 минут.</p>"
-    );
+    let html = email::render_action_email(&content)?;
     email::send_html(state, recipient, subject, &html).await
 }
 
@@ -198,8 +536,13 @@ pub async fn register(
                 &send_state,
                 &recipient,
                 "Подтверждение почты в CyberBug",
-                &link,
-                "Подтвердите адрес электронной почты в CyberBug.",
+                email::ActionEmail {
+                    title: "Подтвердите почту",
+                    intro: "Спасибо за регистрацию в CyberBug. Нажмите кнопку ниже, чтобы подтвердить адрес электронной почты.",
+                    button: "Подтвердить почту",
+                    link: &link,
+                    note: "Ссылка действует 30 минут. Если вы не регистрировались в CyberBug, просто проигнорируйте это письмо.",
+                },
             )
             .await
             {
@@ -244,8 +587,13 @@ pub async fn forgot_password(
                 &send_state,
                 &email,
                 "Восстановление пароля в CyberBug",
-                &link,
-                "Вы запросили восстановление пароля в CyberBug.",
+                email::ActionEmail {
+                    title: "Сброс пароля",
+                    intro: "Вы запросили восстановление пароля в CyberBug. Нажмите кнопку ниже, чтобы создать новый пароль.",
+                    button: "Создать новый пароль",
+                    link: &link,
+                    note: "Ссылка действует 30 минут. Если вы не запрашивали сброс пароля, пароль останется прежним — просто проигнорируйте это письмо.",
+                },
             )
             .await
             {
@@ -319,8 +667,13 @@ pub async fn request_email_verification(
             &send_state,
             &recipient,
             "Подтверждение почты в CyberBug",
-            &link,
-            "Подтвердите адрес электронной почты в CyberBug.",
+            email::ActionEmail {
+                title: "Подтвердите почту",
+                intro: "Нажмите кнопку ниже, чтобы подтвердить адрес электронной почты в CyberBug.",
+                button: "Подтвердить почту",
+                link: &link,
+                note: "Ссылка действует 30 минут. Если вы не запрашивали подтверждение, просто проигнорируйте это письмо.",
+            },
         )
         .await
         {

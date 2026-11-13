@@ -1075,6 +1075,7 @@ pub async fn update_user_profile(
     sqlx::query_as::<_, User>(
         "UPDATE users SET display_name = $1, email = $2,
          email_verified_at = CASE WHEN email IS DISTINCT FROM $2 THEN NULL ELSE email_verified_at END,
+         two_factor_enabled = CASE WHEN email IS DISTINCT FROM $2 THEN FALSE ELSE two_factor_enabled END,
          updated_at = now()
          WHERE id = $3 RETURNING *",
     )
@@ -1088,7 +1089,7 @@ pub async fn update_user_profile(
 
 pub async fn set_user_email(pool: &PgPool, user_id: Uuid, email: Option<&str>) -> AppResult<()> {
     sqlx::query(
-        "UPDATE users SET email = $1, email_verified_at = NULL, updated_at = now() WHERE id = $2",
+        "UPDATE users SET email = $1, email_verified_at = NULL, two_factor_enabled = FALSE, updated_at = now() WHERE id = $2",
     )
     .bind(email)
     .bind(user_id)

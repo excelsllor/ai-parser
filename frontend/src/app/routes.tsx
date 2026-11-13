@@ -33,6 +33,14 @@ function RequireAuth({ children }: { children: ReactElement }) {
   return children;
 }
 
+function GuestOnly({ children }: { children: ReactElement }) {
+  if (getAccessToken()) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 function RequireAdmin({ children }: { children: ReactElement }) {
   if (getCurrentUser()?.role !== 'admin') {
     return <Navigate to="/" replace />;
@@ -45,8 +53,8 @@ export default function AppRoutes() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/register" element={<AuthPage />} />
+        <Route path="/login" element={<GuestOnly><AuthPage /></GuestOnly>} />
+        <Route path="/register" element={<GuestOnly><AuthPage /></GuestOnly>} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />

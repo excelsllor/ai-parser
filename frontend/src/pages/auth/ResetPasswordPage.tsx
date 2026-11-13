@@ -25,8 +25,8 @@ export default function ResetPasswordPage() {
       setError('Ссылка не содержит токен.');
       return;
     }
-    if (password.length < 10) {
-      setError('Пароль должен содержать не менее 10 символов.');
+    if (password.length < 8) {
+      setError('Пароль должен содержать не менее 8 символов.');
       return;
     }
     if (password !== confirm) {

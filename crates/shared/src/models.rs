@@ -88,6 +88,7 @@ pub struct User {
     pub display_name: String,
     pub email: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
+    pub two_factor_enabled: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -557,6 +558,7 @@ pub struct UserResponse {
     pub display_name: String,
     pub email: Option<String>,
     pub email_verified_at: Option<DateTime<Utc>>,
+    pub two_factor_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -570,6 +572,7 @@ impl From<User> for UserResponse {
             display_name: value.display_name,
             email: value.email,
             email_verified_at: value.email_verified_at,
+            two_factor_enabled: value.two_factor_enabled,
             created_at: value.created_at,
         }
     }

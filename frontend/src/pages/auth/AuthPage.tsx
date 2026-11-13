@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { login, register, saveSession, startOAuth, fetchAuthProviders } from '@api/auth';
+import { login, loginTwoFactor, register, saveSession, startOAuth, fetchAuthProviders } from '@api/auth';
 import { ApiError } from '@api/http';
 import vkLogo from '@assets/providers/vk.svg';
 import yandexButton from '@assets/providers/yandex-button-content.svg';
@@ -52,6 +52,8 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const [providers, setProviders] = useState<ProviderAvailability | null>(null);
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
@@ -108,6 +110,7 @@ export default function AuthPage() {
     previousPanelHeight.current = authPanelRef.current?.offsetHeight ?? null;
     setError(null);
     setNotice(null);
+    setChallenge(null);
     navigate(next === 'register' ? '/register' : '/login');
   }
 
@@ -124,6 +127,12 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const session = await login(username.trim(), password);
+      if ('two_factor_required' in session) {
+        setChallenge(session.challenge);
+        setTwoFactorCode('');
+        setNotice('Мы отправили код подтверждения на вашу почту.');
+        return;
+      }
       saveSession(session, remember);
       navigate('/', { replace: true });
     } catch (caught) {
@@ -135,6 +144,33 @@ export default function AuthPage() {
         );
       } else {
         setError('Не удалось войти. Проверьте соединение с сервером.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleTwoFactor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!challenge || !twoFactorCode.trim()) {
+      setError('Введите код из письма.');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const session = await loginTwoFactor(challenge, twoFactorCode.trim());
+      saveSession(session, remember);
+      navigate('/', { replace: true });
+    } catch (caught) {
+      if (caught instanceof ApiError) {
+        setError(
+          caught.status === 401
+            ? 'Неверный или просроченный код.'
+            : caught.message,
+        );
+      } else {
+        setError('Не удалось проверить код. Попробуйте ещё раз.');
       }
     } finally {
       setLoading(false);
@@ -154,8 +190,8 @@ export default function AuthPage() {
       setError('Имя пользователя должно содержать не менее 3 символов.');
       return;
     }
-    if (password.length < 10) {
-      setError('Пароль должен содержать не менее 10 символов.');
+    if (password.length < 8) {
+      setError('Пароль должен содержать не менее 8 символов.');
       return;
     }
     if (password !== confirmPassword) {
@@ -268,6 +304,54 @@ export default function AuthPage() {
 
             <div className={cx(styles, "auth-panel")} ref={authPanelRef}>
               {tab === 'login' ? (
+                challenge ? (
+                  <form className={cx(styles, "auth-form")} onSubmit={handleTwoFactor} noValidate>
+                    <div className={cx(styles, "auth-field")}>
+                      <label className={cx(styles, "auth-label")} htmlFor="login-code">
+                        Код из письма
+                      </label>
+                      <div className={cx(styles, "auth-control")}>
+                        <span className={cx(styles, "auth-control-icon")}>
+                          <LockIcon />
+                        </span>
+                        <input
+                          className={cx(styles, "auth-input")}
+                          id="login-code"
+                          name="code"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          placeholder="6 цифр"
+                          value={twoFactorCode}
+                          onChange={(event) => setTwoFactorCode(event.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <p className={cx(styles, "auth-hint")}>
+                      Введите код, отправленный на почту. Он действует 10 минут.
+                    </p>
+
+                    <button className={cx(styles, "auth-submit")} type="submit" disabled={loading}>
+                      <span>{loading ? 'Проверяем…' : 'Подтвердить вход'}</span>
+                      <ArrowRightIcon className={cx(styles, "auth-submit-icon")} />
+                    </button>
+
+                    <button
+                      className={cx(styles, "auth-link")}
+                      type="button"
+                      onClick={() => {
+                        setChallenge(null);
+                        setTwoFactorCode('');
+                        setNotice(null);
+                        setError(null);
+                      }}
+                    >
+                      Назад ко входу
+                    </button>
+                  </form>
+                ) : (
                 <form className={cx(styles, "auth-form")} onSubmit={handleLogin} noValidate>
                 <div className={cx(styles, "auth-field")}>
                   <label className={cx(styles, "auth-label")} htmlFor="login-username">
@@ -343,7 +427,8 @@ export default function AuthPage() {
                   <ArrowRightIcon className={cx(styles, "auth-submit-icon")} />
                 </button>
               </form>
-            ) : (
+                )
+              ) : (
               <form className={cx(styles, "auth-form")} onSubmit={handleRegister} noValidate>
                 <div className={cx(styles, "auth-field")}>
                   <label className={cx(styles, "auth-label")} htmlFor="register-username">

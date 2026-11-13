@@ -20,6 +20,7 @@ rust-version = "1.99"
 
 [workspace.dependencies]
 anyhow = "1"
+askama = "0.12"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["multipart", "macros"] }
 base64 = "0.22"

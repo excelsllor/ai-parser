@@ -594,6 +594,10 @@
   margin-top: 16px;
 }
 
+.pf-card-body > .pf-profile-strip + .pf-form {
+  margin-top: 16px;
+}
+
 .pf-input-wrap {
   position: relative;
   display: flex;
@@ -1284,4 +1288,71 @@ body .pf-avatar {
 @keyframes motion-soft-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
+}
+
+.pf-2fa-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--ws-border);
+  border-radius: 10px;
+  background: var(--ws-bg);
+}
+
+.pf-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 24px;
+  margin-top: 1px;
+  padding: 0;
+  border: 1px solid var(--ws-border);
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.pf-switch--on {
+  border-color: var(--ws-primary);
+  background: var(--ws-primary);
+}
+
+.pf-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
+  transition: transform 0.18s ease;
+}
+
+.pf-switch--on .pf-switch-thumb {
+  transform: translateX(20px);
+}
+
+.pf-switch:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pf-2fa-toggle span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pf-2fa-toggle strong {
+  color: var(--ws-text-strong);
+  font-size: 13px;
+}
+
+.pf-2fa-toggle small {
+  color: var(--ws-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }

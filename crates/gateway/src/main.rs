@@ -84,6 +84,10 @@ fn build_router(state: AppState) -> Router {
             post(handlers::oauth::callback),
         )
         .route("/api/auth/login", post(handlers::auth::login))
+        .route(
+            "/api/auth/login/2fa",
+            post(handlers::auth::login_two_factor),
+        )
         .route("/api/auth/register", post(handlers::auth::register))
         .route(
             "/api/auth/password/forgot",
@@ -124,6 +128,26 @@ fn build_router(state: AppState) -> Router {
         .route(
             "/api/auth/email/request",
             post(handlers::auth::request_email_verification),
+        )
+        .route(
+            "/api/auth/2fa/status",
+            get(handlers::auth::two_factor_status),
+        )
+        .route(
+            "/api/auth/2fa/setup",
+            post(handlers::auth::two_factor_setup),
+        )
+        .route(
+            "/api/auth/2fa/disable/setup",
+            post(handlers::auth::two_factor_disable_setup),
+        )
+        .route(
+            "/api/auth/2fa/enable",
+            post(handlers::auth::two_factor_enable),
+        )
+        .route(
+            "/api/auth/2fa/disable",
+            post(handlers::auth::two_factor_disable),
         )
         .route("/api/auth/sessions", get(handlers::auth::list_sessions))
         .route(

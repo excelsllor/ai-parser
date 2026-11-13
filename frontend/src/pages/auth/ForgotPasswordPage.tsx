@@ -26,7 +26,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       await forgotPassword(email.trim());
-      setMessage('Письмо уже отправлено. Проверьте вашу почту и папку «Спам».');
+      setMessage(
+        'Если аккаунт с такой почтой существует, то на него придет письмо со ссылкой для сброса пароля.',
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось отправить письмо.');
     } finally {

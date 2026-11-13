@@ -8,6 +8,7 @@ export interface CurrentUser {
   display_name: string;
   email: string | null;
   email_verified_at: string | null;
+  two_factor_enabled: boolean;
   created_at: string;
 }
 
@@ -58,10 +59,67 @@ const ACCESS_TOKEN_KEY = 'cd_access_token';
 const REFRESH_TOKEN_KEY = 'cd_refresh_token';
 const USER_KEY = 'cd_user';
 
-export function login(username: string, password: string): Promise<LoginResponse> {
-  return request<LoginResponse>('/auth/login', {
+export interface TwoFactorChallenge {
+  two_factor_required: true;
+  challenge: string;
+}
+
+export interface TwoFactorStatus {
+  available: boolean;
+  enabled: boolean;
+  email_verified: boolean;
+}
+
+export function login(
+  username: string,
+  password: string,
+): Promise<LoginResponse | TwoFactorChallenge> {
+  return request<LoginResponse | TwoFactorChallenge>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
+  });
+}
+
+export function loginTwoFactor(challenge: string, code: string): Promise<LoginResponse> {
+  return request<LoginResponse>('/auth/login/2fa', {
+    method: 'POST',
+    body: JSON.stringify({ challenge, code }),
+  });
+}
+
+export function getTwoFactorStatus(): Promise<TwoFactorStatus> {
+  return request<TwoFactorStatus>('/auth/2fa/status', {
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+  });
+}
+
+export function setupTwoFactor(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/2fa/setup', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+  });
+}
+
+export function enableTwoFactor(code: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/2fa/enable', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function setupTwoFactorDisable(): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/2fa/disable/setup', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+  });
+}
+
+export function disableTwoFactor(code: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/2fa/disable', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    body: JSON.stringify({ code }),
   });
 }
 

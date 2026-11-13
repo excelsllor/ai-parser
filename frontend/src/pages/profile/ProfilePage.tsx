@@ -4,17 +4,23 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   changePassword,
+  disableTwoFactor,
+  enableTwoFactor,
+  forgotPassword,
   getCurrentUser,
   getMe,
+  getTwoFactorStatus,
   listSessions,
   requestEmailVerification,
   logout,
   revokeOtherSessions,
   revokeSession,
+  setupTwoFactor,
+  setupTwoFactorDisable,
   updateProfile,
   verifyCurrentEmail,
 } from '@api/auth';
-import type { CurrentUser, ProfileSession } from '@api/auth';
+import type { CurrentUser, ProfileSession, TwoFactorStatus } from '@api/auth';
 import { AppHeader } from '@components';
 import {
   AlternateEmailIcon,
@@ -36,6 +42,7 @@ import {
 } from '@components/ui';
 
 import { cx } from '@utils/cx';
+import { useToast } from '@context/ToastContext';
 
 import workspaceStyles from '@components/workspace/workspace.module.css';
 import profileStyles from './ProfilePage.module.css';
@@ -105,6 +112,13 @@ export default function ProfilePage() {
   const [emailVerifying, setEmailVerifying] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [resetSending, setResetSending] = useState(false);
+  const { pushToast } = useToast();
+  const [twoFactor, setTwoFactor] = useState<TwoFactorStatus | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorStage, setTwoFactorStage] = useState<'idle' | 'code' | 'disable'>('idle');
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState('');
   const [currentEmail, setCurrentEmail] = useState('');
@@ -122,7 +136,10 @@ export default function ProfilePage() {
 
     void (async () => {
       try {
-        const [user, sessionList] = await Promise.all([getMe(), listSessions()]);
+        const [user, sessionList] = await Promise.all([
+          getMe(),
+          listSessions(),
+        ]);
         if (active) {
           setMe(user);
           setSessions(sessionList);
@@ -140,6 +157,7 @@ export default function ProfilePage() {
             display_name: '',
             email: null,
             email_verified_at: null,
+            two_factor_enabled: false,
             created_at: '',
           });
         }
@@ -149,6 +167,18 @@ export default function ProfilePage() {
         }
       }
     })();
+
+    void getTwoFactorStatus()
+      .then((status) => {
+        if (active) {
+          setTwoFactor(status);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setTwoFactor(null);
+        }
+      });
 
     return () => {
       active = false;
@@ -297,8 +327,8 @@ export default function ProfilePage() {
     }
     if (!newPassword) {
       errors.password_new = 'Введите новый пароль.';
-    } else if (newPassword.length < 10) {
-      errors.password_new = 'Минимум 10 символов.';
+    } else if (newPassword.length < 8) {
+      errors.password_new = 'Минимум 8 символов.';
     } else if (
       !/[A-Za-zА-Яа-я]/.test(newPassword) ||
       !/\d/.test(newPassword)
@@ -331,8 +361,8 @@ export default function ProfilePage() {
         setFieldErrors({ password_current: 'Текущий пароль неверен.' });
       } else {
         setFieldErrors({
-          password_new: message.includes('at least 10')
-            ? 'Минимум 10 символов.'
+          password_new: message.includes('at least 8')
+            ? 'Минимум 8 символов.'
             : message.includes('letter')
               ? 'Используйте хотя бы одну букву и одну цифру.'
               : message,
@@ -340,6 +370,90 @@ export default function ProfilePage() {
       }
     } finally {
       setPasswordSaving(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!me?.email) {
+      pushToast('error', 'К аккаунту не привязана почта.');
+      return;
+    }
+    setResetSending(true);
+    try {
+      await forgotPassword(me.email);
+      pushToast(
+        'success',
+        `Ссылка для сброса пароля отправлена на ${maskEmail(me.email)}.`,
+      );
+    } catch (caught) {
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось отправить письмо.',
+      );
+    } finally {
+      setResetSending(false);
+    }
+  }
+
+  async function handleTwoFactorToggle() {
+    if (!twoFactor || twoFactorBusy) {
+      return;
+    }
+    setTwoFactorError(null);
+    setTwoFactorBusy(true);
+    try {
+      if (twoFactor.enabled) {
+        await setupTwoFactorDisable();
+        setTwoFactorStage('disable');
+        setNotice('Код для отключения отправлен на почту.');
+      } else {
+        await setupTwoFactor();
+        setTwoFactorStage('code');
+        setNotice('Код подтверждения отправлен на почту.');
+      }
+    } catch (caught) {
+      setTwoFactorError(
+        caught instanceof Error
+          ? caught.message
+          : 'Не удалось изменить настройку 2FA.',
+      );
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }
+
+  async function handleTwoFactorConfirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!twoFactorCode.trim()) {
+      setTwoFactorError('Введите код из письма.');
+      return;
+    }
+    setTwoFactorBusy(true);
+    setTwoFactorError(null);
+    try {
+      const disabling = twoFactorStage === 'disable';
+      if (disabling) {
+        await disableTwoFactor(twoFactorCode.trim());
+      } else {
+        await enableTwoFactor(twoFactorCode.trim());
+      }
+      setTwoFactor((current) => (current ? { ...current, enabled: !disabling } : current));
+      setMe((current) =>
+        current ? { ...current, two_factor_enabled: !disabling } : current,
+      );
+      setTwoFactorStage('idle');
+      setTwoFactorCode('');
+      setNotice(
+        disabling
+          ? 'Двухфакторная аутентификация отключена.'
+          : 'Двухфакторная аутентификация включена.',
+      );
+    } catch (caught) {
+      setTwoFactorError(
+        caught instanceof Error ? caught.message : 'Неверный или просроченный код.',
+      );
+    } finally {
+      setTwoFactorBusy(false);
     }
   }
 
@@ -660,6 +774,115 @@ export default function ProfilePage() {
             </div>
           </details>
 
+          {twoFactor?.available && (
+            <details className={cx(styles, "pf-card")}>
+              <summary className={cx(styles, "pf-card-head")}>
+                <span className={cx(styles, "pf-card-head-left")}>
+                  <span className={cx(styles, "pf-card-icon")}>
+                    <VerifiedUserIcon />
+                  </span>
+                  <span>
+                    <strong>Двухфакторная аутентификация</strong>
+                    <small>Код подтверждения на почту после ввода пароля</small>
+                  </span>
+                </span>
+                <ChevronDownIcon className={cx(styles, "pf-chevron")} />
+              </summary>
+
+              <div className={cx(styles, "pf-card-body")}>
+                <div className={cx(styles, "pf-2fa-toggle")}>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={twoFactor.enabled}
+                    aria-label="Запрашивать код при входе"
+                    className={cx(
+                      styles,
+                      `pf-switch${twoFactor.enabled ? ' pf-switch--on' : ''}`,
+                    )}
+                    disabled={
+                      !twoFactor.email_verified ||
+                      twoFactorBusy ||
+                      twoFactorStage !== 'idle'
+                    }
+                    onClick={() => void handleTwoFactorToggle()}
+                  >
+                    <span className={cx(styles, "pf-switch-thumb")} />
+                  </button>
+                  <span>
+                    <strong>Запрашивать код при входе</strong>
+                    <small>
+                      {twoFactor.enabled
+                        ? 'Включена. После пароля потребуется код из письма.'
+                        : 'Выключена. Вход выполняется только по паролю.'}
+                    </small>
+                  </span>
+                </div>
+
+                {!twoFactor.email_verified && (
+                  <p className={cx(styles, "pf-readonly-note")}>
+                    Сначала подтвердите адрес электронной почты — код 2FA отправляется
+                    на него.
+                  </p>
+                )}
+
+                {twoFactorStage !== 'idle' && (
+                  <form
+                    className={cx(styles, "pf-form")}
+                    onSubmit={handleTwoFactorConfirm}
+                  >
+                    <label className={cx(styles, "pf-field")}>
+                      <span>Код из письма</span>
+                      <div className={cx(styles, "pf-input-wrap")}>
+                        <LockIcon className={cx(styles, "pf-input-icon")} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          placeholder="6 цифр"
+                          value={twoFactorCode}
+                          onChange={(event) => setTwoFactorCode(event.target.value)}
+                        />
+                      </div>
+                    </label>
+                    <div className={cx(styles, "pf-form-actions")}>
+                      <button
+                        className={cx(styles, "pf-button pf-button--ghost")}
+                        type="button"
+                        onClick={() => {
+                          setTwoFactorStage('idle');
+                          setTwoFactorCode('');
+                          setTwoFactorError(null);
+                        }}
+                      >
+                        Отмена
+                      </button>
+                      <button
+                        className={cx(styles, "pf-button pf-button--primary")}
+                        type="submit"
+                        disabled={twoFactorBusy}
+                      >
+                        <VerifiedUserIcon />
+                        {twoFactorBusy
+                          ? 'Проверяем…'
+                          : twoFactorStage === 'disable'
+                            ? 'Подтвердить отключение'
+                            : 'Подтвердить включение'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {twoFactorError && (
+                  <p className={cx(styles, "pf-field-error")} role="alert">
+                    {twoFactorError}
+                  </p>
+                )}
+              </div>
+            </details>
+          )}
+
           <details className={cx(styles, "pf-card")}>
             <summary className={cx(styles, "pf-card-head")}>
               <span className={cx(styles, "pf-card-head-left")}>
@@ -683,11 +906,17 @@ export default function ProfilePage() {
                 >
                   <span className={cx(styles, "pf-label-row")}>
                     Текущий пароль
-                    <button className={cx(styles, "pf-link")} type="button" onClick={() => setNotice('Восстановление пароля пока не подключено.')}>
-                      Забыли пароль?
+                    <button
+                      className={cx(styles, "pf-link")}
+                      type="button"
+                      disabled={resetSending}
+                      onClick={() => void handleForgotPassword()}
+                    >
+                      {resetSending ? 'Отправляем…' : 'Забыли пароль?'}
                     </button>
                   </span>
                   <div className={cx(styles, "pf-input-wrap")}>
+                    <KeyIcon className={cx(styles, "pf-input-icon")} />
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
                       placeholder="Введите текущий пароль"
@@ -721,7 +950,7 @@ export default function ProfilePage() {
                     <KeyIcon className={cx(styles, "pf-input-icon")} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
-                      placeholder="Минимум 10 символов"
+                      placeholder="Минимум 8 символов"
                       value={newPassword}
                       aria-invalid={Boolean(fieldErrors.password_new)}
                       onChange={(event) => setNewPassword(event.target.value)}
@@ -756,9 +985,9 @@ export default function ProfilePage() {
                     ))}
                   </div>
                   <div className={cx(styles, "pf-strength-hints")}>
-                    <span className={cx(styles, newPassword.length >= 10 ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
+                    <span className={cx(styles, newPassword.length >= 8 ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
-                      Минимум 10 символов
+                      Минимум 8 символов
                     </span>
                     <span className={cx(styles, /[A-ZА-Я]/.test(newPassword) && /[a-zа-я]/.test(newPassword) ? 'pf-hint pf-hint--ok' : 'pf-hint')}>
                       <CheckCircleIcon />
