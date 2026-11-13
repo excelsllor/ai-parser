@@ -101,7 +101,7 @@ export default function UserMenu() {
               Администрирование
             </button>
           )}
-          <button className={cx(styles, "ws-user-menu-item")} type="button" onClick={() => void handleLogout()}>
+          <button className={cx(styles, "ws-user-menu-item ws-user-menu-item--danger")} type="button" onClick={() => void handleLogout()}>
             <LogoutIcon />
             Выйти
           </button>

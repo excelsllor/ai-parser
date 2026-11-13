@@ -1,0 +1,116 @@
+.arcade-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px dashed var(--ws-border-strong, #cbd5e1);
+  border-radius: 12px;
+  background: var(--ws-bg, #f8fafc);
+}
+
+.arcade-hud {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 400px;
+  max-width: 100%;
+  gap: 8px;
+}
+
+.arcade-hud span {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ws-soft, #94a3b8);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.arcade-hud em {
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arcade-hud strong {
+  color: var(--ws-text-strong, #0f172a);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.arcade-hud-match {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+  gap: 6px;
+  text-align: center;
+}
+
+.arcade-hud-match strong {
+  color: var(--ws-primary, #2563eb);
+  font-size: 16px;
+}
+
+.arcade-stage {
+  position: relative;
+  width: 400px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--ws-paper, #ffffff);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
+}
+
+.arcade-canvas {
+  display: block;
+  width: 400px;
+  height: auto;
+  max-width: 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.arcade-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.arcade-copy strong {
+  color: var(--ws-text-strong, #0f172a);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.arcade-copy span {
+  max-width: 420px;
+  color: var(--ws-muted, #64748b);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.arcade-score {
+  color: var(--ws-soft, #94a3b8) !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px !important;
+}
+
+.arcade-game,
+.arcade-stage {
+  animation: motion-fade-in var(--motion-base) ease both;
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

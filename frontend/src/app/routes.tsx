@@ -16,6 +16,7 @@ import AdminUsersPage from '@pages/admin/AdminUsersPage';
 import AuthPage from '@pages/auth/AuthPage';
 import ForgotPasswordPage from '@pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '@pages/auth/ResetPasswordPage';
+import GamesPage from '@pages/games/GamesPage';
 import VerifyEmailPage from '@pages/auth/VerifyEmailPage';
 import SharedRunPage from '@pages/share/SharedRunPage';
 import VkCallbackPage from '@pages/auth/VkCallbackPage';
@@ -65,6 +66,14 @@ export default function AppRoutes() {
           element={
             <RequireAuth>
               <RunPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/games"
+          element={
+            <RequireAuth>
+              <GamesPage />
             </RequireAuth>
           }
         />

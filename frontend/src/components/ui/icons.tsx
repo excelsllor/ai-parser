@@ -55,6 +55,7 @@ export {
   MdMonitorHeart as MonitorHeartIcon,
   MdMoreVert as MoreIcon,
   MdUploadFile as UploadIcon,
+  MdSportsEsports as GameIcon,
 } from 'react-icons/md';
 
 export { TbPlayerStopFilled as StopIcon } from 'react-icons/tb';

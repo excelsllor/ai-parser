@@ -1,0 +1,106 @@
+.loader-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.loader-game-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.loader-game-tabs {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--ws-paper, #ffffff);
+}
+
+.loader-game-tab {
+  position: relative;
+  z-index: 1;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ws-muted, #64748b);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.loader-game-tab:hover {
+  color: var(--ws-primary, #2563eb);
+}
+
+.loader-game-tab--active,
+.loader-game-tab--active:hover {
+  color: #ffffff;
+}
+
+.loader-game-tab-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--ws-primary, #2563eb);
+  transition:
+    transform 0.28s cubic-bezier(0.65, 0, 0.35, 1),
+    width 0.28s cubic-bezier(0.65, 0, 0.35, 1),
+    height 0.28s cubic-bezier(0.65, 0, 0.35, 1),
+    opacity 0.2s ease;
+}
+
+.loader-game-autoplay {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--ws-paper, #ffffff);
+  color: var(--ws-muted, #64748b);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.loader-game-autoplay:hover {
+  border-color: var(--ws-primary, #2563eb);
+  color: var(--ws-primary, #2563eb);
+}
+
+.loader-game-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ws-soft, #94a3b8);
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.loader-game-autoplay--on .loader-game-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
