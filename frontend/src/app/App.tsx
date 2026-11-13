@@ -1,7 +1,10 @@
-import AppRoutes from '@app/routes'
+import AppRoutes from '@app/routes';
+import { ToastProvider } from '@context/ToastContext';
 
 export default function App() {
   return (
-    <AppRoutes />
-  )
+    <ToastProvider>
+      <AppRoutes />
+    </ToastProvider>
+  );
 }
