@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import { getAdminSettings, getLlmCalls, getLlmModels, putAdminSetting } from '@api/admin';
@@ -62,7 +62,7 @@ export default function AdminLlmPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
-  async function loadModels(url: string) {
+  const loadModels = useCallback(async (url: string) => {
     setModelsLoading(true);
     setModelsError(null);
     try {
@@ -78,9 +78,9 @@ export default function AdminLlmPage() {
     } finally {
       setModelsLoading(false);
     }
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -101,12 +101,12 @@ export default function AdminLlmPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [loadModels]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [load]);
 
   const stats = useMemo(() => {
     const inputTokens = calls.reduce((sum, call) => sum + call.input_tokens, 0);

@@ -92,6 +92,7 @@ export default function GamesPage() {
               </div>
             </div>
             <ArcadeGame
+              key={game}
               game={game}
               message=""
               hint="Играет сама, но управление можно перехватить."

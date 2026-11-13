@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import {
@@ -9,21 +9,15 @@ import {
 } from '@components/ui';
 import { cx } from '@utils/cx';
 
+import { ToastContext } from './toast';
+import type { ToastType } from './toast';
 import styles from './ToastContext.module.css';
-
-export type ToastType = 'success' | 'error' | 'info';
 
 interface ToastItem {
   id: number;
   type: ToastType;
   message: string;
 }
-
-interface ToastContextValue {
-  pushToast: (type: ToastType, message: string) => void;
-}
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 const ICONS = {
   success: CheckCircleIcon,
@@ -79,12 +73,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastContextValue {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used inside ToastProvider');
-  }
-  return context;
 }

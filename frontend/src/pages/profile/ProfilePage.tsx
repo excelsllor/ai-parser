@@ -42,7 +42,7 @@ import {
 } from '@components/ui';
 
 import { cx } from '@utils/cx';
-import { useToast } from '@context/ToastContext';
+import { useToast } from '@context/toast';
 
 import workspaceStyles from '@components/workspace/workspace.module.css';
 import profileStyles from './ProfilePage.module.css';

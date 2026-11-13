@@ -1,58 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 import { cx } from '@utils/cx';
 import { readBestScore, saveBestScore } from '@utils/gameScores';
 import type { GameId } from '@utils/gameScores';
 
+import { ARCADE_GAME_LABELS } from './arcadeGames';
+import type { ArcadeGameId } from './arcadeGames';
 import styles from './ArcadeGame.module.css';
-
-export type ArcadeGameId =
-  | 'snake'
-  | 'dino'
-  | '2048'
-  | 'arkanoid'
-  | 'flappy'
-  | 'pong'
-  | 'tetris'
-  | 'tictactoe'
-  | 'wordle';
-
-export const ARCADE_GAME_IDS: ArcadeGameId[] = [
-  'snake',
-  'dino',
-  '2048',
-  'arkanoid',
-  'flappy',
-  'pong',
-  'tetris',
-  'tictactoe',
-  'wordle',
-];
-
-export const ARCADE_GAME_LABELS: Record<ArcadeGameId, string> = {
-  snake: 'Змейка',
-  dino: 'Кибер-динозаврик',
-  '2048': '2048',
-  arkanoid: 'Арканоид',
-  flappy: 'Flappy-логотип',
-  pong: 'Пинг-понг',
-  tetris: 'Тетрис',
-  tictactoe: 'Крестики-нолики',
-  wordle: 'Wordle',
-};
-
-export const ARCADE_GAME_CONTROLS: Record<ArcadeGameId, string> = {
-  snake: 'Стрелки',
-  dino: 'Пробел / тап',
-  '2048': 'Стрелки',
-  arkanoid: 'Стрелки / мышь',
-  flappy: 'Пробел / тап',
-  pong: '↑ / ↓',
-  tetris: 'Стрелки / пробел',
-  tictactoe: 'Клик',
-  wordle: 'Клавиатура',
-};
 
 interface ArcadeGameProps {
   game: ArcadeGameId;
@@ -2341,23 +2296,24 @@ export default function ArcadeGame({
   const autoPlayRef = useRef(true);
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(() => readBestScore(game));
+  const scoreRef = useRef(0);
+  const bestRef = useRef(best);
   const [autoPlaying, setAutoPlaying] = useState(true);
   const [match, setMatch] = useState<string | null>(null);
 
-  useEffect(() => {
-    setBest(readBestScore(game));
-    setScore(0);
-    setMatch(null);
-    autoPlayRef.current = true;
-    setAutoPlaying(true);
-  }, [game]);
-
-  useEffect(() => {
-    if (score > best) {
-      setBest(score);
-      saveBestScore(game as GameId, score);
-    }
-  }, [score, best, game]);
+  const updateScore = useCallback<Dispatch<SetStateAction<number>>>(
+    (value) => {
+      const next = typeof value === 'function' ? value(scoreRef.current) : value;
+      scoreRef.current = next;
+      setScore(next);
+      if (next > bestRef.current) {
+        bestRef.current = next;
+        setBest(next);
+        saveBestScore(game as GameId, next);
+      }
+    },
+    [game],
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -2371,7 +2327,6 @@ export default function ArcadeGame({
       return;
     }
     autoPlayRef.current = autoPlay;
-    setAutoPlaying(autoPlay);
   }, [autoPlay]);
 
   useEffect(() => {
@@ -2387,8 +2342,8 @@ export default function ArcadeGame({
     const logo = new Image();
     logo.src = LOGO;
     ctx.setTransform(CANVAS_SCALE, 0, 0, CANVAS_SCALE, 0, 0);
-    return SETUPS[game]({ ctx, logo, autoPlayRef, setScore, setMatch });
-  }, [game]);
+    return SETUPS[game]({ ctx, logo, autoPlayRef, setScore: updateScore, setMatch });
+  }, [game, updateScore]);
 
   return (
     <div className={cx(styles, 'arcade-game')} role="status" aria-live="polite">
