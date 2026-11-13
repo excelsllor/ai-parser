@@ -37,6 +37,16 @@ struct AnalyzedItem {
     analysis: LlmItemAnalysis,
 }
 
+#[derive(Clone)]
+struct AnalysisContext {
+    run_id: Uuid,
+    llm_base_url: String,
+    llm_api_key: Option<String>,
+    model: String,
+    prompt_version: String,
+    policies: RunPolicies,
+}
+
 #[tokio::main]
 async fn main() -> AppResult<()> {
     let config = Arc::new(Config::from_env()?);
@@ -141,28 +151,19 @@ pub(crate) async fn process_items_normalized(
         .collect::<Vec<_>>();
 
     let concurrency = state.config.llm.concurrency.max(1);
+    let context = AnalysisContext {
+        run_id: event.run_id,
+        llm_base_url,
+        llm_api_key,
+        model: run.model.clone(),
+        prompt_version: run.prompt_version.clone(),
+        policies,
+    };
     let analyzed = futures::stream::iter(normalized)
         .map(|item| {
             let state = state.clone();
-            let run_id = event.run_id;
-            let prompt_version = run.prompt_version.clone();
-            let model = run.model.clone();
-            let llm_base_url = llm_base_url.clone();
-            let llm_api_key = llm_api_key.clone();
-            let policies = policies.clone();
-            async move {
-                analyze_item(
-                    state,
-                    run_id,
-                    llm_base_url,
-                    llm_api_key,
-                    model,
-                    prompt_version,
-                    policies,
-                    item,
-                )
-                .await
-            }
+            let context = context.clone();
+            async move { analyze_item(state, context, item).await }
         })
         .buffer_unordered(concurrency)
         .collect::<Vec<AppResult<AnalyzedItem>>>()
@@ -448,14 +449,17 @@ async fn handle(state: AnalystState, payload: serde_json::Value) -> AppResult<()
 
 async fn analyze_item(
     state: AnalystState,
-    run_id: Uuid,
-    llm_base_url: String,
-    llm_api_key: Option<String>,
-    model: String,
-    prompt_version: String,
-    policies: RunPolicies,
+    context: AnalysisContext,
     item: Item,
 ) -> AppResult<AnalyzedItem> {
+    let AnalysisContext {
+        run_id,
+        llm_base_url,
+        llm_api_key,
+        model,
+        prompt_version,
+        policies,
+    } = context;
     let text = truncate_chars(&item.clean_text, state.config.max_article_chars);
     let published = item
         .published_at

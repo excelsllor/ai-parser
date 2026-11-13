@@ -162,6 +162,7 @@ mod tests {
             dedup: true,
             injection_guard: false,
             neutral: false,
+            include_images: false,
         });
         assert!(!prompt.contains("недоверенные данные"));
         assert!(!prompt.contains("Отделяй сведения"));

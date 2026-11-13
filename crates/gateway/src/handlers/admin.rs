@@ -711,13 +711,12 @@ pub async fn put_setting(
             .ok_or_else(|| AppError::Validation("smtp port is invalid".into()))?;
         let _ = port;
     }
-    if payload.key == "smtp_tls" || payload.key == "smtp_starttls" {
-        if !payload.value.is_boolean() {
-            return Err(AppError::Validation(format!(
-                "{} must be a boolean",
-                payload.key
-            )));
-        }
+    if (payload.key == "smtp_tls" || payload.key == "smtp_starttls") && !payload.value.is_boolean()
+    {
+        return Err(AppError::Validation(format!(
+            "{} must be a boolean",
+            payload.key
+        )));
     }
     if payload.key == "smtp_from" || payload.key == "smtp_test_recipient" {
         let address = payload
