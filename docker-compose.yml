@@ -60,6 +60,7 @@ services:
     restart: unless-stopped
 
   kafka:
+    profiles: ["kafka"]
     image: apache/kafka:3.9.0
     container_name: service-kafka
     environment:
@@ -152,6 +153,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
       mailpit:
         condition: service_started
     healthcheck:
@@ -207,6 +209,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
 
   normalizer:
     <<: *common
@@ -218,6 +221,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
 
   analyst:
     <<: *common
@@ -231,6 +235,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
 
   critic:
     <<: *common
@@ -242,6 +247,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
 
   reporter:
     <<: *common
@@ -253,6 +259,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+        required: false
 
   caddy:
     image: caddy:2-alpine

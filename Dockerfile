@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
-FROM rust:1.99-bookworm AS builder
+FROM rust:1.99-bookworm AS chef
+RUN cargo install cargo-chef --version 0.1.78 --locked
+WORKDIR /app
+
+FROM chef AS planner
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -11,11 +20,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY --from=planner /app/recipe.json recipe.json
+
+# Compile dependencies in their own layer; source changes do not invalidate it.
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo chef cook --release --recipe-path recipe.json
+
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
     cargo build --locked --release --bins \
     && mkdir -p /out \
     && cp target/release/gateway target/release/collector target/release/normalizer \
