@@ -15,7 +15,8 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::handlers::auth::fetch_user;
+use crate::handlers::auth::{fetch_user, normalize_email};
+use crate::handlers::email;
 use crate::handlers::runs::Pagination;
 use crate::handlers::telegram::{validate_bot_token, validate_chat_id};
 use crate::middleware::{request_ip, ClientIp};
@@ -26,12 +27,14 @@ pub struct CreateUserRequest {
     pub username: String,
     pub password: String,
     pub role: Option<String>,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserRequest {
     pub role: Option<String>,
     pub is_active: Option<bool>,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -149,10 +152,20 @@ pub async fn create_user(
     validate_password(&payload.password)?;
     let role = payload.role.unwrap_or_else(|| "user".to_string());
     validate_role(&role)?;
+    let email = normalize_email(payload.email)?;
+    if let Some(email) = &email {
+        if db::find_user_by_email(&state.pool, email).await?.is_some() {
+            return Err(AppError::BadRequest("email already in use".into()));
+        }
+    }
 
     let hash = news_shared::auth::hash_password(&payload.password)?;
     let created =
         db::create_user(&state.pool, &payload.username.to_lowercase(), &hash, &role).await?;
+    if let Some(email) = &email {
+        db::set_user_email(&state.pool, created.id, Some(email)).await?;
+    }
+    let created = fetch_user(&state.pool, created.id).await?;
 
     let _ = write_audit(
         &state.pool,
@@ -161,7 +174,7 @@ pub async fn create_user(
             user.username.clone(),
             "admin.user.create",
             format!("user:{}", created.id),
-            json!({"username": created.username, "role": created.role}),
+            json!({"username": created.username, "role": created.role, "email": email}),
             ip,
         ),
     )
@@ -195,6 +208,17 @@ pub async fn update_user(
         }
         db::set_user_active(&state.pool, user_id, active).await?;
     }
+    if let Some(raw_email) = &payload.email {
+        let email = normalize_email(Some(raw_email.clone()))?;
+        if let Some(email) = &email {
+            if let Some(owner) = db::find_user_by_email(&state.pool, email).await? {
+                if owner.id != user_id {
+                    return Err(AppError::BadRequest("email already in use".into()));
+                }
+            }
+        }
+        db::set_user_email(&state.pool, user_id, email.as_deref()).await?;
+    }
     let updated = fetch_user(&state.pool, user_id).await?;
 
     let _ = write_audit(
@@ -204,13 +228,42 @@ pub async fn update_user(
             user.username.clone(),
             "admin.user.update",
             format!("user:{user_id}"),
-            json!({"role": payload.role, "is_active": payload.is_active}),
+            json!({"role": payload.role, "is_active": payload.is_active, "email": payload.email}),
             ip,
         ),
     )
     .await;
 
     Ok(Json(UserResponse::from(updated)))
+}
+
+pub async fn reset_user_password(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Path(user_id): Path<Uuid>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let target = fetch_user(&state.pool, user_id).await?;
+    let password = db::generate_password(20);
+    let hash = news_shared::auth::hash_password(&password)?;
+    db::set_user_password(&state.pool, user_id, &hash).await?;
+    db::revoke_all_user_sessions(&state.pool, user_id).await?;
+
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "admin.user.reset_password",
+            format!("user:{user_id}"),
+            json!({"username": target.username}),
+            ip,
+        ),
+    )
+    .await;
+
+    Ok(Json(json!({"password": password})))
 }
 
 pub async fn delete_user(
@@ -399,6 +452,17 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         "selection",
         "llm_base_url",
         "telegram_chat_id",
+        "telegram_chat_ids",
+        "telegram_send_to_subscribers",
+        "smtp_provider",
+        "smtp_host",
+        "smtp_port",
+        "smtp_username",
+        "smtp_from",
+        "smtp_test_recipient",
+        "smtp_tls",
+        "smtp_starttls",
+        "two_factor_enabled",
     ];
     let mut out = serde_json::Map::new();
     for key in keys {
@@ -431,16 +495,56 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
+    let mut telegram_chat_ids: Vec<String> = out
+        .get("telegram_chat_ids")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    if telegram_chat_ids.is_empty() && !telegram_chat_id.is_empty() {
+        telegram_chat_ids.push(telegram_chat_id.clone());
+    }
+    let telegram_send_to_subscribers = out
+        .get("telegram_send_to_subscribers")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     out.insert(
         "telegram_bot_token_set".to_string(),
         json!(telegram_token_configured),
     );
+    let llm_api_key_configured = db::get_setting(&state.pool, "llm_api_key")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .is_some();
+    out.insert("llm_api_key_set".to_string(), json!(llm_api_key_configured));
+    let two_factor_enabled = out
+        .get("two_factor_enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let weights = out
         .get("weights")
         .and_then(|value| {
             serde_json::from_value::<news_shared::config::ScoringWeights>(value.clone()).ok()
         })
         .unwrap_or_else(|| state.config.weights.clone());
+    let smtp = email::smtp_settings(&state).await?;
+    let smtp_provider = out
+        .get("smtp_provider")
+        .and_then(Value::as_str)
+        .unwrap_or("smtp")
+        .to_string();
+    out.insert(
+        "smtp_password_set".to_string(),
+        json!(!smtp.password.is_empty()),
+    );
     Ok(Json(json!({
         "settings": out,
         "effective": {
@@ -458,7 +562,21 @@ pub async fn get_settings(State(state): State<AppState>, user: AuthUser) -> AppR
             "telegram": {
                 "bot_configured": telegram_token_configured,
                 "chat_id": telegram_chat_id,
+                "chat_ids": telegram_chat_ids,
+                "send_to_subscribers": telegram_send_to_subscribers,
             },
+            "email": {
+                "provider": smtp_provider,
+                "host": smtp.host,
+                "port": smtp.port,
+                "username": smtp.username,
+                "from": smtp.from,
+                "test_recipient": smtp.test_recipient,
+                "tls": smtp.tls,
+                "starttls": smtp.starttls,
+                "password_set": !smtp.password.is_empty(),
+            },
+            "two_factor_enabled": two_factor_enabled,
             "env": state.config.env_name,
         }
     })))
@@ -484,7 +602,16 @@ pub async fn llm_models(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| state.config.llm.base_url.clone()),
     };
-    let models = state.llm.list_models_at(&base_url).await?;
+    let api_key = db::get_setting(&state.pool, "llm_api_key")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .or_else(|| state.config.llm.api_key.clone());
+    let models = state
+        .llm
+        .with_api_key(api_key)
+        .list_models_at(&base_url)
+        .await?;
     Ok(Json(json!({"base_url": base_url, "models": models})))
 }
 
@@ -501,11 +628,29 @@ pub async fn put_setting(
         "prompt_version",
         "selection",
         "llm_base_url",
+        "llm_api_key",
         "telegram_bot_token",
         "telegram_chat_id",
+        "telegram_chat_ids",
+        "telegram_send_to_subscribers",
+        "smtp_provider",
+        "smtp_host",
+        "smtp_port",
+        "smtp_username",
+        "smtp_password",
+        "smtp_from",
+        "smtp_test_recipient",
+        "smtp_tls",
+        "smtp_starttls",
+        "two_factor_enabled",
     ];
     if !allowed.contains(&payload.key.as_str()) {
         return Err(AppError::BadRequest("unknown setting".into()));
+    }
+    if payload.key == "two_factor_enabled" && !payload.value.is_boolean() {
+        return Err(AppError::Validation(
+            "two_factor_enabled must be a boolean".into(),
+        ));
     }
     if payload.key == "telegram_bot_token" {
         let token = payload
@@ -521,6 +666,80 @@ pub async fn put_setting(
             .ok_or_else(|| AppError::Validation("telegram chat id must be a string".into()))?;
         validate_chat_id(chat_id)?;
     }
+    if payload.key == "telegram_chat_ids" {
+        let chat_ids = payload.value.as_array().ok_or_else(|| {
+            AppError::Validation("telegram chat ids must be an array of strings".into())
+        })?;
+        for chat_id in chat_ids {
+            let chat_id = chat_id.as_str().ok_or_else(|| {
+                AppError::Validation("telegram chat ids must be an array of strings".into())
+            })?;
+            validate_chat_id(chat_id)?;
+        }
+    }
+    if payload.key == "telegram_send_to_subscribers"
+        && !payload.value.is_boolean()
+    {
+        return Err(AppError::Validation(
+            "telegram_send_to_subscribers must be a boolean".into(),
+        ));
+    }
+    if payload.key == "smtp_provider" {
+        let provider = payload
+            .value
+            .as_str()
+            .ok_or_else(|| AppError::Validation("smtp provider must be a string".into()))?;
+        if provider != "smtp" && provider != "mailpit" {
+            return Err(AppError::Validation(
+                "smtp provider must be smtp or mailpit".into(),
+            ));
+        }
+    }
+    if payload.key == "smtp_host" {
+        let host = payload
+            .value
+            .as_str()
+            .map(str::trim)
+            .filter(|host| !host.is_empty() && !host.contains("://"))
+            .ok_or_else(|| AppError::Validation("smtp host is invalid".into()))?;
+        let _ = host;
+    }
+    if payload.key == "smtp_port" {
+        let port = payload
+            .value
+            .as_u64()
+            .or_else(|| payload.value.as_str().and_then(|value| value.parse().ok()))
+            .filter(|port| (1..=65535).contains(port))
+            .ok_or_else(|| AppError::Validation("smtp port is invalid".into()))?;
+        let _ = port;
+    }
+    if payload.key == "smtp_tls" || payload.key == "smtp_starttls" {
+        if !payload.value.is_boolean() {
+            return Err(AppError::Validation(format!(
+                "{} must be a boolean",
+                payload.key
+            )));
+        }
+    }
+    if payload.key == "smtp_from" || payload.key == "smtp_test_recipient" {
+        let address = payload
+            .value
+            .as_str()
+            .map(str::trim)
+            .filter(|address| address.contains('@'))
+            .ok_or_else(|| AppError::Validation(format!("{} is invalid", payload.key)))?;
+        let _ = address;
+    }
+    if matches!(
+        payload.key.as_str(),
+        "smtp_username" | "smtp_password"
+    ) && !payload.value.is_string()
+    {
+        return Err(AppError::Validation(format!(
+            "{} must be a string",
+            payload.key
+        )));
+    }
     db::set_setting(&state.pool, &payload.key, payload.value.clone()).await?;
     let _ = write_audit(
         &state.pool,
@@ -535,6 +754,49 @@ pub async fn put_setting(
     )
     .await;
     Ok(Json(json!({"ok": true})))
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct TestEmailRequest {
+    pub to: Option<String>,
+}
+
+pub async fn test_email(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Json(payload): Json<TestEmailRequest>,
+) -> AppResult<Json<Value>> {
+    user.require_admin()?;
+    let settings = email::smtp_settings(&state).await?;
+    let recipient = payload
+        .to
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| settings.test_recipient.clone());
+    if !recipient.contains('@') {
+        return Err(AppError::Validation("invalid email recipient".into()));
+    }
+    email::send_html(
+        &state,
+        &recipient,
+        "Проверка SMTP",
+        "<p>SMTP настроен корректно. Это тестовое письмо от CyberBug.</p>",
+    )
+    .await?;
+    let _ = write_audit(
+        &state.pool,
+        &AuditRecord::new(
+            Some(user.id),
+            user.username.clone(),
+            "admin.email.test",
+            "email:smtp".to_string(),
+            json!({"to": recipient}),
+            ip,
+        ),
+    )
+    .await;
+    Ok(Json(json!({"sent": true, "to": recipient})))
 }
 
 pub async fn audit(
@@ -598,7 +860,16 @@ pub async fn debug_services(
         .and_then(|value| value.as_str().map(ToOwned::to_owned))
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| state.config.llm.base_url.clone());
-    let llm_ok = state.llm.health_at(&llm_base_url).await;
+    let llm_api_key = db::get_setting(&state.pool, "llm_api_key")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .or_else(|| state.config.llm.api_key.clone());
+    let llm_ok = state
+        .llm
+        .with_api_key(llm_api_key)
+        .health_at(&llm_base_url)
+        .await;
 
     Ok(Json(json!({
         "registry": news_shared::registry::read_services(&state.config.data_dir),

@@ -103,6 +103,12 @@ impl LlmClient {
         })
     }
 
+    pub fn with_api_key(&self, api_key: Option<String>) -> Self {
+        let mut client = self.clone();
+        client.config.api_key = api_key;
+        client
+    }
+
     pub async fn chat_json<T: DeserializeOwned>(
         &self,
         purpose: &str,

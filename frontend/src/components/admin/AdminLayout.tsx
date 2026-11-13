@@ -20,7 +20,7 @@ const TABS = [
   { to: '/admin', label: 'Обзор и метрики', icon: DashboardIcon, end: true },
   { to: '/admin/sources', label: 'Управление источниками', icon: RssIcon },
   { to: '/admin/llm', label: 'LLM', icon: BotIcon },
-  { to: '/admin/telegram', label: 'Telegram', icon: SendIcon },
+  { to: '/admin/mailings', label: 'Рассылки', icon: SendIcon },
   { to: '/admin/users', label: 'Пользователи и роли', icon: GroupIcon },
 ];
 

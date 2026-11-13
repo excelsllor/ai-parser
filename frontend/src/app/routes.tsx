@@ -106,7 +106,8 @@ export default function AppRoutes() {
           <Route index element={<AdminOverviewPage />} />
           <Route path="sources" element={<AdminSourcesPage />} />
           <Route path="llm" element={<AdminLlmPage />} />
-          <Route path="telegram" element={<AdminTelegramPage />} />
+          <Route path="telegram" element={<Navigate to="/admin/mailings" replace />} />
+          <Route path="mailings" element={<AdminTelegramPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="services" element={<Navigate to="/admin" replace />} />
         </Route>

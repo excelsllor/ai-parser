@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use axum::extract::{Extension, Path, State};
@@ -76,21 +77,66 @@ async fn bot_token(state: &AppState) -> AppResult<String> {
         .filter(|value| !value.is_empty())
         .ok_or_else(|| {
             AppError::BadRequest(
-                "Telegram bot is not configured. Add a bot token in Admin -> Telegram.".into(),
+                "Telegram bot is not configured. Add a bot token in Admin -> Рассылки.".into(),
             )
         })
 }
 
-async fn target_chat_id(state: &AppState) -> AppResult<String> {
-    db::get_setting(&state.pool, "telegram_chat_id")
+async fn target_chat_ids(state: &AppState) -> AppResult<Vec<String>> {
+    let mut chats = Vec::new();
+    let mut has_chat_ids = false;
+    if let Some(value) = db::get_setting(&state.pool, "telegram_chat_ids").await? {
+        has_chat_ids = true;
+        match value {
+            Value::Array(values) => {
+                chats.extend(
+                    values
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(ToOwned::to_owned),
+                );
+            }
+            Value::String(value) => {
+                chats.extend(
+                    value
+                        .split([',', '\n'])
+                        .map(str::trim)
+                        .filter(|value| !value.is_empty())
+                        .map(ToOwned::to_owned),
+                );
+            }
+            _ => {}
+        }
+    }
+    if !has_chat_ids && chats.is_empty() {
+        if let Some(value) = db::get_setting(&state.pool, "telegram_chat_id").await? {
+            if let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty()) {
+                chats.push(value.to_string());
+            }
+        }
+    }
+    let send_to_subscribers = db::get_setting(&state.pool, "telegram_send_to_subscribers")
         .await?
-        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            AppError::BadRequest(
-                "Telegram chat is not configured. Add a chat id in Admin -> Telegram.".into(),
-            )
-        })
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
+    if send_to_subscribers {
+        for subscriber in db::list_telegram_subscribers(&state.pool).await? {
+            if subscriber.is_active {
+                chats.push(subscriber.chat_id.to_string());
+            }
+        }
+    }
+    let mut seen = HashSet::new();
+    chats.retain(|chat| seen.insert(chat.clone()));
+    if chats.is_empty() {
+        return Err(AppError::BadRequest(
+            "Telegram chats are not configured. Add at least one chat in Admin -> Рассылки."
+                .into(),
+        ));
+    }
+    Ok(chats)
 }
 
 async fn call_api(
@@ -149,6 +195,102 @@ fn truncate_message(text: &str) -> String {
     truncated
 }
 
+fn escape_html(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+fn linkify_sources(text: &str) -> String {
+    let mut out = String::new();
+    for token in text.split_whitespace() {
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        if token.starts_with("http://") || token.starts_with("https://") {
+            let escaped = escape_html(token);
+            out.push_str(&format!("<a href=\"{escaped}\">{escaped}</a>"));
+        } else {
+            out.push_str(&escape_html(token));
+        }
+    }
+    out
+}
+
+fn numbered_title(line: &str) -> Option<(&str, &str)> {
+    let (number, rest) = line.split_once('.')?;
+    if number.is_empty()
+        || !number.chars().all(|character| character.is_ascii_digit())
+        || rest.trim().is_empty()
+    {
+        return None;
+    }
+    Some((number, rest.trim_start()))
+}
+
+fn format_post_for_telegram(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    let mut out = String::new();
+    let mut index = 0usize;
+    while index < lines.len() {
+        let line = lines[index];
+        if line.is_empty() {
+            index += 1;
+            continue;
+        }
+        if out.is_empty() {
+            out.push_str(&format!("<b>{}</b>\n\n", escape_html(line)));
+            index += 1;
+            continue;
+        }
+        if let Some(period) = line.strip_prefix("Период:") {
+            out.push_str(&format!("<i>Период:</i>{}\n\n", escape_html(period)));
+            index += 1;
+            continue;
+        }
+        if let Some((number, title)) = numbered_title(line) {
+            out.push_str(&format!("<b>{number}. {}</b>\n", escape_html(title)));
+            index += 1;
+            let mut summary = Vec::new();
+            while index < lines.len()
+                && !lines[index].is_empty()
+                && numbered_title(lines[index]).is_none()
+                && !lines[index].starts_with("Источники:")
+            {
+                summary.push(lines[index]);
+                index += 1;
+            }
+            if !summary.is_empty() {
+                out.push_str(&escape_html(&summary.join(" ")));
+                out.push('\n');
+            }
+            if index < lines.len() && lines[index].starts_with("Источники:") {
+                let sources = lines[index].trim_start_matches("Источники:").trim();
+                out.push_str("<i>Источники:</i> ");
+                out.push_str(&linkify_sources(sources));
+                out.push('\n');
+                index += 1;
+            }
+            out.push('\n');
+            continue;
+        }
+        out.push_str(&escape_html(line));
+        out.push('\n');
+        index += 1;
+    }
+    out.trim().to_string()
+}
+
+fn prepare_message(text: &str) -> String {
+    let formatted = format_post_for_telegram(text);
+    if formatted.chars().count() <= MAX_MESSAGE_CHARS {
+        formatted
+    } else {
+        truncate_message(&escape_html(text))
+    }
+}
+
 async fn send_message(
     state: &AppState,
     token: &str,
@@ -161,7 +303,8 @@ async fn send_message(
         "sendMessage",
         Some(json!({
             "chat_id": chat_id,
-            "text": truncate_message(text),
+            "text": prepare_message(text),
+            "parse_mode": "HTML",
             "disable_web_page_preview": true,
         })),
     )
@@ -177,12 +320,39 @@ pub async fn send_run(
     user.require_write()?;
     get_run_for_user(&state, &user, run_id).await?;
     let token = bot_token(&state).await?;
-    let chat_id = target_chat_id(&state).await?;
+    let chat_ids = target_chat_ids(&state).await?;
     let text = read_post_text(&state, run_id).await?;
-    let response = send_message(&state, &token, &chat_id, &text).await?;
-    let message_id = response
-        .pointer("/result/message_id")
-        .and_then(Value::as_i64);
+    let mut results = Vec::new();
+    let mut first_message_id = None;
+    let mut last_error = None;
+    for chat_id in &chat_ids {
+        match send_message(&state, &token, chat_id, &text).await {
+            Ok(response) => {
+                let message_id = response
+                    .pointer("/result/message_id")
+                    .and_then(Value::as_i64);
+                if first_message_id.is_none() {
+                    first_message_id = message_id;
+                }
+                results.push(json!({
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                }));
+            }
+            Err(error) => {
+                results.push(json!({
+                    "chat_id": chat_id,
+                    "error": error.to_string(),
+                }));
+                last_error = Some(error);
+            }
+        }
+    }
+    if results.iter().all(|result| result.get("error").is_some()) {
+        return Err(last_error.unwrap_or_else(|| {
+            AppError::BadRequest("Telegram send failed for all chats".into())
+        }));
+    }
 
     let _ = write_audit(
         &state.pool,
@@ -191,7 +361,7 @@ pub async fn send_run(
             user.username.clone(),
             "telegram.send",
             format!("run:{run_id}"),
-            json!({"chat_id": chat_id, "message_id": message_id}),
+            json!({"targets": results, "message_id": first_message_id}),
             ip,
         ),
     )
@@ -199,8 +369,8 @@ pub async fn send_run(
 
     Ok(Json(json!({
         "sent": true,
-        "chat_id": chat_id,
-        "message_id": message_id,
+        "targets": results,
+        "message_id": first_message_id,
     })))
 }
 

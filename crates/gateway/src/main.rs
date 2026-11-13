@@ -213,6 +213,10 @@ fn build_router(state: AppState) -> Router {
             put(handlers::admin::update_user).delete(handlers::admin::delete_user),
         )
         .route(
+            "/api/admin/users/{id}/reset-password",
+            post(handlers::admin::reset_user_password),
+        )
+        .route(
             "/api/admin/sources",
             get(handlers::admin::list_sources).post(handlers::admin::create_source),
         )
@@ -231,6 +235,10 @@ fn build_router(state: AppState) -> Router {
         .route(
             "/api/admin/settings",
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
+        )
+        .route(
+            "/api/admin/email/test",
+            post(handlers::admin::test_email),
         )
         .route("/api/admin/llm/models", get(handlers::admin::llm_models))
         .route(
@@ -363,7 +371,18 @@ fn spawn_health_sampler(state: AppState) {
                 .and_then(|value| value.as_str().map(ToOwned::to_owned))
                 .filter(|value| !value.trim().is_empty())
                 .unwrap_or_else(|| state.config.llm.base_url.clone());
-            let llm_ok = state.llm.health_at(&llm_base_url).await;
+            let llm_api_key = news_shared::db::get_setting(&state.pool, "llm_api_key")
+                .await
+                .ok()
+                .flatten()
+                .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+                .filter(|value| !value.is_empty())
+                .or_else(|| state.config.llm.api_key.clone());
+            let llm_ok = state
+                .llm
+                .with_api_key(llm_api_key)
+                .health_at(&llm_base_url)
+                .await;
             let registry = news_shared::registry::read_services(&state.config.data_dir);
             let registry_alive = registry.iter().filter(|service| service.alive).count();
 

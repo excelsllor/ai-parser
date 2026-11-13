@@ -7,6 +7,7 @@ import {
   putAdminSetting,
   setTelegramSubscriberActive,
   syncTelegramUsers,
+  testAdminEmail,
   testTelegramBot,
 } from '@api/admin';
 import type { TelegramSubscriber } from '@api/admin';
@@ -16,6 +17,7 @@ import {
   CheckCircleIcon,
   GroupIcon,
   KeyIcon,
+  MailIcon,
   RefreshIcon,
   SaveIcon,
   SendIcon,
@@ -41,8 +43,22 @@ function subscriberName(subscriber: TelegramSubscriber): string {
 
 export default function AdminTelegramPage() {
   const [token, setToken] = useState('');
-  const [chatId, setChatId] = useState('');
+  const [chatIds, setChatIds] = useState('');
+  const [sendToSubscribers, setSendToSubscribers] = useState(false);
   const [botConfigured, setBotConfigured] = useState(false);
+  const [emailProvider, setEmailProvider] = useState('smtp');
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState(1025);
+  const [smtpUsername, setSmtpUsername] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFrom, setSmtpFrom] = useState('');
+  const [smtpTestRecipient, setSmtpTestRecipient] = useState('');
+  const [smtpTls, setSmtpTls] = useState(false);
+  const [smtpStarttls, setSmtpStarttls] = useState(false);
+  const [smtpPasswordSet, setSmtpPasswordSet] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [subscribers, setSubscribers] = useState<TelegramSubscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,7 +78,19 @@ export default function AdminTelegramPage() {
         getTelegramSubscribers(),
       ]);
       setBotConfigured(settings.effective.telegram.bot_configured);
-      setChatId(settings.effective.telegram.chat_id);
+      setChatIds(settings.effective.telegram.chat_ids.join('\n'));
+      setSendToSubscribers(settings.effective.telegram.send_to_subscribers);
+      const email = settings.effective.email;
+      setEmailProvider(email.provider);
+      setSmtpHost(email.host);
+      setSmtpPort(email.port);
+      setSmtpUsername(email.username);
+      setSmtpFrom(email.from);
+      setSmtpTestRecipient(email.test_recipient);
+      setSmtpTls(email.tls);
+      setSmtpStarttls(email.starttls);
+      setSmtpPasswordSet(email.password_set);
+      setTwoFactorEnabled(settings.effective.two_factor_enabled);
       setSubscribers(users);
       setUpdatedAt(new Date().toISOString());
     } catch (caught) {
@@ -96,8 +124,13 @@ export default function AdminTelegramPage() {
         await putAdminSetting('telegram_bot_token', token.trim());
         setToken('');
       }
-      await putAdminSetting('telegram_chat_id', chatId.trim());
-      setNotice('Настройки Telegram сохранены.');
+      const targets = chatIds
+        .split(/[\n,]/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      await putAdminSetting('telegram_chat_ids', targets);
+      await putAdminSetting('telegram_send_to_subscribers', sendToSubscribers);
+      setNotice('Настройки рассылок сохранены.');
       await load();
     } catch (caught) {
       setError(
@@ -105,6 +138,69 @@ export default function AdminTelegramPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function persistEmailSettings() {
+    await putAdminSetting('smtp_provider', emailProvider);
+    await putAdminSetting('smtp_host', smtpHost.trim());
+    await putAdminSetting('smtp_port', smtpPort);
+    await putAdminSetting('smtp_username', smtpUsername.trim());
+    if (smtpPassword.trim()) {
+      await putAdminSetting('smtp_password', smtpPassword.trim());
+    }
+    await putAdminSetting('smtp_from', smtpFrom.trim());
+    await putAdminSetting('smtp_test_recipient', smtpTestRecipient.trim());
+    await putAdminSetting('smtp_tls', smtpTls);
+    await putAdminSetting('smtp_starttls', smtpStarttls);
+    await putAdminSetting('two_factor_enabled', twoFactorEnabled);
+  }
+
+  async function handleSaveEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingEmail(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await persistEmailSettings();
+      setSmtpPassword('');
+      setNotice('Настройки почты сохранены.');
+      await load();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Не удалось сохранить настройки почты.',
+      );
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  async function handleTestEmail() {
+    setTestingEmail(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await persistEmailSettings();
+      const result = await testAdminEmail(smtpTestRecipient);
+      setSmtpPassword('');
+      setNotice(`Тестовое письмо отправлено на ${result.to}.`);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Не удалось отправить тестовое письмо.',
+      );
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
+  function handleProviderChange(provider: string) {
+    setEmailProvider(provider);
+    if (provider === 'mailpit') {
+      setSmtpHost('mailpit');
+      setSmtpPort(1025);
+      setSmtpTls(false);
+      setSmtpStarttls(false);
+      setSmtpUsername('');
     }
   }
 
@@ -174,11 +270,11 @@ export default function AdminTelegramPage() {
         <div>
           <span className={cx(styles, 'admin-eyebrow')}>
             <BotIcon />
-            Telegram integration
+            Broadcasts
           </span>
-          <h1 className={cx(styles, 'admin-title')}>Telegram-бот</h1>
+          <h1 className={cx(styles, 'admin-title')}>Рассылки</h1>
           <p className={cx(styles, 'admin-sub')}>
-            Токен бота, канал для публикации дайджеста и список пользователей,
+            Telegram-каналы и чаты для публикации дайджеста, а также подписчики,
             которые написали боту.
           </p>
         </div>
@@ -218,13 +314,15 @@ export default function AdminTelegramPage() {
         </article>
         <article className={cx(styles, 'admin-stat')}>
           <span className={cx(styles, 'admin-stat-label')}>
-            Канал / чат
+            Каналы и чаты
             <SendIcon />
           </span>
           <strong className={cx(styles, 'admin-stat-value admin-stat-value--sm')}>
-            {chatId || '—'}
+            {chatIds.trim() ? chatIds.split(/[\n,]/).filter((value) => value.trim()).length : 0}
           </strong>
-          <span className={cx(styles, 'admin-stat-hint')}>Куда отправляется дайджест</span>
+          <span className={cx(styles, 'admin-stat-hint')}>
+            {sendToSubscribers ? 'плюс подписчики бота' : 'куда отправляется дайджест'}
+          </span>
         </article>
         <article className={cx(styles, 'admin-stat')}>
           <span className={cx(styles, 'admin-stat-label')}>
@@ -248,83 +346,85 @@ export default function AdminTelegramPage() {
         </article>
       </div>
 
-      <div className={cx(styles, 'admin-grid')}>
-        <section className={cx(styles, 'admin-card')}>
-          <div className={cx(styles, 'admin-card-head')}>
-            <div>
-              <h2 className={cx(styles, 'admin-card-title')}>Подключение бота</h2>
-              <p className={cx(styles, 'admin-card-sub')}>
-                Токен создаётся у @BotFather и хранится только в настройках платформы
-              </p>
-            </div>
-            <span className={cx(styles, 'admin-badge admin-badge--blue')}>
-              <KeyIcon />
-              Secret
+      <section className={cx(styles, 'admin-card admin-mt-12')}>
+        <div className={cx(styles, 'admin-card-head')}>
+          <div>
+            <h2 className={cx(styles, 'admin-card-title')}>Telegram-бот и доставка</h2>
+            <p className={cx(styles, 'admin-card-sub')}>
+              Токен, каналы и проверка подключения в одном блоке
+            </p>
+          </div>
+          <span className={cx(styles, 'admin-badge admin-badge--blue')}>
+            <KeyIcon />
+            Secret
+          </span>
+        </div>
+
+        <div className={cx(styles, 'admin-bot-status')}>
+          <span className={cx(styles, `admin-live-dot${botConfigured ? '' : ' admin-live-dot--off'}`)} />
+          <div>
+            <strong>{botConfigured ? 'Бот подключён' : 'Бот не настроен'}</strong>
+            <span>
+              {botConfigured
+                ? 'Токен сохранён на сервере'
+                : 'Добавьте токен от @BotFather'}
             </span>
           </div>
+          <span className={cx(styles, 'admin-badge admin-badge--green')}>
+            {subscribers.length} получателей
+          </span>
+        </div>
 
-          <form className={cx(styles, 'admin-form')} onSubmit={handleSave}>
-            <label className={cx(styles, 'admin-field')}>
-              <span>Токен бота</span>
-              <input
-                autoComplete="off"
-                className={cx(styles, 'admin-input')}
-                placeholder={
-                  botConfigured
-                    ? 'Токен сохранён. Введите новый, чтобы заменить'
-                    : '123456789:AA...'
-                }
-                type="password"
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-              />
-            </label>
-            <label className={cx(styles, 'admin-field')}>
-              <span>ID канала или чата</span>
-              <input
-                className={cx(styles, 'admin-input')}
-                placeholder="-1001234567890 или @channel"
-                value={chatId}
-                onChange={(event) => setChatId(event.target.value)}
-              />
-            </label>
-            <div className={cx(styles, 'admin-form-actions')}>
-              <button
-                className={cx(styles, 'admin-button')}
-                type="button"
-                disabled={testing || !botConfigured}
-                onClick={() => void handleTest()}
-              >
-                <SendIcon />
-                {testing ? 'Проверяем…' : 'Проверить бота'}
-              </button>
-              <button
-                className={cx(styles, 'admin-button admin-button--primary')}
-                type="submit"
-                disabled={saving || loading}
-              >
-                <SaveIcon />
-                {saving ? 'Сохраняем…' : 'Сохранить'}
-              </button>
-            </div>
-          </form>
-
-          <p className={cx(styles, 'admin-note admin-mt-10')}>
-            Чтобы получить пользователей: отправьте боту команду <strong>/start</strong>,
-            затем нажмите «Синхронизировать». Для канала добавьте бота администратором
-            и укажите его chat id.
-          </p>
-        </section>
-
-        <section className={cx(styles, 'admin-card')}>
-          <div className={cx(styles, 'admin-card-head')}>
+        <form className={cx(styles, 'admin-form admin-form--telegram')} onSubmit={handleSave}>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Токен бота</span>
+            <input
+              autoComplete="off"
+              className={cx(styles, 'admin-input')}
+              placeholder={
+                botConfigured
+                  ? 'Токен сохранён. Введите новый, чтобы заменить'
+                  : '123456789:AA...'
+              }
+              type="password"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+            />
+            <small className={cx(styles, 'admin-field-hint')}>
+              Получите токен у @BotFather и вставьте сюда.
+            </small>
+          </label>
+          <div className={cx(styles, 'admin-toggle-tile')}>
+            <button
+              aria-checked={sendToSubscribers}
+              aria-label="Отправлять пользователям, написавшим боту"
+              className={cx(styles, `admin-toggle${
+                sendToSubscribers ? ' admin-toggle--on' : ''
+              }`)}
+              role="switch"
+              type="button"
+              onClick={() => setSendToSubscribers((value) => !value)}
+            >
+              <span className={cx(styles, 'admin-toggle-thumb')} />
+            </button>
             <div>
-              <h2 className={cx(styles, 'admin-card-title')}>Проверка подключения</h2>
-              <p className={cx(styles, 'admin-card-sub')}>
-                Проверьте токен и синхронизируйте список пользователей
-              </p>
+              <strong>Пользователи бота</strong>
+              <span>Отправлять всем, кто написал боту</span>
             </div>
           </div>
+          <label className={cx(styles, 'admin-field admin-field--wide')}>
+            <span>Каналы и чаты для доставки</span>
+            <textarea
+              className={cx(styles, 'admin-input')}
+              placeholder={'-1001234567890\n@channel'}
+              rows={5}
+              value={chatIds}
+              onChange={(event) => setChatIds(event.target.value)}
+            />
+            <small className={cx(styles, 'admin-field-hint')}>
+              По одному ID или @username в строке. Можно вставить список через запятую.
+            </small>
+          </label>
           <div className={cx(styles, 'admin-form-actions')}>
             <button
               className={cx(styles, 'admin-button')}
@@ -344,13 +444,23 @@ export default function AdminTelegramPage() {
               <RefreshIcon />
               {syncing ? 'Синхронизируем…' : 'Синхронизировать пользователей'}
             </button>
+            <button
+              className={cx(styles, 'admin-button admin-button--primary')}
+              type="submit"
+              disabled={saving || loading}
+            >
+              <SaveIcon />
+              {saving ? 'Сохраняем…' : 'Сохранить'}
+            </button>
           </div>
-          <p className={cx(styles, 'admin-note admin-mt-12')}>
-            Синхронизация использует Telegram getUpdates. Если у бота настроен webhook,
-            сначала отключите его в BotFather или через API.
-          </p>
-        </section>
-      </div>
+        </form>
+
+        <p className={cx(styles, 'admin-note admin-mt-10')}>
+          Синхронизация использует Telegram getUpdates. Если у бота настроен webhook,
+          сначала отключите его в BotFather. Для канала добавьте бота администратором
+          и укажите его chat id.
+        </p>
+      </section>
 
       <section className={cx(styles, 'admin-card admin-mt-12')}>
         <div className={cx(styles, 'admin-card-head')}>
@@ -367,7 +477,7 @@ export default function AdminTelegramPage() {
         </div>
 
         <div className={cx(styles, 'admin-table-wrap')}>
-          <table className={cx(styles, 'admin-table')}>
+          <table className={cx(styles, 'admin-table admin-table--telegram')}>
             <thead>
               <tr>
                 <th>Пользователь / чат</th>
@@ -432,6 +542,163 @@ export default function AdminTelegramPage() {
           {loading && <p className={cx(styles, 'admin-empty')}>Загружаем пользователей…</p>}
         </div>
       </section>
+      <section className={cx(styles, 'admin-card admin-mt-12')}>
+        <div className={cx(styles, 'admin-card-head')}>
+          <div>
+            <h2 className={cx(styles, 'admin-card-title')}>Почта и SMTP</h2>
+            <p className={cx(styles, 'admin-card-sub')}>
+              Для рассылок дайджестов, подтверждения почты и восстановления пароля
+            </p>
+          </div>
+          <span className={cx(styles, 'admin-badge admin-badge--blue')}>
+            <MailIcon />
+            {smtpPasswordSet ? 'Пароль сохранён' : 'Не настроено'}
+          </span>
+        </div>
+
+        <form className={cx(styles, 'admin-form')} onSubmit={handleSaveEmail}>
+          <div className={cx(styles, 'admin-toggle-tile admin-toggle-tile--wide')}>
+            <button
+              aria-checked={twoFactorEnabled}
+              aria-label="Двухфакторная аутентификация"
+              className={cx(styles, `admin-toggle${
+                twoFactorEnabled ? ' admin-toggle--on' : ''
+              }`)}
+              role="switch"
+              type="button"
+              onClick={() => setTwoFactorEnabled((value) => !value)}
+            >
+              <span className={cx(styles, 'admin-toggle-thumb')} />
+            </button>
+            <div>
+              <strong>Двухфакторная аутентификация</strong>
+              <span>
+                Код на почту после ввода пароля. Если выключено, пользователи не видят
+                эту настройку в профиле.
+              </span>
+            </div>
+          </div>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Провайдер</span>
+            <select
+              className={cx(styles, 'admin-select')}
+              value={emailProvider}
+              onChange={(event) => handleProviderChange(event.target.value)}
+            >
+              <option value="smtp">SMTP</option>
+              <option value="mailpit">Mailpit</option>
+            </select>
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>SMTP host</span>
+            <input
+              className={cx(styles, 'admin-input')}
+              placeholder="smtp.mail.ru"
+              value={smtpHost}
+              onChange={(event) => setSmtpHost(event.target.value)}
+            />
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Порт</span>
+            <input
+              className={cx(styles, 'admin-input')}
+              min={1}
+              max={65535}
+              type="number"
+              value={smtpPort}
+              onChange={(event) => setSmtpPort(Number(event.target.value))}
+            />
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Логин</span>
+            <input
+              autoComplete="off"
+              className={cx(styles, 'admin-input')}
+              value={smtpUsername}
+              onChange={(event) => setSmtpUsername(event.target.value)}
+            />
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Пароль</span>
+            <input
+              autoComplete="new-password"
+              className={cx(styles, 'admin-input')}
+              placeholder={smtpPasswordSet ? 'Пароль сохранён' : 'Пароль SMTP'}
+              type="password"
+              value={smtpPassword}
+              onChange={(event) => setSmtpPassword(event.target.value)}
+            />
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Отправитель</span>
+            <input
+              className={cx(styles, 'admin-input')}
+              placeholder="digest@example.com"
+              value={smtpFrom}
+              onChange={(event) => setSmtpFrom(event.target.value)}
+            />
+          </label>
+          <label className={cx(styles, 'admin-field')}>
+            <span>Тестовый получатель</span>
+            <input
+              className={cx(styles, 'admin-input')}
+              placeholder="test@example.com"
+              value={smtpTestRecipient}
+              onChange={(event) => setSmtpTestRecipient(event.target.value)}
+            />
+          </label>
+          <div className={cx(styles, 'admin-user-status')}>
+            <button
+              aria-checked={smtpTls}
+              aria-label="TLS"
+              className={cx(styles, `admin-toggle${smtpTls ? ' admin-toggle--on' : ''}`)}
+              role="switch"
+              type="button"
+              onClick={() => setSmtpTls((value) => !value)}
+            >
+              <span className={cx(styles, 'admin-toggle-thumb')} />
+            </button>
+            <span>TLS</span>
+          </div>
+          <div className={cx(styles, 'admin-user-status')}>
+            <button
+              aria-checked={smtpStarttls}
+              aria-label="STARTTLS"
+              className={cx(styles, `admin-toggle${smtpStarttls ? ' admin-toggle--on' : ''}`)}
+              role="switch"
+              type="button"
+              onClick={() => setSmtpStarttls((value) => !value)}
+            >
+              <span className={cx(styles, 'admin-toggle-thumb')} />
+            </button>
+            <span>STARTTLS</span>
+          </div>
+          <div className={cx(styles, 'admin-form-actions')}>
+            <button
+              className={cx(styles, 'admin-button')}
+              type="button"
+              disabled={testingEmail || savingEmail}
+              onClick={() => void handleTestEmail()}
+            >
+              <SendIcon />
+              {testingEmail ? 'Отправляем…' : 'Отправить тест'}
+            </button>
+            <button
+              className={cx(styles, 'admin-button admin-button--primary')}
+              type="submit"
+              disabled={savingEmail || testingEmail}
+            >
+              <SaveIcon />
+              {savingEmail ? 'Сохраняем…' : 'Сохранить'}
+            </button>
+          </div>
+        </form>
+        <p className={cx(styles, 'admin-note admin-mt-10')}>
+          Mailpit — локальный SMTP для разработки: host <code>mailpit</code>, порт 1025,
+          без TLS. Для внешнего почтового провайдера укажите SMTP-хост, порт и пароль.
+        </p>
+      </section>
+
     </>
   );
 }

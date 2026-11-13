@@ -363,7 +363,7 @@ export default function AdminOverviewPage() {
                   <tbody>
                     {sortedAudit.map((entry) => (
                       <tr key={entry.id}>
-                        <td className={cx(styles, "admin-mono")}>{formatTime(entry.created_at)}</td>
+                        <td className={cx(styles, "admin-mono")}>{formatDateTime(entry.created_at)}</td>
                         <td>
                           <span className={cx(styles, "admin-badge admin-badge--blue")}>{entry.action}</span>
                         </td>

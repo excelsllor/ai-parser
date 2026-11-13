@@ -5,6 +5,7 @@ import {
   createAdminUser,
   deleteAdminUser,
   listAdminUsers,
+  resetAdminUserPassword,
   updateAdminUser,
 } from '@api/admin';
 import type { AdminUser } from '@api/admin';
@@ -13,8 +14,11 @@ import {
   AddIcon,
   AlertCircleIcon,
   CheckCircleIcon,
+  CopyIcon,
   DeleteIcon,
+  EditIcon,
   GroupIcon,
+  KeyIcon,
   RefreshIcon,
   SortHeader,
   UserIcon,
@@ -69,8 +73,13 @@ export default function AdminUsersPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('user');
   const [submitting, setSubmitting] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -104,9 +113,15 @@ export default function AdminUsersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await createAdminUser({ username: username.trim(), password, role });
+      await createAdminUser({
+        username: username.trim(),
+        password,
+        role,
+        email: email.trim() || undefined,
+      });
       setUsername('');
       setPassword('');
+      setEmail('');
       setRole('user');
       setAddOpen(false);
       setNotice('Пользователь создан.');
@@ -143,6 +158,42 @@ export default function AdminUsersPage() {
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось изменить статус.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleEmail(user: AdminUser) {
+    const value = window.prompt(
+      `Email для «${user.username}» (пусто — удалить)`,
+      user.email ?? '',
+    );
+    if (value === null) return;
+    setBusyId(user.id);
+    setError(null);
+    try {
+      const updated = await updateAdminUser(user.id, { email: value.trim() });
+      setUsers((previous) =>
+        previous.map((item) => (item.id === user.id ? updated : item)),
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось изменить email.');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleResetPassword(user: AdminUser) {
+    if (!window.confirm(`Сбросить пароль пользователя «${user.username}»?`)) {
+      return;
+    }
+    setBusyId(user.id);
+    setError(null);
+    try {
+      const result = await resetAdminUserPassword(user.id);
+      setGeneratedPassword({ username: user.username, password: result.password });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось сбросить пароль.');
     } finally {
       setBusyId(null);
     }
@@ -210,6 +261,23 @@ export default function AdminUsersPage() {
           <span>{notice}</span>
         </div>
       )}
+      {generatedPassword && (
+        <div className={cx(styles, "admin-notice")} role="status">
+          <KeyIcon />
+          <span>
+            Новый пароль для «{generatedPassword.username}»:{' '}
+            <code className={cx(styles, "admin-mono")}>{generatedPassword.password}</code>
+          </span>
+          <button
+            aria-label="Скопировать пароль"
+            className={cx(styles, "admin-button admin-button--small")}
+            type="button"
+            onClick={() => void navigator.clipboard.writeText(generatedPassword.password)}
+          >
+            <CopyIcon />
+          </button>
+        </div>
+      )}
 
       <div className={cx(styles, "admin-stats")}>
         <article className={cx(styles, "admin-stat")}>
@@ -258,6 +326,15 @@ export default function AdminUsersPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          <label className={cx(styles, "admin-field")}>
+            <span>Email (необязательно)</span>
+            <input
+              className={cx(styles, "admin-input")}
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </label>
           <label className={cx(styles, "admin-field")}>
@@ -336,17 +413,29 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td>
-                      {user.email ? (
-                        <span className={cx(styles, "admin-cell-sub")}>
-                          {user.email}
-                          <br />
-                          <span className={cx(styles, user.email_verified_at ? 'admin-badge admin-badge--green' : 'admin-badge admin-badge--amber')}>
-                            {user.email_verified_at ? 'подтверждён' : 'не подтверждён'}
+                      <div className={cx(styles, "admin-user-status")}>
+                        {user.email ? (
+                          <span className={cx(styles, "admin-cell-sub")}>
+                            {user.email}
+                            <br />
+                            <span className={cx(styles, user.email_verified_at ? 'admin-badge admin-badge--green' : 'admin-badge admin-badge--amber')}>
+                              {user.email_verified_at ? 'подтверждён' : 'не подтверждён'}
+                            </span>
                           </span>
-                        </span>
-                      ) : (
-                        <span className={cx(styles, "admin-cell-sub")}>не указан</span>
-                      )}
+                        ) : (
+                          <span className={cx(styles, "admin-cell-sub")}>не указан</span>
+                        )}
+                        <button
+                          aria-label={`Изменить email ${user.username}`}
+                          className={cx(styles, "admin-button admin-button--small")}
+                          disabled={busyId === user.id}
+                          title="Изменить email"
+                          type="button"
+                          onClick={() => void handleEmail(user)}
+                        >
+                          <EditIcon />
+                        </button>
+                      </div>
                     </td>
                     <td>
                       <select
@@ -386,6 +475,16 @@ export default function AdminUsersPage() {
                     <td>{formatDateTime(user.created_at)}</td>
                     <td>
                       <div className={cx(styles, "admin-row-actions")}>
+                        <button
+                          aria-label={`Сбросить пароль ${user.username}`}
+                          className={cx(styles, "admin-button admin-button--small")}
+                          disabled={busyId === user.id}
+                          title="Сбросить пароль"
+                          type="button"
+                          onClick={() => void handleResetPassword(user)}
+                        >
+                          <KeyIcon />
+                        </button>
                         {user.is_active && (
                           <button
                             aria-label={`Деактивировать ${user.username}`}

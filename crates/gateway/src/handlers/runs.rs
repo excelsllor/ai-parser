@@ -901,12 +901,13 @@ pub async fn email_send(
         "Дайджест по кибербезопасности".to_string()
     };
 
+    let settings = email::smtp_settings(&state).await?;
     let requested = body.and_then(|Json(req)| req.to).unwrap_or_default();
     let recipient = if requested.trim().is_empty() {
-        state.config.smtp.test_recipient.clone()
+        settings.test_recipient.clone()
     } else if requested
         .trim()
-        .eq_ignore_ascii_case(&state.config.smtp.test_recipient)
+        .eq_ignore_ascii_case(&settings.test_recipient)
     {
         requested.trim().to_string()
     } else {

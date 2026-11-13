@@ -22,7 +22,7 @@ import adminStyles from '@components/admin/Admin.module.css';
 
 const styles = adminStyles;
 
-import { downloadFile, formatDateTime, formatTime } from './utils';
+import { downloadFile, formatDateTime } from './utils';
 
 const WEIGHT_LABELS: Record<string, string> = {
   impact: 'Влияние',
@@ -48,6 +48,8 @@ export default function AdminLlmPage() {
     }
   }
   const [baseUrl, setBaseUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeySet, setApiKeySet] = useState(false);
   const [model, setModel] = useState('');
   const [models, setModels] = useState<string[]>([]);
   const [weights, setWeights] = useState<Record<string, number>>({});
@@ -89,6 +91,7 @@ export default function AdminLlmPage() {
       setSettings(settingsResponse);
       setCalls(callList);
       setBaseUrl(settingsResponse.effective.base_url);
+      setApiKeySet(Boolean(settingsResponse.settings.llm_api_key_set));
       setModel(settingsResponse.effective.model);
       setWeights({ ...settingsResponse.effective.weights });
       setUpdatedAt(new Date().toISOString());
@@ -155,7 +158,11 @@ export default function AdminLlmPage() {
     setNotice(null);
     try {
       await putAdminSetting('llm_base_url', baseUrl.trim());
+      if (apiKey.trim()) {
+        await putAdminSetting('llm_api_key', apiKey.trim());
+      }
       await putAdminSetting('model', model.trim());
+      setApiKey('');
       setNotice('Конфигурация LLM сохранена.');
       await load();
     } catch (caught) {
@@ -304,6 +311,17 @@ export default function AdminLlmPage() {
                 placeholder="https://provider.example/v1"
                 value={baseUrl}
                 onChange={(event) => setBaseUrl(event.target.value)}
+              />
+            </label>
+            <label className={cx(styles, "admin-field")}>
+              <span>API-токен</span>
+              <input
+                autoComplete="new-password"
+                className={cx(styles, "admin-input")}
+                placeholder={apiKeySet ? 'Токен сохранён' : 'Токен провайдера'}
+                type="password"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
               />
             </label>
             <label className={cx(styles, "admin-field")}>
@@ -462,7 +480,7 @@ export default function AdminLlmPage() {
             <tbody>
               {sortedCalls.map((call) => (
                 <tr key={call.id}>
-                  <td className={cx(styles, "admin-mono")}>{formatTime(call.created_at)}</td>
+                  <td className={cx(styles, "admin-mono")}>{formatDateTime(call.created_at)}</td>
                   <td>
                     <span className={cx(styles, "admin-cell-strong")}>{call.purpose}</span>
                     {call.run_id && (

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 
 import {
   createAdminKeyword,
@@ -15,11 +15,13 @@ import {
   AlertCircleIcon,
   CheckCircleIcon,
   DeleteIcon,
+  FormatGuide,
   KeyIcon,
   RefreshIcon,
   RssIcon,
   SearchIcon,
   SortHeader,
+  UploadIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
 import { sortRows } from '@utils/sort';
@@ -41,6 +43,136 @@ const TRUST_LABELS: Record<string, string> = {
   reprint: 'Перепечатка',
   unknown: 'Неизвестно',
 };
+
+interface SourceImportRow {
+  name: string;
+  kind: string;
+  url: string;
+  trust: string;
+}
+
+function hostFromUrl(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
+function sourceFromUrl(url: string): SourceImportRow {
+  return {
+    name: hostFromUrl(url),
+    kind: /rss|feed|\.xml/i.test(url) ? 'rss' : 'html',
+    url,
+    trust: 'reprint',
+  };
+}
+
+function sourceFromRecord(record: unknown): SourceImportRow | null {
+  if (typeof record === 'string') {
+    return sourceFromUrl(record.trim());
+  }
+  if (!record || typeof record !== 'object') {
+    return null;
+  }
+  const row = record as Record<string, unknown>;
+  const url = String(row.url ?? row.feed ?? '').trim();
+  if (!url) {
+    return null;
+  }
+  const kind = String(row.kind ?? '').trim();
+  const trust = String(row.trust ?? '').trim();
+  return {
+    name: String(row.name ?? '').trim() || hostFromUrl(url),
+    kind: kind === 'html' ? 'html' : 'rss',
+    url,
+    trust: trust === 'primary' || trust === 'unknown' ? trust : 'reprint',
+  };
+}
+
+// shortcut: CSV import does not support quoted commas, upgrade if users need full CSV.
+function parseSourceFile(text: string, filename: string): SourceImportRow[] {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return [];
+  }
+  if (filename.toLowerCase().endsWith('.json') || /^[[{]/.test(trimmed)) {
+    const data = JSON.parse(trimmed) as unknown;
+    const records = Array.isArray(data) ? data : [data];
+    return records.map(sourceFromRecord).filter((row): row is SourceImportRow => !!row);
+  }
+  return trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => {
+      const parts = line.split(/[,;\t]/).map((part) => part.trim()).filter(Boolean);
+      const urlIndex = parts.findIndex((part) => /^https?:\/\//i.test(part));
+      if (urlIndex < 0) {
+        return null;
+      }
+      const url = parts[urlIndex];
+      const name = parts.find((part, index) => index !== urlIndex && !/^(rss|html|primary|reprint|unknown)$/i.test(part));
+      const kind = parts.find((part) => /^(rss|html)$/i.test(part))?.toLowerCase();
+      const trust = parts.find((part) => /^(primary|reprint|unknown)$/i.test(part))?.toLowerCase();
+      return {
+        name: name || hostFromUrl(url),
+        kind: kind === 'html' ? 'html' : 'rss',
+        url,
+        trust: trust === 'primary' || trust === 'unknown' ? trust : 'reprint',
+      };
+    })
+    .filter((row): row is SourceImportRow => !!row);
+}
+
+type ImportTarget = 'sources' | 'keywords';
+type ImportFormat = 'json' | 'csv' | 'txt';
+
+const IMPORT_EXAMPLES: Record<ImportTarget, Record<ImportFormat, string>> = {
+  sources: {
+    json: `[
+  {
+    "name": "Example News",
+    "url": "https://example.com/rss",
+    "kind": "rss",
+    "trust": "reprint"
+  }
+]`,
+    csv: `name,url,kind,trust
+Example News,https://example.com/rss,rss,reprint
+Company Blog,https://example.com/blog,html,primary`,
+    txt: `# одна ссылка в строке — имя и тип определятся автоматически
+https://example.com/rss
+https://example.com/news,html`,
+  },
+  keywords: {
+    json: `["вакансия", "курс", "реклама"]`,
+    csv: `вакансия,курс,реклама`,
+    txt: `# одно стоп-слово в строке
+вакансия
+курс
+реклама`,
+  },
+};
+
+function parseKeywordFile(text: string, filename: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return [];
+  }
+  if (filename.toLowerCase().endsWith('.json') || /^[[{]/.test(trimmed)) {
+    const data = JSON.parse(trimmed) as unknown;
+    const records = Array.isArray(data) ? data : [data];
+    return records
+      .map((record) => (typeof record === 'string' ? record : String((record as Record<string, unknown>)?.word ?? '')))
+      .map((word) => word.trim())
+      .filter(Boolean);
+  }
+  return trimmed
+    .split(/[\r\n,;]+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+}
 
 export default function AdminSourcesPage() {
   const [sources, setSources] = useState<AdminSource[]>([]);
@@ -64,6 +196,10 @@ export default function AdminSourcesPage() {
 
   const [keyword, setKeyword] = useState('');
   const [keywordSubmitting, setKeywordSubmitting] = useState(false);
+  const [importingSources, setImportingSources] = useState(false);
+  const [importingKeywords, setImportingKeywords] = useState(false);
+  const [importTarget, setImportTarget] = useState<ImportTarget>('sources');
+  const [importFormat, setImportFormat] = useState<ImportFormat>('json');
   const [sortKey, setSortKey] = useState<'name' | 'kind' | 'trust' | 'language' | 'synced'>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -214,6 +350,90 @@ export default function AdminSourcesPage() {
     }
   }
 
+  async function handleImportSources(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+    setImportingSources(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const rows = parseSourceFile(await file.text(), file.name);
+      if (!rows.length) {
+        throw new Error('В файле не найдено источников.');
+      }
+      let added = 0;
+      const failures: string[] = [];
+      for (const row of rows.slice(0, 500)) {
+        try {
+          await createAdminSource(row);
+          added += 1;
+        } catch (caught) {
+          failures.push(`${row.url}: ${caught instanceof Error ? caught.message : 'ошибка'}`);
+        }
+      }
+      await load();
+      setNotice(
+        failures.length
+          ? `Добавлено ${added} из ${rows.length}. Ошибок: ${failures.length}. ${failures[0]}`
+          : `Добавлено источников: ${added}.`,
+      );
+      if (!added) {
+        setError(failures[0] ?? 'Не удалось добавить источники.');
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось прочитать файл.');
+    } finally {
+      setImportingSources(false);
+    }
+  }
+
+  async function handleImportKeywords(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+    setImportingKeywords(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const words = [...new Set(parseKeywordFile(await file.text(), file.name))];
+      if (!words.length) {
+        throw new Error('В файле не найдено стоп-слов.');
+      }
+      const existing = new Set(keywords.map((item) => item.word.toLowerCase()));
+      let added = 0;
+      const failures: string[] = [];
+      for (const word of words.slice(0, 1000)) {
+        if (existing.has(word.toLowerCase())) {
+          continue;
+        }
+        try {
+          await createAdminKeyword(word);
+          added += 1;
+        } catch (caught) {
+          failures.push(`${word}: ${caught instanceof Error ? caught.message : 'ошибка'}`);
+        }
+      }
+      await load();
+      setNotice(
+        failures.length
+          ? `Добавлено стоп-слов ${added} из ${words.length}. Ошибок: ${failures.length}. ${failures[0]}`
+          : `Добавлено стоп-слов: ${added}.`,
+      );
+      if (!added && failures.length) {
+        setError(failures[0]);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Не удалось прочитать файл.');
+    } finally {
+      setImportingKeywords(false);
+    }
+  }
+
   async function handleDeleteKeyword(item: AdminKeyword) {
     setError(null);
     try {
@@ -302,6 +522,26 @@ export default function AdminSourcesPage() {
         </article>
       </div>
 
+      <FormatGuide
+        className={cx(styles, "admin-mt-12")}
+        title="Форматы импорта"
+        subtitle="Источники и стоп-слова можно загрузить из JSON, CSV или TXT."
+        formats={(['json', 'csv', 'txt'] as const).map((format) => ({
+          id: format,
+          label: format.toUpperCase(),
+          example: IMPORT_EXAMPLES[importTarget][format],
+        }))}
+        value={importFormat}
+        onChange={(value) => setImportFormat(value as ImportFormat)}
+        targets={[
+          { id: 'sources', label: 'Источники' },
+          { id: 'keywords', label: 'Стоп-слова' },
+        ]}
+        target={importTarget}
+        onTargetChange={(value) => setImportTarget(value as ImportTarget)}
+        note="Файл выбирается кнопкой «Импорт из файла» в форме источника или стоп-слова. Для источников обязателен URL, название и тип можно не указывать."
+      />
+
       {addOpen && (
         <form className={cx(styles, "admin-form")} onSubmit={handleCreate}>
           <label className={cx(styles, "admin-field")}>
@@ -347,6 +587,17 @@ export default function AdminSourcesPage() {
             </select>
           </label>
           <div className={cx(styles, "admin-form-actions")}>
+            <label className={cx(styles, "admin-button")} title="JSON, CSV или TXT">
+              <UploadIcon />
+              {importingSources ? 'Импортируем…' : 'Импорт из файла'}
+              <input
+                accept=".json,.csv,.txt,text/plain,application/json,text/csv"
+                className={cx(styles, "admin-hidden")}
+                disabled={importingSources}
+                type="file"
+                onChange={(event) => void handleImportSources(event)}
+              />
+            </label>
             <button
               className={cx(styles, "admin-button admin-button--primary")}
               type="submit"
@@ -536,6 +787,17 @@ export default function AdminSourcesPage() {
             />
           </label>
           <div className={cx(styles, "admin-form-actions")}>
+            <label className={cx(styles, "admin-button")} title="JSON, CSV или TXT">
+              <UploadIcon />
+              {importingKeywords ? 'Импортируем…' : 'Импорт из файла'}
+              <input
+                accept=".json,.csv,.txt,text/plain,application/json,text/csv"
+                className={cx(styles, "admin-hidden")}
+                disabled={importingKeywords}
+                type="file"
+                onChange={(event) => void handleImportKeywords(event)}
+              />
+            </label>
             <button
               className={cx(styles, "admin-button admin-button--primary")}
               type="submit"

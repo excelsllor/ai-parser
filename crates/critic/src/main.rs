@@ -100,6 +100,11 @@ pub(crate) async fn process_digest_draft(
         .and_then(|value| value.as_str().map(ToOwned::to_owned))
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| state.config.llm.base_url.clone());
+    let llm_api_key = db::get_setting(&state.pool, "llm_api_key")
+        .await?
+        .and_then(|value| value.as_str().map(str::trim).map(ToOwned::to_owned))
+        .filter(|value| !value.is_empty())
+        .or_else(|| state.config.llm.api_key.clone());
     let items = db::get_items(&state.pool, draft.run_id).await?;
     let source_texts: HashMap<uuid::Uuid, String> = items
         .iter()
@@ -169,6 +174,7 @@ pub(crate) async fn process_digest_draft(
                 let user = prompts::prompt(claim, &truncate_chars(&source_text, 6000));
                 match state
                     .llm
+                    .with_api_key(llm_api_key.clone())
                     .chat_json_with_model::<CriticVerdict>(
                         &llm_base_url,
                         &run.model,

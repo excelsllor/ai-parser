@@ -42,7 +42,21 @@ export interface AdminSettings {
     telegram: {
       bot_configured: boolean;
       chat_id: string;
+      chat_ids: string[];
+      send_to_subscribers: boolean;
     };
+    email: {
+      provider: string;
+      host: string;
+      port: number;
+      username: string;
+      from: string;
+      test_recipient: string;
+      tls: boolean;
+      starttls: boolean;
+      password_set: boolean;
+    };
+    two_factor_enabled: boolean;
     env: string;
   };
 }
@@ -139,6 +153,7 @@ export function createAdminUser(input: {
   username: string;
   password: string;
   role: string;
+  email?: string;
 }): Promise<AdminUser> {
   return request<AdminUser>('/admin/users', {
     method: 'POST',
@@ -149,7 +164,7 @@ export function createAdminUser(input: {
 
 export function updateAdminUser(
   id: string,
-  input: { role?: string; is_active?: boolean },
+  input: { role?: string; is_active?: boolean; email?: string },
 ): Promise<AdminUser> {
   return request<AdminUser>(`/admin/users/${id}`, {
     method: 'PUT',
@@ -161,6 +176,21 @@ export function updateAdminUser(
 export function deleteAdminUser(id: string): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>(`/admin/users/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
+  });
+}
+
+export function testAdminEmail(to?: string): Promise<{ sent: boolean; to: string }> {
+  return request<{ sent: boolean; to: string }>('/admin/email/test', {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: to?.trim() || undefined }),
+  });
+}
+
+export function resetAdminUserPassword(id: string): Promise<{ password: string }> {
+  return request<{ password: string }>(`/admin/users/${id}/reset-password`, {
+    method: 'POST',
     headers: authHeaders(),
   });
 }
