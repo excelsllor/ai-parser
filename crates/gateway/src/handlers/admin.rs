@@ -677,9 +677,7 @@ pub async fn put_setting(
             validate_chat_id(chat_id)?;
         }
     }
-    if payload.key == "telegram_send_to_subscribers"
-        && !payload.value.is_boolean()
-    {
+    if payload.key == "telegram_send_to_subscribers" && !payload.value.is_boolean() {
         return Err(AppError::Validation(
             "telegram_send_to_subscribers must be a boolean".into(),
         ));
@@ -730,10 +728,8 @@ pub async fn put_setting(
             .ok_or_else(|| AppError::Validation(format!("{} is invalid", payload.key)))?;
         let _ = address;
     }
-    if matches!(
-        payload.key.as_str(),
-        "smtp_username" | "smtp_password"
-    ) && !payload.value.is_string()
+    if matches!(payload.key.as_str(), "smtp_username" | "smtp_password")
+        && !payload.value.is_string()
     {
         return Err(AppError::Validation(format!(
             "{} must be a string",

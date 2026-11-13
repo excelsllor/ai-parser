@@ -112,7 +112,11 @@ async fn target_chat_ids(state: &AppState) -> AppResult<Vec<String>> {
     }
     if !has_chat_ids && chats.is_empty() {
         if let Some(value) = db::get_setting(&state.pool, "telegram_chat_id").await? {
-            if let Some(value) = value.as_str().map(str::trim).filter(|value| !value.is_empty()) {
+            if let Some(value) = value
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
                 chats.push(value.to_string());
             }
         }
@@ -132,8 +136,7 @@ async fn target_chat_ids(state: &AppState) -> AppResult<Vec<String>> {
     chats.retain(|chat| seen.insert(chat.clone()));
     if chats.is_empty() {
         return Err(AppError::BadRequest(
-            "Telegram chats are not configured. Add at least one chat in Admin -> Рассылки."
-                .into(),
+            "Telegram chats are not configured. Add at least one chat in Admin -> Рассылки.".into(),
         ));
     }
     Ok(chats)
@@ -349,9 +352,8 @@ pub async fn send_run(
         }
     }
     if results.iter().all(|result| result.get("error").is_some()) {
-        return Err(last_error.unwrap_or_else(|| {
-            AppError::BadRequest("Telegram send failed for all chats".into())
-        }));
+        return Err(last_error
+            .unwrap_or_else(|| AppError::BadRequest("Telegram send failed for all chats".into())));
     }
 
     let _ = write_audit(

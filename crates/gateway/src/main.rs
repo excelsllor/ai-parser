@@ -236,10 +236,7 @@ fn build_router(state: AppState) -> Router {
             "/api/admin/settings",
             get(handlers::admin::get_settings).put(handlers::admin::put_setting),
         )
-        .route(
-            "/api/admin/email/test",
-            post(handlers::admin::test_email),
-        )
+        .route("/api/admin/email/test", post(handlers::admin::test_email))
         .route("/api/admin/llm/models", get(handlers::admin::llm_models))
         .route(
             "/api/admin/telegram/test",

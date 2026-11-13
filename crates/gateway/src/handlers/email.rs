@@ -209,17 +209,12 @@ pub async fn send_html(
                     .to_string()
                     .contains("No compatible authentication mechanism") =>
         {
-            base()
-                .build()
-                .send(email)
-                .await
-                .map(|_| ())
-                .map_err(|e| {
-                    AppError::internal(format!(
-                        "SMTP send failed ({}:{} via {target}): {e}",
-                        settings.host, settings.port
-                    ))
-                })
+            base().build().send(email).await.map(|_| ()).map_err(|e| {
+                AppError::internal(format!(
+                    "SMTP send failed ({}:{} via {target}): {e}",
+                    settings.host, settings.port
+                ))
+            })
         }
         Err(e) => Err(AppError::internal(format!(
             "SMTP send failed ({}:{} via {target}): {e}",

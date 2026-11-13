@@ -57,12 +57,7 @@ fn generate_code() -> String {
     format!("{:06}", value % 1_000_000)
 }
 
-async fn send_code(
-    state: &AppState,
-    recipient: &str,
-    code: &str,
-    purpose: &str,
-) -> AppResult<()> {
+async fn send_code(state: &AppState, recipient: &str, code: &str, purpose: &str) -> AppResult<()> {
     let (title, intro, note) = match purpose {
         "enable" => (
             "Подключение двухфакторной защиты",
@@ -89,11 +84,7 @@ async fn send_code(
     email::send_html(state, recipient, "Код подтверждения CyberBug", &html).await
 }
 
-async fn create_two_factor_code(
-    pool: &PgPool,
-    user_id: Uuid,
-    purpose: &str,
-) -> AppResult<String> {
+async fn create_two_factor_code(pool: &PgPool, user_id: Uuid, purpose: &str) -> AppResult<String> {
     let code = generate_code();
     sqlx::query("DELETE FROM two_factor_codes WHERE user_id = $1 AND purpose = $2")
         .bind(user_id)
@@ -132,11 +123,7 @@ async fn consume_two_factor_code(
     Ok(row.is_some())
 }
 
-async fn begin_two_factor_login(
-    state: &AppState,
-    user: &User,
-    email: &str,
-) -> AppResult<String> {
+async fn begin_two_factor_login(state: &AppState, user: &User, email: &str) -> AppResult<String> {
     let code = create_two_factor_code(&state.pool, user.id, "login").await?;
     let (ticket, ticket_hash) = new_refresh_token();
     sqlx::query("DELETE FROM two_factor_challenges WHERE user_id = $1")
@@ -161,7 +148,9 @@ async fn two_factor_recipient(user: &User) -> AppResult<String> {
         .filter(|_| user.email_verified_at.is_some())
         .map(str::to_string)
         .ok_or_else(|| {
-            AppError::Validation("подтвердите адрес электронной почты, чтобы использовать 2FA".into())
+            AppError::Validation(
+                "подтвердите адрес электронной почты, чтобы использовать 2FA".into(),
+            )
         })
 }
 
