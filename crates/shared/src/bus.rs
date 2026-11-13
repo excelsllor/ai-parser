@@ -23,7 +23,7 @@ pub struct Event {
 
 #[derive(Clone)]
 pub struct KafkaBus {
-    producer: FutureProducer,
+    producer: Option<FutureProducer>,
     brokers: String,
     group_prefix: String,
     security_protocol: String,
@@ -35,6 +35,19 @@ pub struct KafkaBus {
 
 impl KafkaBus {
     pub fn new(config: &Config) -> AppResult<Self> {
+        if config.pipeline_transport != "kafka" {
+            return Ok(Self {
+                producer: None,
+                brokers: config.kafka_brokers.clone(),
+                group_prefix: config.kafka_group_prefix.clone(),
+                security_protocol: config.kafka_security_protocol.clone(),
+                sasl_mechanism: config.kafka_sasl_mechanism.clone(),
+                sasl_username: config.kafka_sasl_username.clone(),
+                sasl_password: config.kafka_sasl_password.clone(),
+                ssl_ca_file: config.kafka_ssl_ca_file.clone(),
+            });
+        }
+
         let mut client_config = ClientConfig::new();
         client_config
             .set("bootstrap.servers", &config.kafka_brokers)
@@ -57,7 +70,7 @@ impl KafkaBus {
             .map_err(|e| AppError::kafka(format!("producer init failed: {e}")))?;
 
         Ok(Self {
-            producer,
+            producer: Some(producer),
             brokers: config.kafka_brokers.clone(),
             group_prefix: config.kafka_group_prefix.clone(),
             security_protocol: config.kafka_security_protocol.clone(),
@@ -75,7 +88,11 @@ impl KafkaBus {
         payload: &T,
     ) -> AppResult<()> {
         let payload = serde_json::to_vec(payload)?;
-        self.producer
+        let producer = self
+            .producer
+            .as_ref()
+            .ok_or_else(|| AppError::kafka("kafka transport is disabled".to_string()))?;
+        producer
             .send(
                 FutureRecord::to(topic).payload(&payload).key(key),
                 Timeout::After(Duration::from_secs(10)),
@@ -90,7 +107,9 @@ impl KafkaBus {
     }
 
     pub async fn health(&self) -> bool {
-        let producer = self.producer.clone();
+        let Some(producer) = self.producer.clone() else {
+            return true;
+        };
         tokio::task::spawn_blocking(move || {
             producer
                 .client()
