@@ -37,11 +37,16 @@ export function parseDigest(text: string): ParsedDigest {
   return { intro, sections };
 }
 
+export interface PostSource {
+  name: string;
+  url: string;
+}
+
 export interface PostItem {
   number: string;
   title: string;
   summary: string;
-  sources: string[];
+  sources: PostSource[];
 }
 
 export interface ParsedPost {
@@ -82,7 +87,18 @@ export function parsePost(text: string): ParsedPost {
     }
     const sourcesMatch = line.match(/^Источники:\s*(.*)$/);
     if (sourcesMatch) {
-      current.sources = sourcesMatch[1].match(/https?:\/\/\S+/g) ?? [];
+      const raw = sourcesMatch[1];
+      const links = [...raw.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g)];
+      const linked = links.map((match) => ({
+        name: hostOf(match[2]),
+        url: match[2],
+      }));
+      const withoutLinks = raw.replace(/\[[^\]]+\]\(https?:\/\/[^)\s]+\)/g, ' ');
+      const bare = (withoutLinks.match(/https?:\/\/\S+/g) ?? []).map((url) => ({
+        name: hostOf(url),
+        url,
+      }));
+      current.sources = [...linked, ...bare];
       continue;
     }
     current.summary += `${current.summary ? ' ' : ''}${line}`;

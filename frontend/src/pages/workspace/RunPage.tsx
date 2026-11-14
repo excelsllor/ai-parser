@@ -28,6 +28,7 @@ import { LoaderGame, WorkspaceLayout } from '@components';
 import useRunsFeed from '@hooks/useRunsFeed';
 import {
   AlertCircleIcon,
+  AnimatedTabs,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -38,7 +39,6 @@ import {
   DownloadIcon,
   LinkifiedText,
   EyeIcon,
-  InfoIcon,
   LockIcon,
   MailIcon,
   RefreshIcon,
@@ -56,6 +56,7 @@ import {
 
 import { cx } from '@utils/cx';
 import { hostOf, parseDigest, parsePost } from '@utils/runPresentation';
+import { useToast } from '@context/toast';
 import { useTabIndicator } from '@utils/useTabIndicator';
 
 import runStyles from './RunPage.module.css';
@@ -311,13 +312,16 @@ export default function RunPage() {
   } = useRunsFeed();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { pushToast } = useToast();
   const [sending, setSending] = useState(false);
   const [telegramSending, setTelegramSending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [journalFilter, setJournalFilter] = useState('');
   const [reactions, setReactions] = useState<Record<string, boolean>>({});
+  const [postView, setPostView] = useState<'text' | 'cards'>('text');
+  const [postImages, setPostImages] = useState<Record<number, boolean>>({});
+  const [sendingEvent, setSendingEvent] = useState<number | null>(null);
+  const [sendingAll, setSendingAll] = useState(false);
 
   const [artifacts, setArtifacts] = useState<Record<string, string>>({});
   const [loadingArtifacts, setLoadingArtifacts] = useState<Record<string, boolean>>({});
@@ -469,7 +473,8 @@ export default function RunPage() {
           const text = await fetchArtifact(id, name);
           setArtifacts((previous) => ({ ...previous, [name]: text }));
         } catch (caught) {
-          setActionError(
+          pushToast(
+            'error',
             caught instanceof Error ? caught.message : `Не удалось загрузить ${name}.`,
           );
         } finally {
@@ -477,7 +482,7 @@ export default function RunPage() {
         }
       })();
     }
-  }, [artifactNames, artifacts, detail, id, loadingArtifacts]);
+  }, [artifactNames, artifacts, detail, id, loadingArtifacts, pushToast]);
 
   const digestText = artifacts['digest.md'] ?? '';
   const postText = artifacts['post.md'] ?? '';
@@ -573,8 +578,6 @@ export default function RunPage() {
     const params = new URLSearchParams(searchParams);
     params.set('tab', next);
     setSearchParams(params);
-    setActionError(null);
-    setNotice(null);
   }
 
   async function handleCopy(text: string, label: string) {
@@ -583,9 +586,9 @@ export default function RunPage() {
     }
     try {
       await navigator.clipboard.writeText(text);
-      setNotice(`${label} скопирован.`);
+      pushToast('success', `${label} скопирован.`);
     } catch {
-      setActionError('Не удалось скопировать текст в буфер обмена.');
+      pushToast('error', 'Не удалось скопировать текст в буфер обмена.');
     }
   }
 
@@ -593,11 +596,11 @@ export default function RunPage() {
     if (!id) {
       return;
     }
-    setActionError(null);
     try {
       await downloadArtifact(id, name);
     } catch (caught) {
-      setActionError(
+      pushToast(
+        'error',
         caught instanceof Error ? caught.message : `Не удалось скачать ${name}.`,
       );
     }
@@ -612,12 +615,13 @@ export default function RunPage() {
       return;
     }
     setCancelling(true);
-    setActionError(null);
     try {
       await cancelRun(id);
       setDetail(await getRunDetail(id));
+      pushToast('success', 'Запуск отменён.');
     } catch (caught) {
-      setActionError(
+      pushToast(
+        'error',
         caught instanceof Error ? caught.message : 'Не удалось отменить запуск.',
       );
     } finally {
@@ -728,15 +732,16 @@ export default function RunPage() {
     if (!window.confirm(`Удалить сессию ${run.id.slice(0, 8)}?`)) {
       return;
     }
-    setActionError(null);
     try {
       await deleteRun(run.id);
       removeRun(run.id);
       if (run.id === id) {
         navigate('/');
       }
+      pushToast('success', `Сессия ${run.id.slice(0, 8)} удалена.`);
     } catch (caught) {
-      setActionError(
+      pushToast(
+        'error',
         caught instanceof Error ? caught.message : 'Не удалось удалить сессию.',
       );
     }
@@ -747,16 +752,52 @@ export default function RunPage() {
       return;
     }
     setSending(true);
-    setActionError(null);
     try {
       await sendTestEmail(id);
-      setNotice('Письмо отправлено на тестовый адрес из конфигурации.');
+      pushToast('success', 'Письмо отправлено на тестовый адрес из конфигурации.');
     } catch (caught) {
-      setActionError(
+      pushToast(
+        'error',
         caught instanceof Error ? caught.message : 'Не удалось отправить письмо.',
       );
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleSendEvent(index: number) {
+    if (!id) {
+      return;
+    }
+    setSendingEvent(index);
+    try {
+      await sendRunToTelegram(id, { eventIndex: index });
+      pushToast('success', 'Пост события отправлен в Telegram.');
+    } catch (caught) {
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось отправить пост события.',
+      );
+    } finally {
+      setSendingEvent(null);
+    }
+  }
+
+  async function handleSendAllEvents() {
+    if (!id) {
+      return;
+    }
+    setSendingAll(true);
+    try {
+      const result = await sendRunToTelegram(id, { all: true });
+      pushToast('success', `Отправлено постов: ${result.messages}.`);
+    } catch (caught) {
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось отправить посты.',
+      );
+    } finally {
+      setSendingAll(false);
     }
   }
 
@@ -765,17 +806,17 @@ export default function RunPage() {
       return;
     }
     setTelegramSending(true);
-    setActionError(null);
-    setNotice(null);
     try {
       const result = await sendRunToTelegram(id);
-      setNotice(
+      pushToast(
+        'success',
         result.message_id
           ? `Пост отправлен в Telegram (message_id ${result.message_id}).`
           : 'Пост отправлен в Telegram.',
       );
     } catch (caught) {
-      setActionError(
+      pushToast(
+        'error',
         caught instanceof Error ? caught.message : 'Не удалось отправить пост в Telegram.',
       );
     } finally {
@@ -967,12 +1008,6 @@ export default function RunPage() {
           <div className={cx(styles, "rp-generating-loader")}>
             <LoaderGame message="Формируем дайджест…" hint={generationHint} />
           </div>
-          {actionError && (
-            <div className={cx(styles, "ws-alert ws-alert--error rp-generating-alert")} role="alert">
-              <AlertCircleIcon />
-              <span>{actionError}</span>
-            </div>
-          )}
           {versions.length > 0 && (
             <div className={cx(styles, "rp-generating-footer")}>{versionNav}</div>
           )}
@@ -1059,11 +1094,17 @@ export default function RunPage() {
                 <button
                   className={cx(styles, "rp-secondary-button rp-secondary-button--small")}
                   type="button"
-                  onClick={handleSendTelegram}
-                  disabled={telegramSending}
+                  onClick={postView === 'cards' ? handleSendAllEvents : handleSendTelegram}
+                  disabled={postView === 'cards' ? sendingAll : telegramSending}
                 >
                   <SendIcon />
-                  {telegramSending ? 'Отправляем…' : 'В Telegram'}
+                  {postView === 'cards'
+                    ? sendingAll
+                      ? 'Отправляем…'
+                      : 'Все в Telegram'
+                    : telegramSending
+                      ? 'Отправляем…'
+                      : 'В Telegram'}
                 </button>
               </>
             )}
@@ -1099,13 +1140,6 @@ export default function RunPage() {
           </div>
         </div>
 
-        {(actionError || notice) && (
-          <div className={cx(styles, `ws-alert ${actionError ? 'ws-alert--error' : 'ws-alert--info'}`)} role="status">
-            {actionError ? <AlertCircleIcon /> : <InfoIcon />}
-            <span>{actionError ?? notice}</span>
-          </div>
-        )}
-
         <div className={cx(styles, "rp-content")}>
           {tab === 'digest' && (
             digestPending ? (
@@ -1128,11 +1162,7 @@ export default function RunPage() {
                       <div className={cx(styles, "rp-article-head")}>
                         <div className={cx(styles, "rp-article-tags")}>
                           {level && <span className={cx(styles, `rp-level rp-level--${level.className}`)}>{level.label}</span>}
-                          <span className={cx(styles, "rp-article-index")}>Событие {index + 1}</span>
                         </div>
-                        {event && (
-                          <span className={cx(styles, "rp-article-key")}>{event.event_key}</span>
-                        )}
                       </div>
                       <h3>{section.title}</h3>
                       {run?.policies?.include_images && imageUrl && (
@@ -1175,6 +1205,18 @@ export default function RunPage() {
               <LoaderGame message="Готовим пост…" hint={generationHint} />
             ) : (
               <div className={cx(styles, "rp-post")}>
+              <AnimatedTabs
+                items={[
+                  { id: 'text', label: 'Текстовый пост' },
+                  { id: 'cards', label: 'Карточки событий' },
+                ]}
+                value={postView}
+                onChange={setPostView}
+                ariaLabel="Вид поста"
+                size="sm"
+              />
+              {postView === 'text' && (
+                <>
               {!postText && (
                 <p className={cx(styles, "rp-muted")}>{missingArtifact(run.status, 'post.md')}</p>
               )}
@@ -1225,14 +1267,14 @@ export default function RunPage() {
                               <p className={cx(styles, "rp-tg-sources")}>
                                 <span className={cx(styles, "rp-tg-sources-label")}>Источники: </span>
                                 {item.sources.map((source, index) => (
-                                  <span key={source}>
+                                  <span key={source.url}>
                                     <a
                                       className={cx(styles, "rp-tg-source")}
-                                      href={source}
+                                      href={source.url}
                                       rel="noreferrer"
                                       target="_blank"
                                     >
-                                      {hostOf(source)}
+                                      {source.name}
                                     </a>
                                     {index < item.sources.length - 1 ? ', ' : ''}
                                   </span>
@@ -1276,6 +1318,90 @@ export default function RunPage() {
                     </article>
                   </div>
                 </>
+              )}
+                </>
+              )}
+
+              {postView === 'cards' && (
+                <div className={cx(styles, "rp-post-cards")}>
+                  {parsedPost.items.length === 0 && (
+                    <p className={cx(styles, "rp-muted")}>
+                      Не удалось разобрать структуру поста.
+                    </p>
+                  )}
+                  {parsedPost.items.map((item, index) => {
+                    const event = detail?.events[index];
+                    const imageUrl =
+                      typeof event?.attributes?.image_url === 'string'
+                        ? event.attributes.image_url
+                        : null;
+                    const showImage = postImages[index] !== false;
+                    return (
+                      <article className={cx(styles, "rp-post-card")} key={`${item.number}-${item.title}`}>
+                        <header className={cx(styles, "rp-post-card-head")}>
+                          <span className={cx(styles, "rp-post-card-number")}>{item.number}</span>
+                          <strong>{item.title}</strong>
+                        </header>
+                        {showImage && imageUrl && (
+                          <img
+                            className={cx(styles, "rp-post-card-image")}
+                            src={imageUrl}
+                            alt=""
+                            loading="lazy"
+                          />
+                        )}
+                        {item.summary && (
+                          <p className={cx(styles, "rp-post-card-summary")}>{item.summary}</p>
+                        )}
+                        {item.sources.length > 0 && (
+                          <p className={cx(styles, "rp-tg-sources")}>
+                            <span className={cx(styles, "rp-tg-sources-label")}>Источники: </span>
+                            {item.sources.map((source, sourceIndex) => (
+                              <span key={source.url}>
+                                <a
+                                  className={cx(styles, "rp-tg-source")}
+                                  href={source.url}
+                                  rel="noreferrer"
+                                  target="_blank"
+                                >
+                                  {source.name}
+                                </a>
+                                {sourceIndex < item.sources.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+                        <div className={cx(styles, "rp-post-card-actions")}>
+                          {imageUrl && (
+                            <button
+                              className={cx(styles, "rp-post-card-button")}
+                              type="button"
+                              role="switch"
+                              aria-checked={showImage}
+                              onClick={() =>
+                                setPostImages((current) => ({
+                                  ...current,
+                                  [index]: !showImage,
+                                }))
+                              }
+                            >
+                              {showImage ? 'Скрыть изображение' : 'Показать изображение'}
+                            </button>
+                          )}
+                          <button
+                            className={cx(styles, "rp-post-card-button rp-post-card-button--primary")}
+                            type="button"
+                            disabled={sendingEvent === index}
+                            onClick={() => void handleSendEvent(index)}
+                          >
+                            <SendIcon />
+                            {sendingEvent === index ? 'Отправляем…' : 'В Telegram'}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
               )}
             </div>
             )
@@ -1399,10 +1525,12 @@ export default function RunPage() {
                     <div className={cx(styles, "rp-check-head")}>
                       <span>{CHECK_LABELS[check.scenario] ?? check.scenario}</span>
                       <span className={cx(styles, `rp-check-badge rp-check-badge--${check.passed ? 'passed' : 'failed'}`)}>
-                        {check.passed ? 'Пройдена' : 'Ошибка'}
+                        {check.passed ? 'Пройдена' : 'Не пройдена'}
                       </span>
                     </div>
-                    <p>{check.note || `Проверка ${index + 1}`}</p>
+                    <p>
+                      <strong>Критерий:</strong> {check.note || `Проверка ${index + 1}`}
+                    </p>
                   </article>
                 ))}
               </div>

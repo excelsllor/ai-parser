@@ -312,12 +312,22 @@ export function sendTestEmail(id: string, to?: string): Promise<unknown> {
   });
 }
 
-export function sendRunToTelegram(id: string): Promise<{
+export function sendRunToTelegram(
+  id: string,
+  options?: { eventIndex?: number; all?: boolean },
+): Promise<{
   sent: boolean;
-  chat_id: string;
+  messages: number;
   message_id: number | null;
 }> {
-  return request(`/runs/${id}/telegram/send`, {
+  const params = new URLSearchParams();
+  if (options?.all) {
+    params.set('all', 'true');
+  } else if (options?.eventIndex !== undefined) {
+    params.set('event_index', String(options.eventIndex));
+  }
+  const query = params.size > 0 ? `?${params.toString()}` : '';
+  return request(`/runs/${id}/telegram/send${query}`, {
     method: 'POST',
     headers: authHeaders(),
   });

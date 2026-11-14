@@ -500,22 +500,6 @@
   color: #1d4ed8;
 }
 
-.rp-article-index {
-  color: var(--ws-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-}
-
-.rp-article-key {
-  max-width: 40%;
-  overflow: hidden;
-  color: var(--ws-soft);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .rp-article h3 {
   margin: 0 0 8px;
   color: var(--ws-text-strong);
@@ -562,6 +546,88 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.rp-post-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.rp-post-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--ws-border);
+  border-radius: 12px;
+  background: var(--ws-paper, #fff);
+}
+
+.rp-post-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--ws-text-strong);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.rp-post-card-number {
+  flex: 0 0 auto;
+  color: var(--ws-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.rp-post-card-image {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  border: 1px solid var(--ws-border);
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.rp-post-card-summary {
+  margin: 0;
+  color: var(--ws-text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rp-post-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.rp-post-card-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border: 1px solid var(--ws-border);
+  border-radius: 7px;
+  background: var(--ws-paper, #fff);
+  color: var(--ws-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rp-post-card-button--primary {
+  border-color: var(--ws-primary);
+  background: var(--ws-primary);
+  color: #fff;
+}
+
+.rp-post-card-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .rp-post-meta {
@@ -1477,10 +1543,6 @@
   border-color: #1e40af;
   background: #141414;
   color: #93c5fd;
-}
-
-[data-theme='dark'] .rp-article-key {
-  color: #737373;
 }
 
 [data-theme='dark'] .rp-post-meta {

@@ -17,6 +17,7 @@ use news_shared::telemetry::{init_metrics, init_tracing};
 use news_shared::text::{count_chars_without_urls, remove_em_dash, sha256_hex};
 use serde_json::json;
 use sqlx::PgPool;
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -394,7 +395,7 @@ fn render_digest_full(
     out
 }
 
-fn render_digest_events(events: &[DraftEvent], items: &HashMap<Uuid, Item>) -> String {
+fn render_digest_events(events: &[DraftEvent], _items: &HashMap<Uuid, Item>) -> String {
     let mut out = String::new();
     if events.is_empty() {
         out.push_str("Подходящих событий за период нет.\n");
@@ -411,7 +412,7 @@ fn render_digest_events(events: &[DraftEvent], items: &HashMap<Uuid, Item>) -> S
             "Последствия: {}\n\n",
             remove_em_dash(&event.consequences)
         ));
-        out.push_str(&format!("Источники: {}\n\n", format_sources(event, items)));
+        out.push_str(&format!("Источники: {}\n\n", format_sources(event)));
         out.push_str(&format!(
             "Обоснование: {}\n\n",
             remove_em_dash(&event.justification)
@@ -506,7 +507,7 @@ fn render_email_markdown(
 fn render_email(
     events: &[DraftEvent],
     run: &news_shared::models::Run,
-    items: &HashMap<Uuid, Item>,
+    _items: &HashMap<Uuid, Item>,
     notes: &[String],
 ) -> String {
     let period = escape_html(&format_period(run));
@@ -572,34 +573,21 @@ fn render_email(
             out.push_str("<div style=\"font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7b8a9e;font-weight:700;\">Источники</div>");
             out.push_str("<ul style=\"margin:8px 0 0;padding-left:18px;font-size:12px;line-height:1.6;color:#526175;\">");
             for source in &event.sources {
-                let date = source
-                    .published_at
-                    .map(|d| format_dt(d, run))
-                    .unwrap_or_else(|| "дата не указана".to_string());
-                let external = items
-                    .get(&source.item_id)
-                    .map(|i| i.external_id.clone())
-                    .unwrap_or_default();
+                let label = if source.url.is_empty() {
+                    remove_em_dash(&source.source_name)
+                } else {
+                    host_label(&source.url)
+                };
                 let link = if let Some(href) = safe_href(&source.url) {
                     format!(
                         "<a href=\"{}\" style=\"color:#2563eb;text-decoration:none;\">{}</a>",
                         escape_html(href),
-                        escape_html(&remove_em_dash(&source.source_name))
+                        escape_html(&label)
                     )
                 } else {
-                    escape_html(&remove_em_dash(&source.source_name))
+                    escape_html(&label)
                 };
-                out.push_str(&format!(
-                    "<li style=\"margin:0 0 6px;\">{} — {}, {}{}</li>",
-                    link,
-                    escape_html(&date),
-                    escape_html(&source.url),
-                    if external.is_empty() {
-                        String::new()
-                    } else {
-                        format!(", ID {}", escape_html(&external))
-                    }
-                ));
+                out.push_str(&format!("<li style=\"margin:0 0 6px;\">{}</li>", link));
             }
             out.push_str("</ul></div>");
             out.push_str(&format!(
@@ -727,7 +715,11 @@ async fn run_checks(
         passed: !digest.contains('—') && !post.contains('—') && !email.contains('—'),
         input: json!({}),
         output: json!({}),
-        note: "длинное тире отсутствует".to_string(),
+        note: if !digest.contains('—') && !post.contains('—') && !email.contains('—') {
+            "длинного тире нет".to_string()
+        } else {
+            "в тексте найдено длинное тире, его нужно заменить обычным дефисом".to_string()
+        },
     });
     checks.push(CheckRow {
         scenario: "sources_present".to_string(),
@@ -969,39 +961,45 @@ fn format_dt(dt: DateTime<Utc>, _run: &news_shared::models::Run) -> String {
         .replace('—', "-")
 }
 
-fn format_sources(event: &DraftEvent, items: &HashMap<Uuid, Item>) -> String {
-    event
-        .sources
-        .iter()
-        .map(|source| {
-            let external = items
-                .get(&source.item_id)
-                .map(|i| i.external_id.as_str())
-                .unwrap_or("");
-            format!(
-                "{}, {}, ID {}",
-                remove_em_dash(&source.source_name),
-                source.url,
-                external
-            )
+fn host_label(value: &str) -> String {
+    Url::parse(value)
+        .ok()
+        .and_then(|url| {
+            url.host_str()
+                .map(|host| host.trim_start_matches("www.").to_string())
         })
-        .collect::<Vec<_>>()
-        .join("; ")
+        .filter(|host| !host.is_empty())
+        .unwrap_or_else(|| value.to_string())
 }
 
-fn format_post_sources(event: &DraftEvent) -> String {
-    let urls = event
+fn format_sources(event: &DraftEvent) -> String {
+    event
         .sources
         .iter()
         .map(|source| {
             if source.url.is_empty() {
                 remove_em_dash(&source.source_name)
             } else {
-                source.url.clone()
+                format!("[{}]({})", host_label(&source.url), source.url)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn format_post_sources(event: &DraftEvent) -> String {
+    let sources = event
+        .sources
+        .iter()
+        .map(|source| {
+            if source.url.is_empty() {
+                remove_em_dash(&source.source_name)
+            } else {
+                format!("[{}]({})", host_label(&source.url), source.url)
             }
         })
         .collect::<Vec<_>>();
-    urls.join(" ")
+    sources.join(" ")
 }
 
 fn escape_html(value: &str) -> String {

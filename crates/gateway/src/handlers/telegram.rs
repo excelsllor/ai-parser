@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use axum::extract::{Extension, Path, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::Json;
 use news_shared::audit::{write_audit, AuditRecord};
 use news_shared::auth::AuthUser;
 use news_shared::db;
 use news_shared::error::{AppError, AppResult};
-use news_shared::models::TelegramSubscriber;
+use news_shared::models::{Event, TelegramSubscriber};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -18,6 +18,7 @@ use crate::state::AppState;
 
 const TELEGRAM_API: &str = "https://api.telegram.org";
 const MAX_MESSAGE_CHARS: usize = 4096;
+const MAX_CAPTION_CHARS: usize = 1024;
 
 pub fn validate_bot_token(value: &str) -> AppResult<()> {
     let value = value.trim();
@@ -205,7 +206,64 @@ fn escape_html(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
+fn host_label(value: &str) -> String {
+    reqwest::Url::parse(value)
+        .ok()
+        .and_then(|url| {
+            url.host_str()
+                .map(|host| host.trim_start_matches("www.").to_string())
+        })
+        .filter(|host| !host.is_empty())
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn truncate_caption(text: &str) -> String {
+    if text.chars().count() <= MAX_CAPTION_CHARS {
+        return text.to_string();
+    }
+    let mut truncated: String = text.chars().take(MAX_CAPTION_CHARS - 3).collect();
+    truncated.push_str("...");
+    truncated
+}
+
 fn linkify_sources(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while !rest.is_empty() {
+        let Some(start) = rest.find('[') else {
+            out.push_str(&linkify_raw(rest));
+            break;
+        };
+        out.push_str(&linkify_raw(&rest[..start]));
+        let Some(close_rel) = rest[start..].find("](") else {
+            out.push_str(&escape_html(&rest[start..]));
+            break;
+        };
+        let close = start + close_rel;
+        let url_start = close + 2;
+        let Some(end_rel) = rest[url_start..].find(')') else {
+            out.push_str(&escape_html(&rest[start..]));
+            break;
+        };
+        let end = url_start + end_rel;
+        let url = &rest[url_start..end];
+        if url.starts_with("http://") || url.starts_with("https://") {
+            let label = host_label(url);
+            out.push_str(&format!(
+                "<a href=\"{}\">{}</a>",
+                escape_html(url),
+                escape_html(&label)
+            ));
+            rest = &rest[end + 1..];
+        } else {
+            out.push_str(&escape_html(&rest[start..=start]));
+            rest = &rest[start + 1..];
+        }
+    }
+    out
+}
+
+fn linkify_raw(text: &str) -> String {
     let mut out = String::new();
     for token in text.split_whitespace() {
         if !out.is_empty() {
@@ -213,7 +271,10 @@ fn linkify_sources(text: &str) -> String {
         }
         if token.starts_with("http://") || token.starts_with("https://") {
             let escaped = escape_html(token);
-            out.push_str(&format!("<a href=\"{escaped}\">{escaped}</a>"));
+            out.push_str(&format!(
+                "<a href=\"{escaped}\">{}</a>",
+                escape_html(&host_label(token))
+            ));
         } else {
             out.push_str(&escape_html(token));
         }
@@ -294,6 +355,165 @@ fn prepare_message(text: &str) -> String {
     }
 }
 
+#[derive(Debug, Deserialize, Default)]
+pub struct SendRunQuery {
+    pub event_index: Option<usize>,
+    #[serde(default)]
+    pub all: bool,
+}
+
+struct SendOutcome {
+    results: Vec<Value>,
+    first_message_id: Option<i64>,
+    last_error: Option<AppError>,
+    sent: usize,
+}
+
+async fn send_photo_to_chats(
+    state: &AppState,
+    token: &str,
+    chat_ids: &[String],
+    photo: &str,
+    caption: &str,
+) -> SendOutcome {
+    let mut outcome = SendOutcome {
+        results: Vec::new(),
+        first_message_id: None,
+        last_error: None,
+        sent: 0,
+    };
+    for chat_id in chat_ids {
+        let payload = json!({
+            "chat_id": chat_id,
+            "photo": photo,
+            "caption": truncate_caption(&prepare_message(caption)),
+            "parse_mode": "HTML",
+        });
+        match call_api(state, token, "sendPhoto", Some(payload)).await {
+            Ok(response) => {
+                let message_id = response
+                    .pointer("/result/message_id")
+                    .and_then(Value::as_i64);
+                if outcome.first_message_id.is_none() {
+                    outcome.first_message_id = message_id;
+                }
+                outcome.sent += 1;
+                outcome.results.push(json!({
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                }));
+            }
+            Err(error) => {
+                outcome.results.push(json!({
+                    "chat_id": chat_id,
+                    "error": error.to_string(),
+                }));
+                outcome.last_error = Some(error);
+            }
+        }
+    }
+    outcome
+}
+
+fn event_image(events: &[Event], index: usize) -> Option<String> {
+    events
+        .get(index)
+        .and_then(|event| event.attributes.get("image_url"))
+        .and_then(Value::as_str)
+        .filter(|value| value.starts_with("http://") || value.starts_with("https://"))
+        .map(str::to_string)
+}
+
+fn absorb(
+    outcome: SendOutcome,
+    first_message_id: &mut Option<i64>,
+    results: &mut Vec<Value>,
+    last_error: &mut Option<AppError>,
+    sent: &mut usize,
+) {
+    if first_message_id.is_none() {
+        *first_message_id = outcome.first_message_id;
+    }
+    *sent += outcome.sent;
+    results.extend(outcome.results);
+    if outcome.last_error.is_some() {
+        *last_error = outcome.last_error;
+    }
+}
+
+async fn send_text_to_chats(
+    state: &AppState,
+    token: &str,
+    chat_ids: &[String],
+    text: &str,
+) -> SendOutcome {
+    let mut outcome = SendOutcome {
+        results: Vec::new(),
+        first_message_id: None,
+        last_error: None,
+        sent: 0,
+    };
+    for chat_id in chat_ids {
+        match send_message(state, token, chat_id, text).await {
+            Ok(response) => {
+                let message_id = response
+                    .pointer("/result/message_id")
+                    .and_then(Value::as_i64);
+                if outcome.first_message_id.is_none() {
+                    outcome.first_message_id = message_id;
+                }
+                outcome.sent += 1;
+                outcome.results.push(json!({
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                }));
+            }
+            Err(error) => {
+                outcome.results.push(json!({
+                    "chat_id": chat_id,
+                    "error": error.to_string(),
+                }));
+                outcome.last_error = Some(error);
+            }
+        }
+    }
+    outcome
+}
+
+fn split_post_events(text: &str) -> (String, Vec<String>) {
+    let mut header = Vec::new();
+    let mut blocks = Vec::new();
+    let mut current: Option<Vec<&str>> = None;
+    for line in text.lines() {
+        if numbered_title(line).is_some() {
+            if let Some(block) = current.take() {
+                blocks.push(block.join("\n").trim().to_string());
+            }
+            current = Some(vec![line]);
+        } else if let Some(block) = current.as_mut() {
+            block.push(line);
+        } else {
+            header.push(line);
+        }
+    }
+    if let Some(block) = current {
+        blocks.push(block.join("\n").trim().to_string());
+    }
+    (header.join("\n").trim().to_string(), blocks)
+}
+
+fn event_post(header: &str, block: &str) -> String {
+    let mut lines = block.lines();
+    let Some(first) = lines.next() else {
+        return header.to_string();
+    };
+    let first = numbered_title(first)
+        .map(|(_, title)| format!("1. {title}"))
+        .unwrap_or_else(|| first.to_string());
+    let rest = lines.collect::<Vec<_>>().join("\n");
+    format!("{header}\n\n{first}\n{rest}").trim().to_string()
+}
+
 async fn send_message(
     state: &AppState,
     token: &str,
@@ -319,39 +539,77 @@ pub async fn send_run(
     user: AuthUser,
     Extension(ClientIp(ip)): Extension<ClientIp>,
     Path(run_id): Path<Uuid>,
+    Query(query): Query<SendRunQuery>,
 ) -> AppResult<Json<Value>> {
     user.require_write()?;
-    get_run_for_user(&state, &user, run_id).await?;
+    let run = get_run_for_user(&state, &user, run_id).await?;
     let token = bot_token(&state).await?;
     let chat_ids = target_chat_ids(&state).await?;
     let text = read_post_text(&state, run_id).await?;
+    let (header, blocks) = split_post_events(&text);
+    let messages = if query.all && !blocks.is_empty() {
+        blocks
+            .iter()
+            .enumerate()
+            .map(|(index, block)| (event_post(&header, block), Some(index)))
+            .collect::<Vec<_>>()
+    } else if let Some(index) = query.event_index {
+        let block = blocks
+            .get(index)
+            .ok_or_else(|| AppError::BadRequest("event not found in post".into()))?;
+        vec![(event_post(&header, block), Some(index))]
+    } else {
+        vec![(text, None)]
+    };
+    let events = if run.policy_flags().include_images {
+        db::get_events(&state.pool, run_id)
+            .await
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     let mut results = Vec::new();
     let mut first_message_id = None;
     let mut last_error = None;
-    for chat_id in &chat_ids {
-        match send_message(&state, &token, chat_id, &text).await {
-            Ok(response) => {
-                let message_id = response
-                    .pointer("/result/message_id")
-                    .and_then(Value::as_i64);
-                if first_message_id.is_none() {
-                    first_message_id = message_id;
-                }
-                results.push(json!({
-                    "chat_id": chat_id,
-                    "message_id": message_id,
-                }));
-            }
-            Err(error) => {
-                results.push(json!({
-                    "chat_id": chat_id,
-                    "error": error.to_string(),
-                }));
-                last_error = Some(error);
+    let mut sent = 0;
+    for (message, index) in &messages {
+        let mut photo_sent = false;
+        if let Some(index) = index {
+            if let Some(photo) = event_image(&events, *index) {
+                let caption = if message.chars().count() <= MAX_CAPTION_CHARS {
+                    message.clone()
+                } else {
+                    message
+                        .lines()
+                        .find(|line| numbered_title(line).is_some())
+                        .unwrap_or(message)
+                        .to_string()
+                };
+                let outcome =
+                    send_photo_to_chats(&state, &token, &chat_ids, &photo, &caption).await;
+                photo_sent = outcome.sent > 0;
+                absorb(
+                    outcome,
+                    &mut first_message_id,
+                    &mut results,
+                    &mut last_error,
+                    &mut sent,
+                );
             }
         }
+        if !photo_sent || message.chars().count() > MAX_CAPTION_CHARS {
+            let outcome = send_text_to_chats(&state, &token, &chat_ids, message).await;
+            absorb(
+                outcome,
+                &mut first_message_id,
+                &mut results,
+                &mut last_error,
+                &mut sent,
+            );
+        }
     }
-    if results.iter().all(|result| result.get("error").is_some()) {
+    if sent == 0 {
         return Err(last_error
             .unwrap_or_else(|| AppError::BadRequest("Telegram send failed for all chats".into())));
     }
@@ -363,7 +621,7 @@ pub async fn send_run(
             user.username.clone(),
             "telegram.send",
             format!("run:{run_id}"),
-            json!({"targets": results, "message_id": first_message_id}),
+            json!({"targets": results, "message_id": first_message_id, "messages": sent}),
             ip,
         ),
     )
@@ -371,6 +629,7 @@ pub async fn send_run(
 
     Ok(Json(json!({
         "sent": true,
+        "messages": sent,
         "targets": results,
         "message_id": first_message_id,
     })))

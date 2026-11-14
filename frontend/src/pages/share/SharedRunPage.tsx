@@ -252,13 +252,7 @@ export default function SharedRunPage() {
                                   {level.label}
                                 </span>
                               )}
-                              <span className={cx(styles, 'rp-article-index')}>
-                                Событие {index + 1}
-                              </span>
                             </div>
-                            {event && (
-                              <span className={cx(styles, 'rp-article-key')}>{event.event_key}</span>
-                            )}
                           </div>
                           <h3>{section.title}</h3>
                           <div className={cx(styles, 'rp-article-body')}>
@@ -326,14 +320,14 @@ export default function SharedRunPage() {
                               <p className={cx(styles, 'rp-tg-sources')}>
                                 <span className={cx(styles, 'rp-tg-sources-label')}>Источники: </span>
                                 {item.sources.map((source, index) => (
-                                  <span key={source}>
+                                  <span key={source.url}>
                                     <a
                                       className={cx(styles, 'rp-tg-source')}
-                                      href={source}
+                                      href={source.url}
                                       rel="noreferrer"
                                       target="_blank"
                                     >
-                                      {hostOf(source)}
+                                      {source.name}
                                     </a>
                                     {index < item.sources.length - 1 ? ', ' : ''}
                                   </span>
