@@ -24,8 +24,10 @@ import {
   UploadIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { errorMessage } from '@utils/errors';
 import { sortRows } from '@utils/sort';
 import type { SortDirection } from '@utils/sort';
+import { useToast } from '@context/toast';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -179,8 +181,8 @@ export default function AdminSourcesPage() {
   const [keywords, setKeywords] = useState<AdminKeyword[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { pushToast } = useToast();
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
@@ -224,7 +226,7 @@ export default function AdminSourcesPage() {
       setKeywords(keywordList);
       setUpdatedAt(new Date().toISOString());
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось загрузить источники.');
+      setError(errorMessage(caught, 'Не удалось загрузить источники.'));
     } finally {
       setLoading(false);
     }
@@ -284,16 +286,15 @@ export default function AdminSourcesPage() {
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
-    setError(null);
     try {
       await createAdminSource({ name, kind: sourceKind, url, trust });
       setName('');
       setUrl('');
       setAddOpen(false);
-      setNotice('Источник добавлен.');
+      pushToast('success', 'Источник добавлен.');
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось добавить источник.');
+      pushToast('error', errorMessage(caught, 'Не удалось добавить источник.'));
     } finally {
       setSubmitting(false);
     }
@@ -301,7 +302,6 @@ export default function AdminSourcesPage() {
 
   async function handleToggle(source: AdminSource) {
     setBusyId(source.id);
-    setError(null);
     try {
       await toggleAdminSource(source.id, !source.enabled);
       setSources((previous) =>
@@ -309,8 +309,9 @@ export default function AdminSourcesPage() {
           item.id === source.id ? { ...item, enabled: !item.enabled } : item,
         ),
       );
+      pushToast('success', source.enabled ? 'Источник выключен.' : 'Источник включён.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось изменить источник.');
+      pushToast('error', errorMessage(caught, 'Не удалось изменить источник.'));
     } finally {
       setBusyId(null);
     }
@@ -321,12 +322,12 @@ export default function AdminSourcesPage() {
       return;
     }
     setBusyId(source.id);
-    setError(null);
     try {
       await deleteAdminSource(source.id);
       setSources((previous) => previous.filter((item) => item.id !== source.id));
+      pushToast('success', 'Источник удалён.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось удалить источник.');
+      pushToast('error', errorMessage(caught, 'Не удалось удалить источник.'));
     } finally {
       setBusyId(null);
     }
@@ -338,13 +339,13 @@ export default function AdminSourcesPage() {
       return;
     }
     setKeywordSubmitting(true);
-    setError(null);
     try {
       const created = await createAdminKeyword(keyword.trim());
       setKeywords((previous) => [created, ...previous]);
       setKeyword('');
+      pushToast('success', 'Стоп-слово добавлено.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось добавить стоп-слово.');
+      pushToast('error', errorMessage(caught, 'Не удалось добавить стоп-слово.'));
     } finally {
       setKeywordSubmitting(false);
     }
@@ -357,8 +358,6 @@ export default function AdminSourcesPage() {
       return;
     }
     setImportingSources(true);
-    setError(null);
-    setNotice(null);
     try {
       const rows = parseSourceFile(await file.text(), file.name);
       if (!rows.length) {
@@ -375,16 +374,18 @@ export default function AdminSourcesPage() {
         }
       }
       await load();
-      setNotice(
-        failures.length
-          ? `Добавлено ${added} из ${rows.length}. Ошибок: ${failures.length}. ${failures[0]}`
-          : `Добавлено источников: ${added}.`,
-      );
       if (!added) {
-        setError(failures[0] ?? 'Не удалось добавить источники.');
+        pushToast('error', failures[0] ?? 'Не удалось добавить источники.');
+      } else if (failures.length) {
+        pushToast(
+          'info',
+          `Добавлено ${added} из ${rows.length}. Ошибок: ${failures.length}. ${failures[0]}`,
+        );
+      } else {
+        pushToast('success', `Добавлено источников: ${added}.`);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось прочитать файл.');
+      pushToast('error', errorMessage(caught, 'Не удалось прочитать файл.'));
     } finally {
       setImportingSources(false);
     }
@@ -397,8 +398,6 @@ export default function AdminSourcesPage() {
       return;
     }
     setImportingKeywords(true);
-    setError(null);
-    setNotice(null);
     try {
       const words = [...new Set(parseKeywordFile(await file.text(), file.name))];
       if (!words.length) {
@@ -419,28 +418,30 @@ export default function AdminSourcesPage() {
         }
       }
       await load();
-      setNotice(
-        failures.length
-          ? `Добавлено стоп-слов ${added} из ${words.length}. Ошибок: ${failures.length}. ${failures[0]}`
-          : `Добавлено стоп-слов: ${added}.`,
-      );
       if (!added && failures.length) {
-        setError(failures[0]);
+        pushToast('error', failures[0]);
+      } else if (failures.length) {
+        pushToast(
+          'info',
+          `Добавлено стоп-слов ${added} из ${words.length}. Ошибок: ${failures.length}. ${failures[0]}`,
+        );
+      } else {
+        pushToast('success', `Добавлено стоп-слов: ${added}.`);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось прочитать файл.');
+      pushToast('error', errorMessage(caught, 'Не удалось прочитать файл.'));
     } finally {
       setImportingKeywords(false);
     }
   }
 
   async function handleDeleteKeyword(item: AdminKeyword) {
-    setError(null);
     try {
       await deleteAdminKeyword(item.id);
       setKeywords((previous) => previous.filter((entry) => entry.id !== item.id));
+      pushToast('success', 'Стоп-слово удалено.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось удалить стоп-слово.');
+      pushToast('error', errorMessage(caught, 'Не удалось удалить стоп-слово.'));
     }
   }
 
@@ -476,12 +477,6 @@ export default function AdminSourcesPage() {
         <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
-        </div>
-      )}
-      {notice && (
-        <div className={cx(styles, "admin-notice")} role="status">
-          <CheckCircleIcon />
-          <span>{notice}</span>
         </div>
       )}
 

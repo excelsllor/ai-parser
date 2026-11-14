@@ -6,6 +6,7 @@ import { resetPassword } from '@api/auth';
 import { AppHeader } from '@components';
 import { AlertCircleIcon, ArrowRightIcon, LockIcon } from '@components/ui';
 import { cx } from '@utils/cx';
+import { useToast } from '@context/toast';
 
 import authStyles from './AuthPage.module.css';
 
@@ -17,6 +18,7 @@ export default function ResetPasswordPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { pushToast } = useToast();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -36,9 +38,13 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       await resetPassword(token, password);
+      pushToast('success', 'Пароль изменён. Войдите с новым паролем.');
       navigate('/login', { replace: true });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось сменить пароль.');
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось сменить пароль.',
+      );
     } finally {
       setLoading(false);
     }

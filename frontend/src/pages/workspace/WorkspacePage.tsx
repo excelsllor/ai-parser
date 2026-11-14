@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ApiError } from '@api/http';
 import { createRun, deleteRun, listSources } from '@api/runs';
 import type { RunSummary, Source } from '@api/runs';
 import useRunsFeed from '@hooks/useRunsFeed';
@@ -11,7 +10,6 @@ import {
   BoltIcon,
   CheckIcon,
   FormatGuide,
-  InfoIcon,
   ListNumberedIcon,
   RssIcon,
   ScheduleIcon,
@@ -20,6 +18,8 @@ import {
 } from '@components/ui';
 import { WorkspaceLayout } from '@components';
 import { cx } from '@utils/cx';
+import { errorMessage } from '@utils/errors';
+import { useToast } from '@context/toast';
 
 import workspaceStyles from '@components/workspace/workspace.module.css';
 
@@ -111,12 +111,11 @@ export default function WorkspacePage() {
   const [newsCount, setNewsCount] = useState(5);
   const [includeImages, setIncludeImages] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [controlTime, setControlTime] = useState<string | undefined>();
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const { pushToast } = useToast();
   const [datasetFormat, setDatasetFormat] = useState<DatasetFormat>('json');
 
   const enabledSources = useMemo(
@@ -139,9 +138,7 @@ export default function WorkspacePage() {
       } catch (error) {
         if (active) {
           setDataError(
-            error instanceof ApiError
-              ? error.message
-              : 'Не удалось загрузить источники.',
+            errorMessage(error, 'Не удалось загрузить источники.'),
           );
         }
       } finally {
@@ -183,8 +180,6 @@ export default function WorkspacePage() {
     setFiles([]);
     setControlTime(undefined);
     setFileError(null);
-    setSubmitError(null);
-    setSessionNotice(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -218,24 +213,20 @@ export default function WorkspacePage() {
   }
 
   async function handleDeleteRun(run: RunSummary) {
-    setSessionNotice(null);
     try {
       await deleteRun(run.id);
       removeRun(run.id);
-      setSessionNotice(`Сессия ${run.id.slice(0, 8)} удалена.`);
+      pushToast('success', `Сессия ${run.id.slice(0, 8)} удалена.`);
     } catch (error) {
-      setDataError(
-        error instanceof Error ? error.message : 'Не удалось удалить сессию.',
-      );
+      pushToast('error', errorMessage(error, 'Не удалось удалить сессию.'));
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitError(null);
 
     if (selectedSources.size === 0 && files.length === 0) {
-      setSubmitError('Выберите источники и/или загрузите файлы датасета.');
+      pushToast('error', 'Выберите источники и/или загрузите файлы датасета.');
       return;
     }
 
@@ -257,10 +248,12 @@ export default function WorkspacePage() {
       });
       navigate(`/runs/${run.id}`);
     } catch (error) {
-      setSubmitError(
-        error instanceof ApiError
-          ? error.message
-          : 'Не удалось создать запрос. Проверьте соединение с сервером.',
+      pushToast(
+        'error',
+        errorMessage(
+          error,
+          'Не удалось создать запрос. Проверьте соединение с сервером.',
+        ),
       );
     } finally {
       setSubmitting(false);
@@ -305,13 +298,6 @@ export default function WorkspacePage() {
           <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
             <AlertCircleIcon />
             <span>{dataError}</span>
-          </div>
-        )}
-
-        {sessionNotice && (
-          <div className={cx(styles, "ws-alert ws-alert--info")} role="status">
-            <InfoIcon />
-            <span>{sessionNotice}</span>
           </div>
         )}
 
@@ -532,13 +518,6 @@ export default function WorkspacePage() {
             </button>
           </div>
         </div>
-
-        {submitError && (
-          <div className={cx(styles, "ws-alert ws-alert--error")} role="alert">
-            <AlertCircleIcon />
-            <span>{submitError}</span>
-          </div>
-        )}
 
       </form>
 

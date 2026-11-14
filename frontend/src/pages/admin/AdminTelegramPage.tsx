@@ -14,7 +14,6 @@ import type { TelegramSubscriber } from '@api/admin';
 import {
   AlertCircleIcon,
   BotIcon,
-  CheckCircleIcon,
   GroupIcon,
   KeyIcon,
   MailIcon,
@@ -23,6 +22,8 @@ import {
   SendIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { errorMessage } from '@utils/errors';
+import { useToast } from '@context/toast';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -66,8 +67,8 @@ export default function AdminTelegramPage() {
   const [syncing, setSyncing] = useState(false);
   const [busyChat, setBusyChat] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const { pushToast } = useToast();
 
   async function load() {
     setLoading(true);
@@ -94,11 +95,7 @@ export default function AdminTelegramPage() {
       setSubscribers(users);
       setUpdatedAt(new Date().toISOString());
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : 'Не удалось загрузить настройки Telegram.',
-      );
+      setError(errorMessage(caught, 'Не удалось загрузить настройки Telegram.'));
     } finally {
       setLoading(false);
     }
@@ -117,8 +114,6 @@ export default function AdminTelegramPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setNotice(null);
     try {
       if (token.trim()) {
         await putAdminSetting('telegram_bot_token', token.trim());
@@ -130,12 +125,10 @@ export default function AdminTelegramPage() {
         .filter(Boolean);
       await putAdminSetting('telegram_chat_ids', targets);
       await putAdminSetting('telegram_send_to_subscribers', sendToSubscribers);
-      setNotice('Настройки рассылок сохранены.');
+      pushToast('success', 'Настройки рассылок сохранены.');
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Не удалось сохранить настройки Telegram.',
-      );
+      pushToast('error', errorMessage(caught, 'Не удалось сохранить настройки Telegram.'));
     } finally {
       setSaving(false);
     }
@@ -159,17 +152,13 @@ export default function AdminTelegramPage() {
   async function handleSaveEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingEmail(true);
-    setError(null);
-    setNotice(null);
     try {
       await persistEmailSettings();
       setSmtpPassword('');
-      setNotice('Настройки почты сохранены.');
+      pushToast('success', 'Настройки почты сохранены.');
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Не удалось сохранить настройки почты.',
-      );
+      pushToast('error', errorMessage(caught, 'Не удалось сохранить настройки почты.'));
     } finally {
       setSavingEmail(false);
     }
@@ -177,17 +166,13 @@ export default function AdminTelegramPage() {
 
   async function handleTestEmail() {
     setTestingEmail(true);
-    setError(null);
-    setNotice(null);
     try {
       await persistEmailSettings();
       const result = await testAdminEmail(smtpTestRecipient);
       setSmtpPassword('');
-      setNotice(`Тестовое письмо отправлено на ${result.to}.`);
+      pushToast('success', `Тестовое письмо отправлено на ${result.to}.`);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Не удалось отправить тестовое письмо.',
-      );
+      pushToast('error', errorMessage(caught, 'Не удалось отправить тестовое письмо.'));
     } finally {
       setTestingEmail(false);
     }
@@ -206,17 +191,16 @@ export default function AdminTelegramPage() {
 
   async function handleTest() {
     setTesting(true);
-    setError(null);
-    setNotice(null);
     try {
       const result = await testTelegramBot();
-      setNotice(
+      pushToast(
+        'success',
         result.username
           ? `Бот @${result.username} доступен и готов к отправке.`
           : 'Telegram API ответил: бот доступен.',
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось проверить бота.');
+      pushToast('error', errorMessage(caught, 'Не удалось проверить бота.'));
     } finally {
       setTesting(false);
     }
@@ -224,20 +208,17 @@ export default function AdminTelegramPage() {
 
   async function handleSync() {
     setSyncing(true);
-    setError(null);
-    setNotice(null);
     try {
       const result = await syncTelegramUsers();
       setSubscribers(result.subscribers);
-      setNotice(
+      pushToast(
+        result.updated > 0 ? 'success' : 'info',
         result.updated > 0
           ? `Обновлено пользователей: ${result.updated}.`
           : 'Новых сообщений боту нет. Напишите боту /start и повторите синхронизацию.',
       );
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Не удалось синхронизировать пользователей.',
-      );
+      pushToast('error', errorMessage(caught, 'Не удалось синхронизировать пользователей.'));
     } finally {
       setSyncing(false);
     }
@@ -245,7 +226,6 @@ export default function AdminTelegramPage() {
 
   async function handleToggle(subscriber: TelegramSubscriber) {
     setBusyChat(subscriber.chat_id);
-    setError(null);
     try {
       await setTelegramSubscriberActive(subscriber.chat_id, !subscriber.is_active);
       setSubscribers((previous) =>
@@ -255,10 +235,12 @@ export default function AdminTelegramPage() {
             : item,
         ),
       );
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : 'Не удалось изменить статус пользователя.',
+      pushToast(
+        'success',
+        subscriber.is_active ? 'Подписчик отключён.' : 'Подписчик включён.',
       );
+    } catch (caught) {
+      pushToast('error', errorMessage(caught, 'Не удалось изменить статус пользователя.'));
     } finally {
       setBusyChat(null);
     }
@@ -290,12 +272,6 @@ export default function AdminTelegramPage() {
         <div className={cx(styles, 'admin-error')} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
-        </div>
-      )}
-      {notice && (
-        <div className={cx(styles, 'admin-notice')} role="status">
-          <CheckCircleIcon />
-          <span>{notice}</span>
         </div>
       )}
 

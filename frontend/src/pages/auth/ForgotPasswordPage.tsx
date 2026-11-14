@@ -6,19 +6,19 @@ import { forgotPassword } from '@api/auth';
 import { AppHeader } from '@components';
 import { AlertCircleIcon, AlternateEmailIcon, ArrowRightIcon } from '@components/ui';
 import { cx } from '@utils/cx';
+import { useToast } from '@context/toast';
 
 import authStyles from './AuthPage.module.css';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { pushToast } = useToast();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setMessage(null);
     if (!email.trim()) {
       setError('Введите email.');
       return;
@@ -26,11 +26,15 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       await forgotPassword(email.trim());
-      setMessage(
+      pushToast(
+        'info',
         'Если аккаунт с такой почтой существует, то на него придет письмо со ссылкой для сброса пароля.',
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось отправить письмо.');
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось отправить письмо.',
+      );
     } finally {
       setLoading(false);
     }
@@ -51,11 +55,6 @@ export default function ForgotPasswordPage() {
                 <div className={cx(authStyles, 'auth-alert auth-alert--error')} role="alert">
                   <AlertCircleIcon />
                   <span>{error}</span>
-                </div>
-              )}
-              {message && (
-                <div className={cx(authStyles, 'auth-alert auth-alert--info')} role="status">
-                  <span>{message}</span>
                 </div>
               )}
               <div className={cx(authStyles, 'auth-field')}>

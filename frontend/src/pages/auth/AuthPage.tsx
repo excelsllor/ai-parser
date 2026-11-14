@@ -12,7 +12,6 @@ import {
   ArrowRightIcon,
   EyeIcon,
   EyeOffIcon,
-  InfoIcon,
   LockIcon,
   MailIcon,
   SparklesIcon,
@@ -20,6 +19,7 @@ import {
 import { AppHeader } from '@components';
 
 import { cx } from '@utils/cx';
+import { useToast } from '@context/toast';
 
 import authStyles from './AuthPage.module.css';
 
@@ -50,7 +50,7 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { pushToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [challenge, setChallenge] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
@@ -109,7 +109,6 @@ export default function AuthPage() {
     }
     previousPanelHeight.current = authPanelRef.current?.offsetHeight ?? null;
     setError(null);
-    setNotice(null);
     setChallenge(null);
     navigate(next === 'register' ? '/register' : '/login');
   }
@@ -117,7 +116,6 @@ export default function AuthPage() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
 
     if (!username.trim() || !password) {
       setError('Введите логин и пароль.');
@@ -130,7 +128,7 @@ export default function AuthPage() {
       if ('two_factor_required' in session) {
         setChallenge(session.challenge);
         setTwoFactorCode('');
-        setNotice('Мы отправили код подтверждения на вашу почту.');
+        pushToast('info', 'Мы отправили код подтверждения на вашу почту.');
         return;
       }
       saveSession(session, remember);
@@ -180,7 +178,6 @@ export default function AuthPage() {
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
 
     if (!username.trim() || !password || !confirmPassword) {
       setError('Заполните все поля.');
@@ -225,7 +222,6 @@ export default function AuthPage() {
 
   async function handleOAuth(provider: OAuthProvider) {
     setError(null);
-    setNotice(null);
     setOauthLoading(provider);
 
     try {
@@ -295,13 +291,6 @@ export default function AuthPage() {
               </div>
             )}
 
-            {notice && (
-              <div className={cx(styles, "auth-alert auth-alert--info")} role="status">
-                <InfoIcon />
-                <span>{notice}</span>
-              </div>
-            )}
-
             <div className={cx(styles, "auth-panel")} ref={authPanelRef}>
               {tab === 'login' ? (
                 challenge ? (
@@ -344,7 +333,6 @@ export default function AuthPage() {
                       onClick={() => {
                         setChallenge(null);
                         setTwoFactorCode('');
-                        setNotice(null);
                         setError(null);
                       }}
                     >
@@ -546,7 +534,7 @@ export default function AuthPage() {
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          setNotice('Условия использования будут опубликованы позже.');
+                          pushToast('info', 'Условия использования будут опубликованы позже.');
                         }}
                       >
                         условиями использования
@@ -558,7 +546,7 @@ export default function AuthPage() {
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          setNotice('Политика конфиденциальности будет опубликована позже.');
+                          pushToast('info', 'Политика конфиденциальности будет опубликована позже.');
                         }}
                       >
                         политикой конфиденциальности

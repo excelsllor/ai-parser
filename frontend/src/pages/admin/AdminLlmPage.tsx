@@ -6,7 +6,6 @@ import type { AdminSettings, LlmCall } from '@api/admin';
 import {
   AlertCircleIcon,
   BotIcon,
-  CheckCircleIcon,
   DownloadIcon,
   RefreshIcon,
   SaveIcon,
@@ -15,8 +14,10 @@ import {
   TuneIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { errorMessage } from '@utils/errors';
 import { sortRows } from '@utils/sort';
 import type { SortDirection } from '@utils/sort';
+import { useToast } from '@context/toast';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -59,8 +60,8 @@ export default function AdminLlmPage() {
   const [saving, setSaving] = useState(false);
   const [savingWeights, setSavingWeights] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const { pushToast } = useToast();
 
   const loadModels = useCallback(async (url: string) => {
     setModelsLoading(true);
@@ -70,11 +71,7 @@ export default function AdminLlmPage() {
       setModels(response.models);
     } catch (caught) {
       setModels([]);
-      setModelsError(
-        caught instanceof Error
-          ? caught.message
-          : 'Не удалось получить список моделей.',
-      );
+      setModelsError(errorMessage(caught, 'Не удалось получить список моделей.'));
     } finally {
       setModelsLoading(false);
     }
@@ -97,7 +94,7 @@ export default function AdminLlmPage() {
       setUpdatedAt(new Date().toISOString());
       void loadModels(settingsResponse.effective.base_url);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось загрузить LLM-данные.');
+      setError(errorMessage(caught, 'Не удалось загрузить LLM-данные.'));
     } finally {
       setLoading(false);
     }
@@ -154,8 +151,6 @@ export default function AdminLlmPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
-    setError(null);
-    setNotice(null);
     try {
       await putAdminSetting('llm_base_url', baseUrl.trim());
       if (apiKey.trim()) {
@@ -163,10 +158,10 @@ export default function AdminLlmPage() {
       }
       await putAdminSetting('model', model.trim());
       setApiKey('');
-      setNotice('Конфигурация LLM сохранена.');
+      pushToast('success', 'Конфигурация LLM сохранена.');
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось сохранить настройки.');
+      pushToast('error', errorMessage(caught, 'Не удалось сохранить настройки.'));
     } finally {
       setSaving(false);
     }
@@ -175,13 +170,11 @@ export default function AdminLlmPage() {
   async function handleSaveWeights(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSavingWeights(true);
-    setError(null);
-    setNotice(null);
     try {
       await putAdminSetting('weights', weights);
-      setNotice('Веса ранжирования сохранены.');
+      pushToast('success', 'Веса ранжирования сохранены.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось сохранить веса.');
+      pushToast('error', errorMessage(caught, 'Не удалось сохранить веса.'));
     } finally {
       setSavingWeights(false);
     }
@@ -236,12 +229,6 @@ export default function AdminLlmPage() {
         <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
-        </div>
-      )}
-      {notice && (
-        <div className={cx(styles, "admin-notice")} role="status">
-          <CheckCircleIcon />
-          <span>{notice}</span>
         </div>
       )}
 

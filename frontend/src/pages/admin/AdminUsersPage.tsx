@@ -13,7 +13,6 @@ import { getCurrentUser } from '@api/auth';
 import {
   AddIcon,
   AlertCircleIcon,
-  CheckCircleIcon,
   CopyIcon,
   DeleteIcon,
   EditIcon,
@@ -25,8 +24,10 @@ import {
   VerifiedUserIcon,
 } from '@components/ui';
 import { cx } from '@utils/cx';
+import { errorMessage } from '@utils/errors';
 import { sortRows } from '@utils/sort';
 import type { SortDirection } from '@utils/sort';
+import { useToast } from '@context/toast';
 
 import adminStyles from '@components/admin/Admin.module.css';
 
@@ -36,10 +37,10 @@ import { formatDateTime, initials } from './utils';
 
 export default function AdminUsersPage() {
   const currentUser = getCurrentUser();
+  const { pushToast } = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<'username' | 'role' | 'active' | 'created'>('created');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -87,7 +88,7 @@ export default function AdminUsersPage() {
     try {
       setUsers(await listAdminUsers());
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось загрузить пользователей.');
+      setError(errorMessage(caught, 'Не удалось загрузить пользователей.'));
     } finally {
       setLoading(false);
     }
@@ -111,7 +112,6 @@ export default function AdminUsersPage() {
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
-    setError(null);
     try {
       await createAdminUser({
         username: username.trim(),
@@ -124,10 +124,10 @@ export default function AdminUsersPage() {
       setEmail('');
       setRole('user');
       setAddOpen(false);
-      setNotice('Пользователь создан.');
+      pushToast('success', 'Пользователь создан.');
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось создать пользователя.');
+      pushToast('error', errorMessage(caught, 'Не удалось создать пользователя.'));
     } finally {
       setSubmitting(false);
     }
@@ -135,14 +135,14 @@ export default function AdminUsersPage() {
 
   async function handleRole(user: AdminUser, nextRole: string) {
     setBusyId(user.id);
-    setError(null);
     try {
       const updated = await updateAdminUser(user.id, { role: nextRole });
       setUsers((previous) =>
         previous.map((item) => (item.id === user.id ? updated : item)),
       );
+      pushToast('success', 'Роль изменена.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось изменить роль.');
+      pushToast('error', errorMessage(caught, 'Не удалось изменить роль.'));
     } finally {
       setBusyId(null);
     }
@@ -150,14 +150,14 @@ export default function AdminUsersPage() {
 
   async function handleToggleActive(user: AdminUser) {
     setBusyId(user.id);
-    setError(null);
     try {
       const updated = await updateAdminUser(user.id, { is_active: !user.is_active });
       setUsers((previous) =>
         previous.map((item) => (item.id === user.id ? updated : item)),
       );
+      pushToast('success', updated.is_active ? 'Пользователь активирован.' : 'Пользователь деактивирован.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось изменить статус.');
+      pushToast('error', errorMessage(caught, 'Не удалось изменить статус.'));
     } finally {
       setBusyId(null);
     }
@@ -170,14 +170,14 @@ export default function AdminUsersPage() {
     );
     if (value === null) return;
     setBusyId(user.id);
-    setError(null);
     try {
       const updated = await updateAdminUser(user.id, { email: value.trim() });
       setUsers((previous) =>
         previous.map((item) => (item.id === user.id ? updated : item)),
       );
+      pushToast('success', 'Email обновлён.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось изменить email.');
+      pushToast('error', errorMessage(caught, 'Не удалось изменить email.'));
     } finally {
       setBusyId(null);
     }
@@ -188,12 +188,12 @@ export default function AdminUsersPage() {
       return;
     }
     setBusyId(user.id);
-    setError(null);
     try {
       const result = await resetAdminUserPassword(user.id);
       setGeneratedPassword({ username: user.username, password: result.password });
+      pushToast('success', 'Пароль сброшен.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось сбросить пароль.');
+      pushToast('error', errorMessage(caught, 'Не удалось сбросить пароль.'));
     } finally {
       setBusyId(null);
     }
@@ -204,7 +204,6 @@ export default function AdminUsersPage() {
       return;
     }
     setBusyId(user.id);
-    setError(null);
     try {
       await deleteAdminUser(user.id);
       setUsers((previous) =>
@@ -212,8 +211,9 @@ export default function AdminUsersPage() {
           item.id === user.id ? { ...item, is_active: false } : item,
         ),
       );
+      pushToast('success', 'Пользователь деактивирован.');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Не удалось удалить пользователя.');
+      pushToast('error', errorMessage(caught, 'Не удалось удалить пользователя.'));
     } finally {
       setBusyId(null);
     }
@@ -253,12 +253,6 @@ export default function AdminUsersPage() {
         <div className={cx(styles, "admin-error")} role="alert">
           <AlertCircleIcon />
           <span>{error}</span>
-        </div>
-      )}
-      {notice && (
-        <div className={cx(styles, "admin-notice")} role="status">
-          <CheckCircleIcon />
-          <span>{notice}</span>
         </div>
       )}
       {generatedPassword && (
