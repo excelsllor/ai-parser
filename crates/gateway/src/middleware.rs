@@ -37,6 +37,16 @@ pub async fn auth_middleware(
     let token = bearer_token(request.headers())
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let claims = decode_access_token(&state.config, token)?;
+    if let Some(session_id) = claims.sid {
+        let _ = sqlx::query(
+            "UPDATE refresh_tokens SET last_seen_at = now()
+             WHERE id = $1 AND revoked = FALSE
+               AND last_seen_at < now() - interval '1 minute'",
+        )
+        .bind(session_id)
+        .execute(&state.pool)
+        .await;
+    }
     let auth_user = AuthUser::from_claims(&claims)?;
 
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1 AND is_active = TRUE")

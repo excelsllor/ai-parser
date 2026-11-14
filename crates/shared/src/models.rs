@@ -101,6 +101,9 @@ pub struct RefreshToken {
     pub expires_at: DateTime<Utc>,
     pub revoked: bool,
     pub created_at: DateTime<Utc>,
+    pub user_agent: String,
+    pub ip: String,
+    pub last_seen_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

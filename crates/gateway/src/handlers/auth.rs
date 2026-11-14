@@ -22,6 +22,16 @@ use crate::handlers::email;
 use crate::middleware::ClientIp;
 use crate::state::AppState;
 
+pub(crate) fn request_user_agent(headers: &HeaderMap) -> String {
+    headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .chars()
+        .take(512)
+        .collect()
+}
+
 fn dummy_hash() -> &'static str {
     static HASH: OnceLock<String> = OnceLock::new();
     HASH.get_or_init(|| hash_password("dummy-password-1").unwrap_or_default())
@@ -219,7 +229,14 @@ pub async fn login(
         }
     }
 
-    let session = issue_session(&state, &user, ip, "auth.login.success").await?;
+    let session = issue_session(
+        &state,
+        &user,
+        ip,
+        request_user_agent(&headers),
+        "auth.login.success",
+    )
+    .await?;
     Ok(Json(LoginResult::Session(session)))
 }
 
@@ -237,6 +254,7 @@ pub struct TwoFactorCodeRequest {
 pub async fn login_two_factor(
     State(state): State<AppState>,
     Extension(ClientIp(ip)): Extension<ClientIp>,
+    headers: HeaderMap,
     Json(payload): Json<TwoFactorLoginRequest>,
 ) -> AppResult<Json<LoginResult>> {
     let key = format!("ratelimit:login2fa:{ip}");
@@ -295,7 +313,14 @@ pub async fn login_two_factor(
         .execute(&state.pool)
         .await?;
 
-    let session = issue_session(&state, &user, ip, "auth.login.2fa").await?;
+    let session = issue_session(
+        &state,
+        &user,
+        ip,
+        request_user_agent(&headers),
+        "auth.login.2fa",
+    )
+    .await?;
     Ok(Json(LoginResult::Session(session)))
 }
 
@@ -484,6 +509,7 @@ async fn send_email_link(
 pub async fn register(
     State(state): State<AppState>,
     Extension(ClientIp(ip)): Extension<ClientIp>,
+    headers: HeaderMap,
     Json(payload): Json<RegisterRequest>,
 ) -> AppResult<Json<LoginResponse>> {
     let key = format!("ratelimit:register:{ip}");
@@ -539,7 +565,14 @@ pub async fn register(
             }
         });
     }
-    let session = issue_session(&state, &user, ip, "auth.register.success").await?;
+    let session = issue_session(
+        &state,
+        &user,
+        ip,
+        request_user_agent(&headers),
+        "auth.register.success",
+    )
+    .await?;
     Ok(Json(session))
 }
 
@@ -688,18 +721,24 @@ pub async fn issue_session(
     state: &AppState,
     user: &User,
     ip: String,
+    user_agent: String,
     action: &str,
 ) -> AppResult<LoginResponse> {
-    let access = create_access_token(&state.config, user)?;
     let (refresh, refresh_hash) = new_refresh_token();
     let expires = refresh_expiry(&state.config);
 
-    sqlx::query("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1,$2,$3)")
-        .bind(user.id)
-        .bind(&refresh_hash)
-        .bind(expires)
-        .execute(&state.pool)
-        .await?;
+    let session_id: Uuid = sqlx::query_scalar(
+        "INSERT INTO refresh_tokens (user_id, token_hash, expires_at, user_agent, ip)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id",
+    )
+    .bind(user.id)
+    .bind(&refresh_hash)
+    .bind(expires)
+    .bind(&user_agent)
+    .bind(&ip)
+    .fetch_one(&state.pool)
+    .await?;
+    let access = create_access_token(&state.config, user, Some(session_id))?;
     let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
     let _ = write_audit(
@@ -726,18 +765,19 @@ pub async fn issue_session(
 
 pub async fn refresh(
     State(state): State<AppState>,
-    Extension(ClientIp(ip)): Extension<ClientIp>,
+    Extension(ClientIp(_ip)): Extension<ClientIp>,
     Json(payload): Json<RefreshRequest>,
 ) -> AppResult<Json<LoginResponse>> {
     let token_hash = hash_token(payload.refresh_token.trim());
-    let row: Option<(Uuid, Uuid, chrono::DateTime<Utc>, bool)> = sqlx::query_as(
-        "SELECT id, user_id, expires_at, revoked FROM refresh_tokens WHERE token_hash = $1",
+    let row: Option<(Uuid, Uuid, chrono::DateTime<Utc>, bool, String, String)> = sqlx::query_as(
+        "SELECT id, user_id, expires_at, revoked, user_agent, ip
+         FROM refresh_tokens WHERE token_hash = $1",
     )
     .bind(&token_hash)
     .fetch_optional(&state.pool)
     .await?;
 
-    let Some((token_id, user_id, expires_at, revoked)) = row else {
+    let Some((token_id, user_id, expires_at, revoked, user_agent, ip)) = row else {
         return Err(AppError::Unauthorized("invalid refresh token".into()));
     };
     if revoked || expires_at <= Utc::now() {
@@ -756,15 +796,20 @@ pub async fn refresh(
         .await?;
 
     let (new_refresh, new_hash) = new_refresh_token();
-    sqlx::query("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1,$2,$3)")
-        .bind(user.id)
-        .bind(&new_hash)
-        .bind(refresh_expiry(&state.config))
-        .execute(&state.pool)
-        .await?;
+    let new_session_id: Uuid = sqlx::query_scalar(
+        "INSERT INTO refresh_tokens (user_id, token_hash, expires_at, user_agent, ip)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id",
+    )
+    .bind(user.id)
+    .bind(&new_hash)
+    .bind(refresh_expiry(&state.config))
+    .bind(&user_agent)
+    .bind(&ip)
+    .fetch_one(&state.pool)
+    .await?;
     let _ = db::prune_user_sessions(&state.pool, user.id, 10).await;
 
-    let access = create_access_token(&state.config, &user)?;
+    let access = create_access_token(&state.config, &user, Some(new_session_id))?;
 
     let _ = write_audit(
         &state.pool,
@@ -834,6 +879,9 @@ pub struct SessionResponse {
     pub id: Uuid,
     pub created_at: chrono::DateTime<Utc>,
     pub expires_at: chrono::DateTime<Utc>,
+    pub last_seen_at: chrono::DateTime<Utc>,
+    pub user_agent: String,
+    pub ip: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -978,6 +1026,9 @@ pub async fn list_sessions(
                 id: row.id,
                 created_at: row.created_at,
                 expires_at: row.expires_at,
+                last_seen_at: row.last_seen_at,
+                user_agent: row.user_agent,
+                ip: row.ip,
             })
             .collect(),
     ))

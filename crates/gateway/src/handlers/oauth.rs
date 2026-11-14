@@ -10,7 +10,7 @@ use news_shared::oauth::{self, PendingOAuth, Provider};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::handlers::auth::issue_session;
+use crate::handlers::auth::{issue_session, request_user_agent};
 use crate::middleware::ClientIp;
 use crate::state::AppState;
 
@@ -130,7 +130,14 @@ pub async fn callback(
         return Err(AppError::Forbidden("account is disabled".into()));
     }
 
-    let session = issue_session(&state, &user, ip, "auth.oauth.success").await?;
+    let session = issue_session(
+        &state,
+        &user,
+        ip,
+        request_user_agent(&headers),
+        "auth.oauth.success",
+    )
+    .await?;
 
     let mut response_headers = HeaderMap::new();
     response_headers.insert(SET_COOKIE, state_cookie("", secure(&state), 0));

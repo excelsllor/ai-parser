@@ -24,6 +24,9 @@ pub struct Claims {
     pub iat: i64,
     pub jti: Uuid,
     pub typ: String,
+    /// Refresh-token (session) id; absent on tokens issued before this claim existed.
+    #[serde(default)]
+    pub sid: Option<Uuid>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +106,11 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
         .is_ok()
 }
 
-pub fn create_access_token(config: &Config, user: &User) -> AppResult<String> {
+pub fn create_access_token(
+    config: &Config,
+    user: &User,
+    session_id: Option<Uuid>,
+) -> AppResult<String> {
     let now = Utc::now();
     let claims = Claims {
         sub: user.id,
@@ -113,6 +120,7 @@ pub fn create_access_token(config: &Config, user: &User) -> AppResult<String> {
         exp: (now + Duration::minutes(config.access_token_ttl_minutes)).timestamp(),
         jti: Uuid::new_v4(),
         typ: "access".to_string(),
+        sid: session_id,
     };
     encode(
         &Header::new(Algorithm::HS256),

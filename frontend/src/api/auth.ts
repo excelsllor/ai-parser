@@ -16,6 +16,9 @@ export interface ProfileSession {
   id: string;
   created_at: string;
   expires_at: string;
+  last_seen_at: string;
+  user_agent: string;
+  ip: string;
 }
 
 export interface LoginResponse {

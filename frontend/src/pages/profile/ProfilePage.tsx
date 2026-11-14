@@ -28,6 +28,7 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   DevicesIcon,
+  PhoneIcon,
   EmailReadIcon,
   EyeIcon,
   EyeOffIcon,
@@ -72,6 +73,56 @@ function formatDate(value: string | undefined): string {
   }).format(date);
 }
 
+function formatDateTime(value: string | undefined): string {
+  if (!value) {
+    return '—';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function deviceLabel(userAgent: string): string {
+  const value = userAgent.toLowerCase();
+  if (/ipad|tablet/.test(value)) {
+    return 'Планшет';
+  }
+  if (/iphone|android|mobile/.test(value)) {
+    return 'Телефон';
+  }
+  return 'Компьютер';
+}
+
+function browserLabel(userAgent: string): string {
+  const value = userAgent.toLowerCase();
+  if (value.includes('yabrowser')) {
+    return 'Яндекс.Браузер';
+  }
+  if (value.includes('edg/')) {
+    return 'Edge';
+  }
+  if (value.includes('opr/') || value.includes('opera')) {
+    return 'Opera';
+  }
+  if (value.includes('firefox')) {
+    return 'Firefox';
+  }
+  if (value.includes('chrome')) {
+    return 'Chrome';
+  }
+  if (value.includes('safari')) {
+    return 'Safari';
+  }
+  return 'Неизвестный браузер';
+}
+
 type FieldErrors = Partial<
   Record<
     | 'profile_name'
@@ -102,7 +153,7 @@ export default function ProfilePage() {
 
   const [me, setMe] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState<string | null>(null);
+
   const [verificationSending, setVerificationSending] = useState(false);
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ProfileSession[]>([]);
@@ -202,7 +253,6 @@ export default function ProfilePage() {
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
 
     const errors: FieldErrors = {};
     if (displayName.trim().length > 120) {
@@ -220,7 +270,7 @@ export default function ProfilePage() {
       });
       setMe(updated);
       setDisplayName(updated.display_name);
-      setNotice('Профиль обновлён.');
+      pushToast('success', 'Профиль обновлён.');
     } catch (caught) {
       setFieldErrors({
         profile_name:
@@ -233,7 +283,6 @@ export default function ProfilePage() {
 
   async function handleEmailVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
 
     const value = currentEmail.trim().toLowerCase();
     if (!value) {
@@ -256,7 +305,6 @@ export default function ProfilePage() {
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
 
     const value = newEmail.trim().toLowerCase();
     const confirmation = confirmEmail.trim().toLowerCase();
@@ -289,7 +337,7 @@ export default function ProfilePage() {
       setNewEmail('');
       setConfirmEmail('');
       setEmailVerified(false);
-      setNotice('Адрес электронной почты обновлён.');
+      pushToast('success', 'Адрес электронной почты обновлён.');
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : 'Не удалось обновить email.';
@@ -311,7 +359,6 @@ export default function ProfilePage() {
     setNewEmail('');
     setConfirmEmail('');
     setFieldErrors({});
-    setNotice(null);
     if (me?.email) {
       setEmailVerified(false);
     }
@@ -319,7 +366,6 @@ export default function ProfilePage() {
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setNotice(null);
 
     const errors: FieldErrors = {};
     if (!currentPassword) {
@@ -353,7 +399,7 @@ export default function ProfilePage() {
       setCurrentPassword('');
       setNewPassword('');
       setRepeatPassword('');
-      setNotice('Пароль изменён.');
+      pushToast('success', 'Пароль изменён.');
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : 'Не удалось сменить пароль.';
@@ -405,11 +451,11 @@ export default function ProfilePage() {
       if (twoFactor.enabled) {
         await setupTwoFactorDisable();
         setTwoFactorStage('disable');
-        setNotice('Код для отключения отправлен на почту.');
+        pushToast('info', 'Код для отключения отправлен на почту.');
       } else {
         await setupTwoFactor();
         setTwoFactorStage('code');
-        setNotice('Код подтверждения отправлен на почту.');
+        pushToast('info', 'Код подтверждения отправлен на почту.');
       }
     } catch (caught) {
       setTwoFactorError(
@@ -443,7 +489,8 @@ export default function ProfilePage() {
       );
       setTwoFactorStage('idle');
       setTwoFactorCode('');
-      setNotice(
+      pushToast(
+        'success',
         disabling
           ? 'Двухфакторная аутентификация отключена.'
           : 'Двухфакторная аутентификация включена.',
@@ -461,9 +508,12 @@ export default function ProfilePage() {
     try {
       await revokeSession(session.id);
       setSessions((previous) => previous.filter((item) => item.id !== session.id));
-      setNotice('Сессия завершена.');
+      pushToast('success', 'Сессия завершена.');
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'Не удалось завершить сессию.');
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось завершить сессию.',
+      );
     }
   }
 
@@ -471,9 +521,12 @@ export default function ProfilePage() {
     try {
       await revokeOtherSessions();
       setSessions((previous) => previous.slice(0, 1));
-      setNotice('Другие сессии завершены.');
+      pushToast('success', 'Другие сессии завершены.');
     } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'Не удалось завершить сессии.');
+      pushToast(
+        'error',
+        caught instanceof Error ? caught.message : 'Не удалось завершить сессии.',
+      );
     }
   }
 
@@ -513,13 +566,6 @@ export default function ProfilePage() {
           Управление персональными данными, контактным email, паролем и текущими сессиями
           в системе.
         </p>
-
-        {notice && (
-          <div className={cx(styles, "pf-notice")} role="status">
-            <CheckCircleIcon />
-            <span>{notice}</span>
-          </div>
-        )}
 
         {me?.email && !me.email_verified_at && (
           <div className={cx(styles, "pf-verify-banner")} role="status">
@@ -1051,7 +1097,6 @@ export default function ProfilePage() {
                       setNewPassword('');
                       setRepeatPassword('');
                       setFieldErrors({});
-                      setNotice(null);
                     }}
                   >
                     Отмена
@@ -1090,8 +1135,18 @@ export default function ProfilePage() {
               {sessions.map((session, index) => (
                 <div className={cx(styles, "pf-session")} key={session.id}>
                   <div className={cx(styles, "pf-session-main")}>
-                    <span className={cx(styles, "pf-session-icon")}>
-                      <DevicesIcon />
+                    <span
+                      className={cx(styles, "pf-session-icon")}
+                      title={deviceLabel(session.user_agent)}
+                      aria-label={deviceLabel(session.user_agent)}
+                    >
+                      {/ipad|tablet|iphone|android|mobile/.test(
+                        session.user_agent.toLowerCase(),
+                      ) ? (
+                        <PhoneIcon />
+                      ) : (
+                        <DevicesIcon />
+                      )}
                     </span>
                     <div>
                       <div className={cx(styles, "pf-session-title")}>
@@ -1101,6 +1156,13 @@ export default function ProfilePage() {
                         )}
                       </div>
                       <div className={cx(styles, "pf-session-meta")}>
+                        <span>{browserLabel(session.user_agent)}</span>
+                        <span>•</span>
+                        <span>IP: {session.ip || '—'}</span>
+                      </div>
+                      <div className={cx(styles, "pf-session-meta")}>
+                        <span>Активность: {formatDateTime(session.last_seen_at)}</span>
+                        <span>•</span>
                         <span>Действует до {formatDate(session.expires_at)}</span>
                         <span>•</span>
                         <span className={cx(styles, "pf-online")}>

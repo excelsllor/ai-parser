@@ -874,8 +874,9 @@
 
 .pf-session-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
   margin-top: 3px;
   color: var(--ws-muted);
   font-size: 10px;
@@ -1262,7 +1263,8 @@ body .pf-avatar {
 }
 
 .pf-online {
-  animation: motion-soft-pulse 2.4s ease-in-out infinite;
+  color: #059669;
+  font-weight: 500;
 }
 
 .pf-avatar {
@@ -1283,11 +1285,6 @@ body .pf-avatar {
 @keyframes motion-fade-up {
   from { opacity: 0; transform: translate3d(0, 8px, 0); }
   to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-
-@keyframes motion-soft-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
 }
 
 .pf-2fa-toggle {
