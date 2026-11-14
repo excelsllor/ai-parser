@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cx } from '@utils/cx';
 
+import AnimatedTabs from './AnimatedTabs';
 import styles from './FormatGuide.module.css';
 
 export interface FormatGuideOption {
@@ -57,32 +58,24 @@ export default function FormatGuide({
         </span>
       </summary>
 
-      <div className={cx(styles, 'format-guide-formats')}>
-        {formats.map((format) => (
-          <button
-            aria-pressed={value === format.id}
-            key={format.id}
-            type="button"
-            onClick={() => onChange(format.id)}
-          >
-            {format.label}
-          </button>
-        ))}
-      </div>
+      <AnimatedTabs
+        className={cx(styles, 'format-guide-formats')}
+        items={formats.map((format) => ({ id: format.id, label: format.label }))}
+        value={value}
+        onChange={onChange}
+        size="sm"
+        ariaLabel={title}
+      />
 
       {targets && targets.length > 0 && (
-        <div className={cx(styles, 'format-guide-targets')}>
-          {targets.map((item) => (
-            <button
-              aria-pressed={target === item.id}
-              key={item.id}
-              type="button"
-              onClick={() => onTargetChange?.(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        <AnimatedTabs
+          className={cx(styles, 'format-guide-targets')}
+          items={targets.map((item) => ({ id: item.id, label: item.label }))}
+          value={target ?? ''}
+          onChange={(next) => onTargetChange?.(next)}
+          size="sm"
+          ariaLabel="Формат"
+        />
       )}
 
       <pre className={cx(styles, 'format-guide-sample')}>{example}</pre>

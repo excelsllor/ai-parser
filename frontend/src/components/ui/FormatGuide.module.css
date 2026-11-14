@@ -52,33 +52,8 @@
 .format-guide-formats,
 .format-guide-targets {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
   width: fit-content;
   margin: 12px 0 0 auto;
-  padding: 3px;
-  border: 1px solid var(--ws-border, #e2e8f0);
-  border-radius: 999px;
-  background: var(--ws-paper, #fff);
-}
-
-.format-guide-formats button,
-.format-guide-targets button {
-  padding: 5px 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ws-muted, #64748b);
-  font: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.format-guide-formats button[aria-pressed='true'],
-.format-guide-targets button[aria-pressed='true'] {
-  background: var(--ws-primary, #2563eb);
-  color: #fff;
 }
 
 .format-guide-chevron {

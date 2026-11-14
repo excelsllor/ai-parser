@@ -1,6 +1,11 @@
+export { default as AnimatedTabs } from './AnimatedTabs';
 export { default as ArcadeGame } from './ArcadeGame';
-export { ARCADE_GAME_CONTROLS, ARCADE_GAME_IDS, ARCADE_GAME_LABELS } from './arcadeGames';
-export type { ArcadeGameId } from './arcadeGames';
+export {
+  ARCADE_GAME_CONTROLS,
+  ARCADE_GAME_IDS,
+  ARCADE_GAME_LABELS,
+} from './ArcadeGame';
+export type { ArcadeGameId } from './ArcadeGame';
 export { default as FormatGuide } from './FormatGuide';
 export type { FormatGuideOption, FormatGuideTarget } from './FormatGuide';
 export * from './icons';

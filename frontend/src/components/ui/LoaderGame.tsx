@@ -4,8 +4,8 @@ import { cx } from '@utils/cx';
 import { useTabIndicator } from '@utils/useTabIndicator';
 
 import ArcadeGame from './ArcadeGame';
-import { ARCADE_GAME_IDS, ARCADE_GAME_LABELS } from './arcadeGames';
-import type { ArcadeGameId } from './arcadeGames';
+import { ARCADE_GAME_IDS, ARCADE_GAME_LABELS } from './ArcadeGame';
+import type { ArcadeGameId } from './ArcadeGame';
 import styles from './LoaderGame.module.css';
 
 interface LoaderGameProps {

@@ -1,0 +1,53 @@
+.tabs {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  width: fit-content;
+  padding: 3px;
+  border: 1px solid var(--ws-border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--ws-paper, #fff);
+}
+
+.tabs-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  background: var(--ws-primary, #2563eb);
+  pointer-events: none;
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.15s ease;
+}
+
+.tabs-button {
+  position: relative;
+  z-index: 1;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ws-muted, #64748b);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.tabs-button[data-tab-active='true'] {
+  color: #fff;
+}
+
+.tabs--sm .tabs-button {
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+.tabs--md .tabs-button {
+  padding: 7px 14px;
+  font-size: 12px;
+}
